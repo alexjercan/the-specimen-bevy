@@ -11,7 +11,7 @@ autoexamples = false
 name = "game"
 
 [workspace]
-members = ["crates/autopilot", "crates/capture", "crates/core", "crates/debug"]
+members = ["crates/assets", "crates/autopilot", "crates/capture", "crates/core", "crates/debug"]
 resolver = "2"
 
 [workspace.package]
@@ -21,12 +21,14 @@ license = "MIT"
 
 [workspace.dependencies]
 bevy = { version = "0.19.1", features = ["jpeg"] }
+bevy_asset_loader = "0.27.0"
 clap = { version = "4.5.49", features = ["derive"] }
 bevy_egui = { version = "0.40.1", default-features = false, features = ["bevy_ui", "default_fonts", "render"] }
 bevy-inspector-egui = { version = "0.37.0", default-features = false, features = ["bevy"] }
 autopilot = { path = "crates/autopilot" }
 capture = { path = "crates/capture" }
 game_core = { path = "crates/core" }
+game_assets = { path = "crates/assets" }
 debug = { path = "crates/debug" }
 
 [features]
@@ -36,6 +38,7 @@ debug = ["game_core/debug"]
 bevy.workspace = true
 clap.workspace = true
 game_core.workspace = true
+game_assets.workspace = true
 autopilot.workspace = true
 capture.workspace = true
 

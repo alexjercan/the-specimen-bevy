@@ -1,15 +1,16 @@
 # Visual provenance and licenses
 
-Records for every third-party input to `art/visuals/`. Nothing here is in
-`assets/` or shipped yet. Before promotion, copy the needed records into
-`credits/` and follow `credits/CREDITS.md`.
+Records for every third-party input to `art/visuals/`. The modular GLBs are
+also shipped under `assets/facility/modules/`. Their distribution record is
+`credits/ASSET-SOURCES.md`; follow `credits/CREDITS.md` for assets that require
+attribution.
 
 | Item | Role | Files in repo | License | Record |
 | --- | --- | --- | --- | --- |
 | Poly Haven `concrete_floor_worn_001` (Dimitrios Savva, Rico Cilliers) | Direct use: concrete maps embedded in `generated/facility.glb` and in the concrete modules in `generated/modules/` | `sources/polyhaven/concrete_floor_worn_001/*.jpg` (3 x 1K JPEG) | CC0 1.0 | `sources/polyhaven/concrete_floor_worn_001/SOURCE.md`, `sources/CC0-1.0.txt` |
 | Quaternius Modular Sci-Fi MegaKit, Standard (free) edition | Visual reference only: module scale, panel rhythm, trim/emissive accents | None. No mesh, texture, or UV data was copied, imported, or traced. | CC0 1.0, from `License_Standard.txt` in the local download | This file |
 | `generated/facility.glb` | Original geometry, made by `scripts/generate_facility.py` from box and cylinder primitives | `generated/facility.glb`, `generated/facility.manifest.json` | Project-authored; embeds the CC0 Poly Haven maps above | `generated/README.md` |
-| `generated/modules/*.glb` | Original module kit and props, made by `scripts/generate_facility.py --target kit` from box and cylinder primitives | 46 GLB files, `generated/modules/modules.manifest.json`. Sign text is a 5x7 block font built from boxes in the generator; no font file is used. | Project-authored; `floor_tile`, `floor_tile_marked`, `wall`, `wall_conduit`, and `wall_doorway` embed the CC0 Poly Haven maps above | `generated/README.md` |
+| `generated/modules/*.glb` | Original module kit and props, made by `scripts/generate_facility.py --target kit` from box and cylinder primitives | 47 GLB files, `generated/modules/modules.manifest.json`; shipped copies at `assets/facility/modules/`. Sign text is a 5x7 block font built from boxes in the generator; no font file is used. | Project-authored; `floor_tile`, `floor_tile_marked`, `wall`, `wall_conduit`, and `wall_doorway` embed the CC0 Poly Haven maps above | `generated/README.md`, `credits/ASSET-SOURCES.md` |
 
 ## Quaternius Modular Sci-Fi MegaKit (reference only)
 

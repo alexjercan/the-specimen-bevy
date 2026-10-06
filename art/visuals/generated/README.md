@@ -6,9 +6,11 @@ records module sizes, bounds, light anchors, the camera, and the GLB hash. It
 is a review artifact, not a shipped asset. It is the frozen baseline for the
 `facility_gallery` example.
 
-`modules/` holds the same module family as separate GLB files, plus original
-props and decorations. The `facility_layout` example composes them in Bevy.
-See "Module kit" below.
+`modules/` holds the source generator output as separate GLB files, plus
+original props and decorations. `scripts/promote-facility-modules.sh` verifies
+and copies the 47 GLBs and their manifest to `assets/facility/modules/` for
+distribution. The `facility_layout` example still uses this source directory
+until its migration to gameplay. See "Module kit" below.
 
 ## Regenerate and check
 
@@ -16,6 +18,8 @@ See "Module kit" below.
 nix develop -c ./scripts/generate-facility.sh
 nix develop -c python3 scripts/check_facility_modules.py
 nix develop -c python3 scripts/check_facility_glb.py
+./scripts/promote-facility-modules.sh
+nix develop -c python3 scripts/check_facility_modules.py assets/facility/modules
 ```
 
 `generate-facility.sh` downloads and verifies the Poly Haven maps with

@@ -1,10 +1,11 @@
 # Visual direction: the facility
 
-Research and candidate references, not approved production assets. The only
-third-party files in this repository are three CC0 Poly Haven concrete maps
-under `sources/`; see `PROVENANCE.md`. Check the license on each download
-before adding it to `assets/`; keep the source URL, author, license version,
-changes, and required credits with the asset.
+Research and candidate references. The approved modular kit has shipped
+copies under `assets/facility/modules/`. Three CC0 Poly Haven concrete maps
+under `sources/` are embedded in five of those GLBs; see `PROVENANCE.md` and
+`credits/ASSET-SOURCES.md`. Check the license on each new download before
+adding it to `assets/`; record source URL, author, license, changes, and any
+required credits.
 
 ## Procedural facility PoC
 
@@ -12,8 +13,9 @@ changes, and required credits with the asset.
 headless Blender from the Nix dev shell. `generated/modules/` has the same
 module family as separate GLB files, with original props and decorations.
 `scripts/generate-facility.sh` writes the kit; the `facility_layout` example
-composes a multi-room layout from it in Bevy. The committed
-`screenshots/facility_layout_*.png` images are the baseline layout. The
+composes a multi-room layout from it in Bevy. The approved visual baseline is
+`screenshots/facility_floor1_v2_*.png`; older
+`screenshots/facility_layout_*.png` images are prototype history. The
 earlier wayfinding study is in `screenshots/facility_wayfinding_*.png`.
 The current example captures `screenshots/facility_floor1_v2_*.png`. Earlier
 `screenshots/facility_floor1_*.png` captures preserve the previous revision:

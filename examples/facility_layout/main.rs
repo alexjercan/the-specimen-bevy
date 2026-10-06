@@ -14,7 +14,7 @@ use bevy::{
 use game::prelude::*;
 use layout::{authored, derive, Glow, Part, MODULES};
 
-const ASSET_ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/art/visuals/generated");
+const ASSET_ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/assets");
 const SHOT_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/art/visuals/screenshots");
 const SHOT_PREFIX: &str = "facility_floor1_v2";
 const GLOWING_MATERIALS: [&str; 4] = ["lamp_cool", "lamp_red", "lamp_fire", "specimen_fluid"];
@@ -167,11 +167,11 @@ struct GlowLight {
 }
 
 fn main() {
-    let modules = PathBuf::from(ASSET_ROOT).join("modules");
+    let modules = PathBuf::from(ASSET_ROOT).join("facility/modules");
     for module in MODULES {
         assert!(
             modules.join(format!("{module}.glb")).is_file(),
-            "missing {module}.glb; run scripts/generate-facility.sh before facility_layout"
+            "missing {module}.glb; run scripts/promote-facility-modules.sh before facility_layout"
         );
     }
 
@@ -198,7 +198,6 @@ fn main() {
     }
 
     AppBuilder::new()
-        .with_asset_path(ASSET_ROOT)
         .build()
         .add_plugins((CapturePlugin::new(30), script))
         .insert_resource(GlobalAmbientLight {
@@ -216,7 +215,12 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
     let plan = derive(&authored()).unwrap_or_else(|error| panic!("invalid layout: {error}"));
     let scenes: BTreeMap<_, _> = MODULES
         .iter()
-        .map(|&module| (module, assets.load(format!("modules/{module}.glb#Scene0"))))
+        .map(|&module| {
+            (
+                module,
+                assets.load(format!("facility/modules/{module}.glb#Scene0")),
+            )
+        })
         .collect();
 
     for piece in &plan.pieces {

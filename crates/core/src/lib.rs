@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use bevy::{
     app::ScheduleRunnerPlugin,
-    asset::AssetPlugin,
     log::{Level, LogPlugin},
     prelude::*,
 };
@@ -11,7 +10,6 @@ const LOG_FILTER: &str = "wgpu=error,naga=warn,bevy_ecs=warn,bevy_time=warn";
 
 #[derive(Default)]
 pub struct AppBuilder {
-    asset_path: Option<String>,
     headless: bool,
 }
 
@@ -21,15 +19,7 @@ impl AppBuilder {
     }
 
     pub fn headless() -> Self {
-        Self {
-            headless: true,
-            ..Self::default()
-        }
-    }
-
-    pub fn with_asset_path(mut self, path: impl Into<String>) -> Self {
-        self.asset_path = Some(path.into());
-        self
+        Self { headless: true }
     }
 
     pub fn build(self) -> App {
@@ -46,15 +36,8 @@ impl AppBuilder {
             .add_plugins(logging);
             return app;
         }
-        let plugins = DefaultPlugins.set(logging);
-        if let Some(path) = self.asset_path {
-            app.add_plugins(plugins.set(AssetPlugin {
-                file_path: path,
-                ..default()
-            }));
-        } else {
-            app.add_plugins(plugins);
-        }
+        app.add_plugins(DefaultPlugins.set(logging))
+            .add_plugins(game_assets::GameAssetsPlugin);
         #[cfg(feature = "debug")]
         app.add_plugins(debug::DebugPlugin);
         app

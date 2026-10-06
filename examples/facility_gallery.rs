@@ -4,7 +4,7 @@ use std::sync::Arc;
 use bevy::asset::{LoadState, RecursiveDependencyLoadState};
 use game::prelude::*;
 
-const SCENE_PATH: &str = "facility.glb#Scene0";
+const SCENE_PATH: &str = "../art/visuals/generated/facility.glb#Scene0";
 const SCREENSHOT_PATH: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/art/visuals/screenshots/facility_gallery.png"
@@ -55,7 +55,6 @@ fn main() {
         .until(loop_written_at(VIDEO_PATH), 60.0)
         .add();
     AppBuilder::new()
-        .with_asset_path(asset_root)
         .build()
         .add_plugins((CapturePlugin::new(30), script))
         .add_systems(Startup, setup)

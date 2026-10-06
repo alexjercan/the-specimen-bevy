@@ -1,14 +1,13 @@
 [package]
-name = "game_core"
+name = "game_assets"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
 
-[features]
-debug = ["dep:debug"]
-
 [dependencies]
 bevy.workspace = true
-game_assets.workspace = true
-debug = { workspace = true, optional = true }
+bevy_asset_loader.workspace = true
+
+[dev-dependencies]
+serde_json = "1"
