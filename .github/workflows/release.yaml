@@ -1,0 +1,23 @@
+name: Native release
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Build native package and export its Nix closure
+        run: |
+          nix build --print-build-logs --print-out-paths > store-path.txt
+          nix-store -qR "$(readlink -f result)" |
+            xargs nix-store --export | gzip -1 > horror_game_bevy-linux.nar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: horror_game_bevy-linux
+          path: |
+            horror_game_bevy-linux.nar.gz
+            store-path.txt

@@ -1,0 +1,17 @@
+# Third-party licenses
+
+Generated from `Cargo.lock` and `about.toml` with `cargo about generate
+about.hbs`. Do not edit the output by hand.
+
+{{#each licenses}}
+## {{{name}}}
+
+{{#each used_by}}
+- {{{crate.name}}} {{{crate.version}}}
+{{/each}}
+
+```
+{{{text}}}
+```
+
+{{/each}}

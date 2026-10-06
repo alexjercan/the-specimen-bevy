@@ -1,0 +1,25 @@
+[package]
+name = "horror_game_bevy"
+description = "Extremely shitty horror game made with bevy and slop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+autoexamples = false
+
+[workspace]
+members = []
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+bevy = "0.19.1"
+clap = { version = "4.5.49", features = ["derive"] }
+
+[dependencies]
+bevy.workspace = true
+clap.workspace = true

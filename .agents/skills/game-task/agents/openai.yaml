@@ -1,0 +1,7 @@
+interface:
+  display_name: "Game Task"
+  short_description: "Used to create a task to a persistent file in the repo"
+  default_prompt: >-
+    Use $game-task to create a task to a persistent file in the repo
+policy:
+  allow_implicit_invocation: true
