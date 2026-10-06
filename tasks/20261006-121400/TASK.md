@@ -168,6 +168,56 @@ stays OPEN for owner review of the visual direction.
 - Remaining: owner review of the image, lighting intensity, and generated look
   against the reference before the module set grows.
 
+## Module kit and Bevy layout (2026-10-06)
+
+The owner approved steps 1-4: split the kit into separate GLB modules under
+`art/visuals/generated/`, then compose an authored multi-room layout in Bevy.
+`facility.glb` and `facility_gallery` stay as the baseline.
+
+- `scripts/generate_facility.py --target kit` writes 18 modules to
+  `art/visuals/generated/modules/` and `modules.manifest.json` (snap type,
+  Bevy bounds, light anchors, hashes). New original modules: `exit_sign`,
+  `wall_vent`, `storage_crate`, `steel_drum`, `shelf_unit`, `workbench`.
+  The kit uses a 2.5 m UV period, so floor and wall textures continue across
+  module joins.
+- `scripts/generate-facility.sh` now writes only the kit by default. The
+  argument `facility` rewrites `facility.glb`. Finding: Blender's "beauty"
+  triangulation breaks ties by memory address. A different script text or
+  hash seed changed the triangle index order of `facility.glb` (same
+  vertices). The kit uses fixed triangulation, fan caps, and a sorted vertex
+  and face order; seeds 0 to 4 gave identical files.
+- `scripts/check_facility_modules.py` checks hashes, root nodes, bounds, snap
+  pivots, the door opening clearance, and UV continuity.
+- `examples/facility_layout/` derives walls, doorways, door leaves, and posts
+  from areas and openings in `layout.rs`, with unit tests in
+  `tests/layout.rs`. Three corridors and three rooms; cool, amber, flicker,
+  dead, red fault, and exit-sign lighting; four prop types. The autopilot run
+  writes `art/visuals/screenshots/facility_layout_*.png` (plan and five eye
+  views).
+- Details and commands: `art/visuals/generated/README.md`.
+
+## Wayfinding and story prototype (2026-10-06)
+
+Owner-approved visual prototype in `facility_layout`. Visual only: no hiding,
+collision, interaction, monster, or encounter mechanics.
+
+- Wall-mounted direction signs (label plate + arrow). Each sign names its
+  reader cell; `derive` computes each arrow from the walkable path and rejects
+  wrong-way and backward arrows. Only EXIT hangs overhead.
+- Route colors on one wall band per corridor segment: orange boiler room,
+  blue storage, green exit. Short branch bands at the intake end. No floor
+  lines.
+- New `boiler` and `lab` rooms. The lab has a broken containment tank as a
+  first-encounter landmark (concept, not implemented). The maintenance room
+  has a central work island and floor clutter; the lab and intake have
+  monster traces.
+- Kit: 46 modules (13 new, 4 obsolete removed); the other 33 module hashes
+  are unchanged. `facility.glb`, the gallery, `assets/`, and the
+  `facility_layout_*.png` baseline images are unchanged.
+- Screenshots: `art/visuals/screenshots/facility_wayfinding_*.png`.
+- Details, color rationale, tests, and commands:
+  `art/visuals/generated/README.md`.
+
 ## Open decisions for owner review
 
 - Generate original assets only, or also allow direct use of selected CC0

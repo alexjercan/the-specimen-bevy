@@ -1,0 +1,13 @@
+[package]
+name = "game_core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+debug = ["dep:debug"]
+
+[dependencies]
+bevy.workspace = true
+debug = { workspace = true, optional = true }

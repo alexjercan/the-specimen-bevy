@@ -1,16 +1,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use autopilot::{frames, AutopilotPlugin};
-use bevy::{
-    asset::{AssetPlugin, LoadState, RecursiveDependencyLoadState},
-    prelude::*,
-};
-use capture::{
-    loops::{loop_end, loop_start, loop_written_at},
-    screenshot::{screenshot_start, screenshot_written_at},
-    CapturePlugin,
-};
+use bevy::asset::{LoadState, RecursiveDependencyLoadState};
+use game::prelude::*;
 
 const SCENE_PATH: &str = "facility.glb#Scene0";
 const SCREENSHOT_PATH: &str = concat!(
@@ -62,11 +54,9 @@ fn main() {
         .act(loop_end)
         .until(loop_written_at(VIDEO_PATH), 60.0)
         .add();
-    App::new()
-        .add_plugins(DefaultPlugins.set(AssetPlugin {
-            file_path: asset_root.into(),
-            ..default()
-        }))
+    AppBuilder::new()
+        .with_asset_path(asset_root)
+        .build()
         .add_plugins((CapturePlugin::new(30), script))
         .add_systems(Startup, setup)
         .add_systems(Update, move_camera)

@@ -3,23 +3,44 @@
 `facility.glb` is an original modular corridor and room, made by
 `scripts/generate_facility.py` in headless Blender. `facility.manifest.json`
 records module sizes, bounds, light anchors, the camera, and the GLB hash. It
-is a review artifact, not a shipped asset.
+is a review artifact, not a shipped asset. It is the frozen baseline for the
+`facility_gallery` example.
+
+`modules/` holds the same module family as separate GLB files, plus original
+props and decorations. The `facility_layout` example composes them in Bevy.
+See "Module kit" below.
 
 ## Regenerate and check
 
 ```sh
 nix develop -c ./scripts/generate-facility.sh
+nix develop -c python3 scripts/check_facility_modules.py
 nix develop -c python3 scripts/check_facility_glb.py
 ```
 
 `generate-facility.sh` downloads and verifies the Poly Haven maps with
 `fetch-facility-textures.sh`. Then it runs Blender with
 `--background --factory-startup` and `PYTHONHASHSEED=0`. Blender comes from
-the dev shell (5.2.2 LTS at the time of writing). With that Blender, repeated
-runs gave byte-identical GLBs. The generator has no random input. The checker
-reads the GLB with only the Python standard library. It checks the world
-bounds, the slab height, the named nodes, the camera and light anchor
-positions, and that the images are embedded JPEGs.
+the dev shell (5.2.2 LTS at the time of writing). The generator has no random
+input.
+
+With no argument, the script writes only the module kit
+(`--target kit`). The kit is byte-stable: runs with `PYTHONHASHSEED` 0 to 4
+gave the same 18 GLB hashes. For the kit, the generator triangulates quads
+with a fixed diagonal, caps cylinders with triangle fans, and writes vertices
+and faces in a sorted order.
+
+`./scripts/generate-facility.sh facility` rewrites `facility.glb`. Do not do
+this unless you want a new baseline. The legacy path keeps Blender's "beauty"
+triangulation. That triangulation breaks ties by memory address, so a
+different script text or hash seed can give a different triangle index order
+for the same vertices. The committed `facility.glb` is the original file
+(SHA-256 `7367a56d...`).
+
+`check_facility_glb.py` reads `facility.glb` with only the Python standard
+library. It checks the world bounds, the slab height, the named nodes, the
+camera and light anchor positions, and that the images are embedded JPEGs.
+`check_facility_modules.py` checks the kit; see "Module kit".
 
 ## Units and axes
 
@@ -106,3 +127,256 @@ Put `PointLight`s at these anchors. A directional light does not reach the
 interior, because the ceiling closes the scene. The intensities are not
 calibrated: tune them from the Bevy screenshot. The Blender preview used about
 4:1 power between a ceiling light and the red lamp.
+
+## Module kit
+
+`modules/<name>.glb` holds one module per file. Each file has one root node
+with the module name, an identity transform, and one mesh. The front of each
+module faces Bevy **-Z**. `modules/modules.manifest.json` records, per module:
+the category, the snap type, the Bevy-space bounds, the triangle count, the
+materials, the light anchor and color for light fixtures, and the GLB hash.
+
+| Snap | Pivot |
+| --- | --- |
+| `cell_center` | Cell center on the floor top. Place at (2.5 i, 0, 2.5 k). |
+| `edge_center` | Middle of a cell edge on the floor top. Length along X. Rotate about Y so that -Z points into the area. |
+| `vertex` | Grid vertex on the floor top. |
+| `door_hinge` | Hinge edge on the floor. The leaf extends along +X. |
+| `wall_mount` | Back center on the wall face. The fixture extends to -Z. The height is chosen at placement. |
+| `floor` | Bottom center on the floor top. |
+
+| Module | Category | Snap | Size x/y/z (m) | Triangles | KiB |
+| --- | --- | --- | --- | --- | --- |
+| `floor_tile` | floor | `cell_center` | 2.5 x 0.1 x 2.5 | 44 | 380 |
+| `floor_tile_marked` | floor | `cell_center` | 2.5 x 0.103 x 2.5 | 68 | 384 |
+| `ceiling_tile` | ceiling | `cell_center` | 2.5 x 0.22 x 2.5 | 72 | 9 |
+| `wall` | wall | `edge_center` | 2.5 x 3.0 x 0.25 | 156 | 394 |
+| `wall_conduit` | wall | `edge_center` | 2.5 x 3.0 x 0.375 | 276 | 404 |
+| `wall_doorway` | wall | `edge_center` | 2.5 x 3.0 x 0.278 | 524 | 436 |
+| `door_panel` | door | `door_hinge` | 1.18 x 2.18 x 0.13 | 92 | 14 |
+| `wall_post` | structure | `vertex` | 0.38 x 3.0 x 0.38 | 56 | 8 |
+| `ceiling_light_cool` / `_dead` / `_amber` | fixture | `cell_center` | 1.4 x 0.22 x 0.32 | 104 | 12 |
+| `wall_lamp_red` | fixture | `wall_mount` | 0.24 x 0.32 x 0.16 | 204 | 18 |
+| `fuse_panel` | decoration | `wall_mount` | 1.1 x 1.3 x 0.09 | 1564 | 167 |
+| `exit_sign` | decoration | `wall_mount` | 0.5 x 0.2 x 0.07 | 92 | 13 |
+| `wall_vent` | decoration | `wall_mount` | 0.6 x 0.4 x 0.04 | 248 | 30 |
+| `storage_crate` | prop | `floor` | 1.02 x 0.7 x 0.825 | 104 | 14 |
+| `steel_drum` | prop | `floor` | 0.6 x 0.91 x 0.6 | 352 | 24 |
+| `shelf_unit` | prop | `floor` | 1.8 x 2.0 x 0.508 | 672 | 72 |
+| `workbench` | prop | `floor` | 1.6 x 1.5 x 0.7 | 216 | 27 |
+
+The original visual fuse panel is a wall-mounted steel cabinet with a MAIN
+label, a breaker grid, two yellow tripped switches, and a small latch. It is
+not a working electrical system. Its GLB bounds and SHA-256 are recorded in
+`modules.manifest.json` and checked with the other modules.
+
+The initial 18-module kit was about 2.3 MB; later modules, including the
+fuse panel, extend that kit. The five concrete modules (floors and walls)
+each embed their own copy of the three 1K Poly Haven JPEGs (about 380 KB), so
+Bevy loads one image set per module file. A shared external-image `.gltf`
+would avoid this. It is a known cost of separate GLB files.
+
+Differences from the modules inside `facility.glb`:
+
+- UV period 2.5 m instead of 3.0 m: one texture repeat per tile. Floors and
+  walls tile without a texture jump at module joins. The Poly Haven scan is
+  drawn about 17% smaller than its real size.
+- Fixed triangulation and fan caps (see above). The shapes are the same, but
+  `wall_conduit`, `wall_lamp_red`, and the ceiling lights have a few more
+  triangles (cylinder caps).
+- New materials: `lamp_green` (emissive), `paint_crate`, `paint_drum`.
+- New modules: `exit_sign`, `wall_vent`, `storage_crate`, `steel_drum`,
+  `shelf_unit`, `workbench`. All are box and cylinder primitives from the
+  generator. No third-party mesh is used.
+
+`check_facility_modules.py` (standard library only) checks the kit against
+the manifest: the file set, hashes and sizes; one identity root node per
+file; embedded JPEG images and repeat samplers; the bounds, which it computes
+from the vertex data; the snap contract for each snap type; that no triangle
+of `wall_doorway` enters the 1.2 x 2.2 m opening and that `door_panel` fits
+it; and texture continuity. For continuity it checks that the UV period
+divides the tile and that each textured vertex has the UV of the box
+projection, modulo 1. Thus the UVs at the two sides of a joint agree.
+
+## Bevy composition (`facility_layout`)
+
+`examples/facility_layout/` composes the kit in Bevy from an authored layout
+in `layout.rs`. The layout gives areas as cell rectangles, openings (passage
+or door, closed or open by an angle), ceiling lights, wall mounts, and props.
+The example does not place walls by hand. `derive` makes:
+
+- one floor and one ceiling tile per cell;
+- one wall on each cell edge between different areas, or between an area and
+  empty space. A shared wall uses the style of the first area in the list and
+  faces it;
+- a `wall_doorway` and a `door_panel` on each door edge, and nothing on a
+  passage edge;
+- posts at corners, wall ends, T-joints, and changes of wall style or facing,
+  and on every second vertex of a straight run. The other joints show a plain
+  wall-to-wall seam, to show the texture continuity;
+- point lights from the fixture states: cool, amber, flicker, dead (no light),
+  a pulsing red fault lamp, and a green exit sign.
+
+`derive` returns an error for overlapping areas, openings inside one area,
+passages to empty space, wall mounts on passages, door frames, trim bands or
+conduit, and props that are near a wall or block a door swing zone. The unit
+tests are in `examples/facility_layout/tests/layout.rs`.
+
+The current first floor uses sixteen areas on a 2.5 m grid:
+
+| North to south | West | Center | East |
+| --- | --- | --- | --- |
+| Far north | maintenance | EXIT room, service below | smaller security, office below |
+| Upper middle | utility, west hall | open reception with desk | east hall, red-lit storage |
+| Lower middle | west hall | intake | east hall |
+| Bottom | boiler (one door), west hall | damaged lab | east hall, solo locker hiding room |
+
+The EXIT is a 4 x 4 tile objective room. Its north edge has the exterior
+EXIT door; its internal doors join service, the relocated 3 x 2 tile office,
+and the smaller 2 x 3 tile security room. The fuse panel on its north wall is
+an original Blender-generated visual prototype: breakers, indicators, and
+labeling communicate the objective, but it has no input, power state, or
+gameplay logic. Service, intake, and both halls remain one cell wide.
+Reception replaces the former narrow cross and its four isolated wall/ceiling
+blocks; its desk and papers sit away from its open center path and hall
+entrances. Short lower lateral links connect intake to the halls and
+three-cell-wide lab. The halls join the lab at its west and east doors; the
+center route has independent bypasses. Utility opens from the west hall;
+the hiding room has only one east-hall entrance and lockers are visual
+concepts without hiding mechanics. Boiler has only a west-hall entrance and
+is not a bypass. Red-lit storage opens from the east hall, not office or
+security. EXIT arrows on both faces of ceiling hangers follow the route for
+each reader. Authored colored floor route lines are hidden pending a separate
+design pass; generic route modules and path tests remain.
+
+The earlier `facility_floor1_*.png` revision had a narrow cross with four
+isolated blocks, an EXIT door on service, and a larger top-right office.
+Those images are retained as history; `facility_floor1_v2_*.png` shows this
+current plan.
+
+```sh
+nix develop -c cargo test --example facility_layout
+nix develop -c xvfb-run -a cargo run --example facility_layout
+```
+
+The current run writes `art/visuals/screenshots/facility_floor1_v2_*.png` and
+exits. The earlier `facility_floor1_*.png`, `facility_layout_*.png` baseline,
+and `facility_wayfinding_*.png` study are preserved. The plan view is
+orthographic from above, with ceilings
+and ceiling lights hidden. Other views are at 1.6 m eye height with distance
+fog. Light intensities are not calibrated. There is no player controller or
+collision.
+
+## Archived wayfinding study (`facility_wayfinding_*`)
+
+The area coordinates, fixture locations, line routes, and capture list below
+describe the earlier study, not the current `facility_layout` example.
+
+This was an earlier visual prototype in the `facility_layout` example. It
+included signs, colored floor route lines, a boiler room, a lab, clutter, and
+hiding-space silhouettes. It has no gameplay: no hiding, collision, interaction, monster,
+or encounter. The first encounter in the lab is a concept for review. It is
+not implemented.
+
+New areas: `boiler` (-3, -4)..(-2, -3), off the west arm of the cross, and
+`lab` (-3, -2)..(-1, -1), behind the open side door of the intake.
+
+### Signs
+
+- Directional signs are on walls. Each row is a `sign_label_*` plate and a
+  `sign_arrow`. A `WallSign` fixture names its reader cell. The reader faces
+  the wall. `derive` computes the arrow from the shortest walkable path from
+  the reader cell: the first move that turns or leaves a junction gives Left,
+  Right, or Ahead. A wrong or backward arrow is an error. An arrow is on the
+  side that it points to.
+- Signs: `<- BOILER ROOM` and `<- MAINTENANCE` on the cross wall to the left
+  of the intake; `STORAGE ->` and `OFFICE ^` on the wall to the right; and
+  `<- MAINTENANCE`, `STORAGE ->`, `OFFICE ->` across from the boiler-room door.
+- Only EXIT hangs from the ceiling (`sign_hanger`), as in a hospital. Both
+  faces carry `sign_label_exit` and a downward `sign_arrow`, and each face
+  reads correctly (not mirrored) for the person in front of it. The down arrow
+  means "exit ahead": the shortest exit path from the hanger cell starts
+  straight ahead for the reader of the front face (the face that points along
+  `facing`). `derive` rejects a hanger whose front reader must turn or turn
+  back. The back face carries the same graphic as an exit-route marker. It
+  makes no direction claim. Four hangers: intake, both cross arms, service.
+  The bottom is at 2.2 m.
+- Door plaques above the doors name the room behind them.
+- The tests check, per wall sign and viewpoint: the arrow direction against
+  the path, line of sight (walls, door openings, hangers), a view angle of 45
+  degrees or less, a look-up angle under 25 degrees, and a distance of at most
+  40 times the 0.112 m cap height.
+
+### Route colors
+
+| Color | Destination | Why |
+| --- | --- | --- |
+| orange | boiler room | heat and hazard |
+| blue | storage | neutral service color, clear against orange |
+| green | exit | the usual egress color, same as the EXIT signs |
+
+Maintenance and office have signs only. More line colors would make the dark
+cross too busy. The chip on each label has its route color.
+
+The route lines are painted on the floor (`route_line_*`, snap `floor_line`,
+0.1 m wide, 3 mm high, walkable, scaled along X). There are no wall bands. A
+`RouteLine` runs along `heading` for `cells` cells, 0.55 m from the cell
+center toward `side`. This is inside the yellow floor stripes at 0.95 m, and
+0.5 m clear of the wall faces. At the intake end, an orange line on the left
+and a blue line on the right mark the split. Each line runs into the
+junction and turns there on the inside of its turn. The next line starts at
+the outer edge of the first line, so the corner has no gap and no overlap.
+Green runs the service corridor and stops 0.25 m short of the exit door. A
+line also stops 0.25 m short of any wall or door frame.
+
+`derive` rejects a line against the route, on the outside of a turn, that
+turns without a line on the new leg, or that crosses a prop, a walkable
+decal, a floor stripe, or another line. The tests also check that each line
+runs through every junction on its path, that the corners join, that the
+line midpoints are on free floor, and that no cell carries more than two
+colors.
+
+### Boiler room, lab, and clutter
+
+- Boiler room: `boiler_unit` with a flickering fire light, `pipe_manifold`,
+  `tool_pegboard` (one missing-tool outline), `concept_crawl_vent`, and a
+  `vent_grille` on the floor.
+- Lab (first-encounter concept): `concept_containment_tank`, a cage and glass
+  tank with the front broken out, shards and fluid residue on the floor, and a
+  weak flickering teal light inside. The breach faces the lab door. Light
+  `glass_edge` rims mark the jagged hole. The checker fails if any tank
+  triangle closes the breach box (`breach_bevy` in the manifest).
+  `lab_console`, a tipped chair, papers with a three-toe print smudge, drag
+  marks toward the door, and claw marks inside the lab and in the intake.
+- Maintenance (lived-in, disturbed): a freestanding `work_island` with tools
+  and papers on top, under the amber light, plus a tipped chair, a spilled
+  drum, a tipped toolbox, papers, claw marks, and the hiding table.
+- Hiding silhouettes (visual concepts only): `concept_locker`,
+  `concept_table` (clear space under the top), `concept_crawl_vent`.
+- Floor papers and drag marks are `walkable` decals (3 cm or less). Other props
+  may not overlap. A test fills the floor on a 0.1 m grid with a 0.3 m body
+  radius: every doorway and every free cell center must connect. The work
+  island has a clear aisle of at least 0.5 m on all sides.
+
+### Views and commands
+
+```sh
+scripts/generate-facility.sh
+python3 scripts/check_facility_modules.py
+nix develop -c cargo test --example facility_layout
+nix develop -c xvfb-run -a cargo run --example facility_layout
+```
+
+The earlier run wrote `art/visuals/screenshots/facility_wayfinding_*.png`: `plan`,
+`intake`, `cross`, `maintenance`, `storage`, `service` (the baseline cameras
+on the new layout), `signage` (intake wall signs and EXIT hanger),
+`signage_boiler` (the sign across from the boiler door), `boiler`, `lab` (the
+broken tank), `workshop` (the work island and clutter), and `hiding_locker`,
+`hiding_table`, `hiding_vent`. The committed `facility_layout_*.png` images
+are the baseline. This run does not write them.
+
+Limitations: the glyphs are a 5x7 block font made from boxes (no font file).
+Light intensities are not calibrated. The glass is alpha-blended and casts no
+shadow. The arrow rule uses cell paths, not a navigation mesh. Line of sight
+checks walls, door openings, posts, and EXIT hangers, but ignores props.
+There is no player, collision, or interaction.

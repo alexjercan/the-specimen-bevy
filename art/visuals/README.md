@@ -8,10 +8,32 @@ changes, and required credits with the asset.
 
 ## Procedural facility PoC
 
-`generated/facility.glb` is an original modular corridor and room, made by
-`scripts/generate-facility.sh` in headless Blender from the Nix dev shell. The
-Quaternius MegaKit is a reference only. See `generated/README.md` for the
-grid, the axes, the module sizes, and the recommended Bevy camera and lights.
+`generated/facility.glb` is an original modular corridor and room, made in
+headless Blender from the Nix dev shell. `generated/modules/` has the same
+module family as separate GLB files, with original props and decorations.
+`scripts/generate-facility.sh` writes the kit; the `facility_layout` example
+composes a multi-room layout from it in Bevy. The committed
+`screenshots/facility_layout_*.png` images are the baseline layout. The
+earlier wayfinding study is in `screenshots/facility_wayfinding_*.png`.
+The current example captures `screenshots/facility_floor1_v2_*.png`. Earlier
+`screenshots/facility_floor1_*.png` captures preserve the previous revision:
+it had a narrow cross and four isolated ceiling/wall blocks at its sides, an
+EXIT door directly on service, and a larger top-right office. The current
+plan has an open reception with a desk, from which narrow west and east halls
+loop through intake and the damaged lab. The north EXIT is a distinct
+objective room with a nonfunctional visual fuse-panel prototype. It opens
+internally to service, the relocated office, and the smaller top-right
+security room. Red-lit middle-right storage connects via the east hall, not
+directly to office or security. A utility room sits left-middle and a solo
+locker hiding room sits lower-right. Boiler remains bottom-left with one
+entrance. Wall signs and double-sided EXIT hangers follow actual routes.
+Authored colored floor-route fixtures remain hidden pending a separate design
+pass; their generic modules remain available.
+The boiler, disturbed maintenance island, broken containment tank (a
+first-encounter concept, not implemented), and hiding-space silhouettes
+(visual concepts only, no mechanics) remain. The Quaternius MegaKit is a
+reference only. See `generated/README.md` for the grid, the axes, the module
+sizes, the snap rules, and the Bevy cameras and lights.
 
 ## A look worth testing
 

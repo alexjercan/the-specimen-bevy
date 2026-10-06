@@ -1,8 +1,5 @@
-use std::time::Duration;
-
-use bevy::app::ScheduleRunnerPlugin;
-use bevy::prelude::*;
 use clap::Parser;
+use game::prelude::*;
 
 #[derive(Parser)]
 struct Cli {
@@ -11,16 +8,14 @@ struct Cli {
 }
 
 fn main() {
-    let mut app = App::new();
     if Cli::parse().norender {
-        app.add_plugins(
-            MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_millis(10))),
-        )
-        .add_systems(Update, stop_after_eight_frames);
+        AppBuilder::headless()
+            .build()
+            .add_systems(Update, stop_after_eight_frames)
+            .run();
     } else {
-        app.add_plugins(DefaultPlugins).add_systems(Startup, setup);
+        AppBuilder::new().build().add_systems(Startup, setup).run();
     }
-    app.run();
 }
 
 // TODO(horror_game_bevy): Replace the greeting with the first game scene.

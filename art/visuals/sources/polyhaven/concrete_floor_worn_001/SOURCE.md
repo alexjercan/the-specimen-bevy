@@ -10,7 +10,7 @@
 | Real-world size | 3.0 m x 3.0 m per texture tile (API `dimensions`: 3000 mm) |
 | Resolution used | 1K JPEG |
 | Retrieved | 2026-10-06, with `scripts/fetch-facility-textures.sh` |
-| Changes | None. The files are stored and embedded in `generated/facility.glb` byte for byte. |
+| Changes | None. The files are stored and embedded byte for byte in `generated/facility.glb` and in the five concrete modules in `generated/modules/` (`floor_tile`, `floor_tile_marked`, `wall`, `wall_conduit`, `wall_doorway`). |
 
 CC0 does not require attribution. We record the authors for provenance.
 

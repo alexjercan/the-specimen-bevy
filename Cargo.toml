@@ -7,8 +7,11 @@ license.workspace = true
 publish = false
 autoexamples = false
 
+[lib]
+name = "game"
+
 [workspace]
-members = ["crates/autopilot", "crates/capture"]
+members = ["crates/autopilot", "crates/capture", "crates/core", "crates/debug"]
 resolver = "2"
 
 [workspace.package]
@@ -19,17 +22,28 @@ license = "MIT"
 [workspace.dependencies]
 bevy = { version = "0.19.1", features = ["jpeg"] }
 clap = { version = "4.5.49", features = ["derive"] }
+bevy_egui = { version = "0.40.1", default-features = false, features = ["bevy_ui", "default_fonts", "render"] }
+bevy-inspector-egui = { version = "0.37.0", default-features = false, features = ["bevy"] }
 autopilot = { path = "crates/autopilot" }
 capture = { path = "crates/capture" }
+game_core = { path = "crates/core" }
+debug = { path = "crates/debug" }
+
+[features]
+debug = ["game_core/debug"]
 
 [dependencies]
 bevy.workspace = true
 clap.workspace = true
-
-[dev-dependencies]
+game_core.workspace = true
 autopilot.workspace = true
 capture.workspace = true
 
 [[example]]
 name = "facility_gallery"
 path = "examples/facility_gallery.rs"
+
+[[example]]
+name = "facility_layout"
+path = "examples/facility_layout/main.rs"
+test = true

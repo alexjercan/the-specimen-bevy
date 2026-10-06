@@ -14,6 +14,7 @@ use bevy::{
 use crate::CaptureState;
 
 pub const AUDIO_SAMPLE_RATE: u32 = 44_100;
+pub const DEFAULT_FPS: u32 = 30;
 
 #[derive(Clone, Copy)]
 pub struct LoopCapturePlugin {
@@ -29,7 +30,7 @@ impl LoopCapturePlugin {
 
 impl Default for LoopCapturePlugin {
     fn default() -> Self {
-        Self::new(30)
+        Self::new(DEFAULT_FPS)
     }
 }
 
