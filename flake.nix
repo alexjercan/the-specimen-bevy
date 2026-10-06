@@ -104,7 +104,7 @@
           devShells.default = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
               rustToolchain rust-analyzer pkg-config python3 cargo-about ffmpeg xvfb-run trunk
-            ];
+            ] ++ lib.optional (lib.meta.availableOn pkgs.stdenv.hostPlatform pkgs.blender) pkgs.blender;
             buildInputs = gameLibs;
             LD_LIBRARY_PATH = lib.makeLibraryPath gameLibs;
             RUST_BACKTRACE = "1";

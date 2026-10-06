@@ -1,9 +1,17 @@
 # Visual direction: the facility
 
-Research and candidate references, not approved production assets. No
-third-party files have been copied into this repository. Check the license on
-each download before adding it to `assets/`; keep the source URL, author,
-license version, changes, and required credits with the asset.
+Research and candidate references, not approved production assets. The only
+third-party files in this repository are three CC0 Poly Haven concrete maps
+under `sources/`; see `PROVENANCE.md`. Check the license on each download
+before adding it to `assets/`; keep the source URL, author, license version,
+changes, and required credits with the asset.
+
+## Procedural facility PoC
+
+`generated/facility.glb` is an original modular corridor and room, made by
+`scripts/generate-facility.sh` in headless Blender from the Nix dev shell. The
+Quaternius MegaKit is a reference only. See `generated/README.md` for the
+grid, the axes, the module sizes, and the recommended Bevy camera and lights.
 
 ## A look worth testing
 

@@ -8,7 +8,7 @@ publish = false
 autoexamples = false
 
 [workspace]
-members = []
+members = ["crates/autopilot", "crates/capture"]
 resolver = "2"
 
 [workspace.package]
@@ -17,9 +17,19 @@ edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
-bevy = "0.19.1"
+bevy = { version = "0.19.1", features = ["jpeg"] }
 clap = { version = "4.5.49", features = ["derive"] }
+autopilot = { path = "crates/autopilot" }
+capture = { path = "crates/capture" }
 
 [dependencies]
 bevy.workspace = true
 clap.workspace = true
+
+[dev-dependencies]
+autopilot.workspace = true
+capture.workspace = true
+
+[[example]]
+name = "facility_gallery"
+path = "examples/facility_gallery.rs"
