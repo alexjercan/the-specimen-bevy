@@ -4,7 +4,7 @@ use bevy::{
 };
 use bevy_enhanced_input::prelude::*;
 
-use crate::levels::{Door, DoorOf, DoorRef, DoorSwing, Doors, Passage, Room};
+use crate::levels::{Door, DoorOf, DoorRef, DoorSwing, Doors, Passage, PropCollider, Room};
 
 use super::collision;
 
@@ -75,6 +75,7 @@ impl Plugin for PlayerControllerPlugin {
         app.init_resource::<PlayerControlsEnabled>()
             .add_input_context::<PlayerController>()
             .add_observer(attach_input)
+            .add_observer(collision::attach_prop_collider)
             .add_observer(on_move)
             .add_observer(on_move_complete)
             .add_observer(on_run)
@@ -180,6 +181,7 @@ fn apply_input(
     links: Query<(&DoorRef, &DoorOf)>,
     doors: Query<(&Door, &DoorSwing)>,
     passages: Query<&Passage>,
+    props: Query<(&PropCollider, &Transform), Without<PlayerController>>,
     mut players: Query<(&mut Transform, &mut PlayerInput), With<PlayerController>>,
 ) {
     if !enabled.0 {
@@ -200,7 +202,7 @@ fn apply_input(
         let speed = if input.running { RUN_SPEED } else { WALK_SPEED };
         let delta = direction * speed * time.delta_secs();
         if delta != Vec3::ZERO {
-            let obstacles = collision::colliders(&rooms, &links, &doors, &passages);
+            let obstacles = collision::colliders(&rooms, &links, &doors, &passages, &props);
             let start = transform.translation.xz();
             let next = collision::move_player(start, delta.xz(), &obstacles);
             transform.translation.x = next.x;

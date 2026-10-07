@@ -1,6 +1,6 @@
 # Plan facility prototype promotion and gameplay architecture
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 0
 - TAGS: backlog
 
@@ -82,6 +82,10 @@ Suggested dependency order: 1 -> 2 -> 3; 1 -> 4 -> 5; (3 + 5) -> 6; 5 -> 7; (5 +
 - Treat **only** `facility_floor1_v2_*` as the approved visual/design baseline; old gallery/cross/wayfinding/floor1 captures are superseded, not current design. Do not silently erase authored history: confirm deletion of older screenshots and frozen `facility.glb` after migration, versus keeping archives under `art/` (not in shipped assets).
 - `dab90d1` is already `HEAD -> master`. Recommend **additive cleanup commit** after migration to preserve history; rewriting/amending `master` may affect other clones and is not part of this planning task. Ask explicitly before any history rewrite.
 - Defer floor route-line redesign until there is a full level-wide route scheme. Keep approved red/dark room, reception, exit/fuse room, security room and escape loops. Multi-floor traversal, monster AI and final interaction presentation are later scopes, not hidden requirements of this promotion.
+
+## Closure (2026-10-07)
+
+The planning deliverable and research were recorded; the owner subsequently approved and implemented separate gameplay, asset, and controller slices. This closes the planning task only, not its remaining cleanup or full-game work. The historical architecture proposal above was superseded by the current immediate-mode level builder. Prototype cleanup and history decisions remain in a separate OPEN task.
 
 ## Verification / done when
 

@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 
+use super::player::PlayerController;
+
 use crate::levels::{
-    Door, DoorOf, DoorRef, DoorSwing, Doors, Passage, Room, PANEL_HALF_THICKNESS, PANEL_OFFSET,
-    PANEL_WIDTH,
+    Door, DoorOf, DoorRef, DoorSwing, Doors, Passage, Prop, PropCollider, Room,
+    PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH,
 };
 
 const TILE: f32 = 2.5;
@@ -158,11 +160,48 @@ pub(crate) fn move_player(start: Vec2, delta: Vec2, obstacles: &[(Vec2, Vec2, f3
     position
 }
 
+fn prop_footprint(module: &str) -> Option<PropCollider> {
+    let (min, max) = match module {
+        "storage_crate" => (Vec2::new(-0.51, -0.415), Vec2::new(0.51, 0.41)),
+        "steel_drum" => (Vec2::splat(-0.3), Vec2::splat(0.3)),
+        "drum_spilled" => (Vec2::new(-0.41, -0.35), Vec2::new(0.75, 0.35)),
+        "shelf_unit" => (Vec2::new(-0.9, -0.25), Vec2::new(0.9, 0.258)),
+        "shelf_unit_bins" => (Vec2::new(-0.9, -0.25), Vec2::new(0.9, 0.25)),
+        "shelf_unit_low" => (Vec2::new(-0.6, -0.225), Vec2::new(0.6, 0.225)),
+        "workbench" => (Vec2::new(-0.8, -0.35), Vec2::new(0.8, 0.35)),
+        "concept_table" => (Vec2::new(-0.9, -0.45), Vec2::new(0.9, 0.46)),
+        "concept_locker" => (Vec2::new(-0.3, -0.4873), Vec2::new(0.3144, 0.3)),
+        "work_island" => (Vec2::new(-0.95, -0.45), Vec2::new(0.95, 0.4529)),
+        "lab_console" => (Vec2::new(-0.75, -0.35), Vec2::new(0.75, 0.35)),
+        "boiler_unit" => (Vec2::new(-0.635, -0.7), Vec2::new(0.635, 0.635)),
+        "concept_containment_tank" => (Vec2::new(-0.7327, -0.9189), Vec2::new(0.702, 0.6687)),
+        "chair_tipped" => (Vec2::new(-0.4141, -0.3134), Vec2::new(0.4141, 0.311)),
+        _ => return None,
+    };
+    Some(PropCollider {
+        center: (min + max) / 2.0,
+        half: (max - min) / 2.0,
+    })
+}
+
+pub(crate) fn attach_prop_collider(
+    added: On<Add, Prop>,
+    props: Query<&Prop>,
+    mut commands: Commands,
+) {
+    if let Ok(prop) = props.get(added.entity) {
+        if let Some(collider) = prop_footprint(&prop.0) {
+            commands.entity(added.entity).insert(collider);
+        }
+    }
+}
+
 pub(crate) fn colliders(
     rooms: &Query<(&Room, Option<&Doors>)>,
     links: &Query<(&DoorRef, &DoorOf)>,
     doors: &Query<(&Door, &DoorSwing)>,
     passages: &Query<&Passage>,
+    props: &Query<(&PropCollider, &Transform), Without<PlayerController>>,
 ) -> Vec<(Vec2, Vec2, f32)> {
     let mut walls = Vec::new();
     for (room, room_doors) in rooms {
@@ -216,6 +255,12 @@ pub(crate) fn colliders(
             Vec2::new(PANEL_WIDTH / 2.0, PANEL_HALF_THICKNESS),
             angle,
         ));
+    }
+    for (collider, transform) in props {
+        let (yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
+        let scale = transform.scale.xz();
+        let center = transform.translation.xz() + rotate(collider.center * scale, yaw);
+        obstacles.push((center, collider.half * scale.abs(), yaw));
     }
     obstacles
 }

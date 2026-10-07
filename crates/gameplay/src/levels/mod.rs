@@ -7,7 +7,7 @@ mod render;
 pub use animation::DoorSwing;
 pub use builder::{
     Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Floor, LightEffect, LightIntensity, Passage,
-    Prop, Room, Walls,
+    Prop, PropCollider, Room, Walls,
 };
 pub use doors::{aimed_door, panel_center, panel_top, DoorPanel, DoorPlugin, ToggleDoor};
 pub(crate) use doors::{PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH};

@@ -1,6 +1,6 @@
 # Research and implement first-person controller with headless agent input
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 0
 - TAGS: backlog
 
@@ -38,6 +38,10 @@
 - Compile-test `bevy_enhanced_input` against Bevy 0.19.1 without downgrading Bevy; test actual rig actions, simultaneous axes, diagonals, run hold/release, inactivity, and no vertical movement.
 - Test the same command stream through input injection and real enhanced-input preparation; compare rendered/headless movement with controlled time. Test command errors, paired releases, startup readiness, no hanging, and no GPU/window dependency for `--norender`.
 - Keep integration tests in `crates/gameplay/tests/` or another crate's tests, not in `src`; run fmt, scoped Clippy and workspace checks. Do not launch the game or examples unless the user permits it.
+
+## Closure (2026-10-07)
+
+The research and staged controller/input work described here has been delivered in later slices: enhanced-input gameplay player, headless/rendered tick transport, pose snapshots, interaction input, and basic wall/door/solid-prop collision. The proposed generic named-action channel was not adopted. An external Python launcher remains separate OPEN work; this closure does not claim that agent management or gameplay objectives are complete.
 
 ## Done when
 

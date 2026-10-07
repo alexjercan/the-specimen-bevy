@@ -1,8 +1,8 @@
 # Research and create PoC visuals
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 0
-- TAGS: visuals,research
+- TAGS: visuals, research
 
 ## User facts
 
@@ -217,6 +217,10 @@ collision, interaction, monster, or encounter mechanics.
 - Screenshots: `art/visuals/screenshots/facility_wayfinding_*.png`.
 - Details, color rationale, tests, and commands:
   `art/visuals/generated/README.md`.
+
+## Closure (2026-10-07)
+
+The owner approved the generated facility look and continued to a shipped modular kit. The original PoC research and review are complete. The old open questions below are historical; follow-up lighting, level-design, and cleanup work is tracked separately. Do not infer that every older example or screenshot was approved for deletion.
 
 ## Open decisions for owner review
 

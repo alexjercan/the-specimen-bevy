@@ -87,6 +87,12 @@ pub(crate) fn passage(name: &'static str, position: Vec2) -> impl Bundle {
 pub struct Prop(pub String);
 
 #[derive(Component, Clone, Copy)]
+pub struct PropCollider {
+    pub center: Vec2,
+    pub half: Vec2,
+}
+
+#[derive(Component, Clone, Copy)]
 pub enum LightEffect {
     Flicker(f32),
     Pulse,

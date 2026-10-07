@@ -4,7 +4,7 @@ use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
-    levels::{Door, DoorOf, DoorRef, DoorState, DoorSwing, Passage, Room},
+    levels::{Door, DoorOf, DoorRef, DoorState, DoorSwing, Passage, Prop, PropCollider, Room},
 };
 
 fn app() -> (App, Entity) {
@@ -234,6 +234,61 @@ fn initial_overlap_can_move_out_of_a_wall() {
         .z = -1.2;
     walk(&mut app, KeyCode::KeyS, 5);
     assert!(position(&app, player).z > -0.9);
+}
+
+#[test]
+fn tables_block_movement_but_allow_walking_around_them() {
+    let (mut app, player) = app();
+    let table = app
+        .world_mut()
+        .spawn((
+            Prop("concept_table".to_owned()),
+            Transform::from_xyz(0.0, 0.0, -1.5),
+        ))
+        .id();
+    assert!(app.world().get::<PropCollider>(table).is_some());
+    walk(&mut app, KeyCode::KeyW, 10);
+    assert!(position(&app, player).z > -0.8);
+    walk(&mut app, KeyCode::KeyD, 6);
+    walk(&mut app, KeyCode::KeyW, 10);
+    assert!(position(&app, player).z < -1.8);
+}
+
+#[test]
+fn rotated_shelves_use_their_rotated_footprint_and_current_position() {
+    let (mut app, player) = app();
+    let shelf = app
+        .world_mut()
+        .spawn((
+            Prop("shelf_unit".to_owned()),
+            Transform::from_xyz(0.0, 0.0, -1.5)
+                .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)),
+        ))
+        .id();
+    walk(&mut app, KeyCode::KeyW, 8);
+    assert!(position(&app, player).z > -0.4);
+    app.world_mut()
+        .get_mut::<Transform>(shelf)
+        .unwrap()
+        .translation
+        .x = 5.0;
+    walk(&mut app, KeyCode::KeyW, 8);
+    assert!(position(&app, player).z < -1.5);
+}
+
+#[test]
+fn decorative_props_do_not_block_movement() {
+    let (mut app, player) = app();
+    let sign = app
+        .world_mut()
+        .spawn((
+            Prop("sign_label_lab".to_owned()),
+            Transform::from_xyz(0.0, 0.0, -1.5),
+        ))
+        .id();
+    assert!(app.world().get::<PropCollider>(sign).is_none());
+    walk(&mut app, KeyCode::KeyW, 8);
+    assert!(position(&app, player).z < -1.5);
 }
 
 #[test]
