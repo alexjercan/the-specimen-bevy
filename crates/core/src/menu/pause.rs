@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use game_assets::UiAssets;
 use game_ui::{menu_button, panel, text, theme};
+use gameplay::controller::PlayerControlsEnabled;
 
 use super::{release_cursor, GameState, MenuAction, PauseState};
 
@@ -11,9 +12,14 @@ pub(super) fn plugin(app: &mut App) {
     app.add_systems(Update, toggle_pause.run_if(in_state(GameState::Playing)))
         .add_systems(
             OnEnter(PauseState::Paused),
-            (spawn_pause_menu, freeze_clock, release_cursor),
+            (
+                spawn_pause_menu,
+                freeze_clock,
+                disable_controls,
+                release_cursor,
+            ),
         )
-        .add_systems(OnExit(PauseState::Paused), resume_clock)
+        .add_systems(OnExit(PauseState::Paused), (resume_clock, enable_controls))
         .add_systems(OnExit(GameState::Playing), resume_clock);
 }
 
@@ -28,6 +34,14 @@ fn toggle_pause(
             PauseState::Paused => PauseState::Running,
         });
     }
+}
+
+fn disable_controls(mut enabled: ResMut<PlayerControlsEnabled>) {
+    enabled.0 = false;
+}
+
+fn enable_controls(mut enabled: ResMut<PlayerControlsEnabled>) {
+    enabled.0 = true;
 }
 
 fn freeze_clock(mut time: ResMut<Time<Virtual>>) {

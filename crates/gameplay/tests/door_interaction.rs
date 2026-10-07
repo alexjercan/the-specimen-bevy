@@ -3,7 +3,7 @@ use std::{f32::consts::FRAC_PI_2, time::Duration};
 use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use gameplay::{
-    controller::{PlayerController, PlayerControllerPlugin},
+    controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{
         panel_center, panel_top, Door, DoorPanel, DoorPlugin, DoorState, DoorSwing, ToggleDoor,
     },
@@ -146,6 +146,25 @@ fn f_targets_nearest_panel_and_open_panel_not_old_opening() {
     assert_eq!(
         app.world().get::<Door>(near).unwrap().state,
         DoorState::Closed
+    );
+}
+
+#[test]
+fn paused_player_cannot_toggle_a_door() {
+    let (mut app, _) = app();
+    let entity = door(&mut app, 0.0, -1.5);
+    app.world_mut().resource_mut::<PlayerControlsEnabled>().0 = false;
+    press_f(&mut app);
+    assert_eq!(
+        app.world().get::<Door>(entity).unwrap().state,
+        DoorState::Closed
+    );
+    release_f(&mut app);
+    app.world_mut().resource_mut::<PlayerControlsEnabled>().0 = true;
+    press_f(&mut app);
+    assert_eq!(
+        app.world().get::<Door>(entity).unwrap().state,
+        DoorState::Open
     );
 }
 

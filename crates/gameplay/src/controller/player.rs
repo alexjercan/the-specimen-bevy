@@ -1,5 +1,12 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    window::{CursorGrabMode, CursorOptions, PrimaryWindow},
+};
 use bevy_enhanced_input::prelude::*;
+
+use crate::levels::{Door, DoorOf, DoorRef, DoorSwing, Doors, Passage, Room};
+
+use super::collision;
 
 pub const WALK_SPEED: f32 = 3.0;
 pub const RUN_SPEED: f32 = 6.0;
@@ -9,6 +16,15 @@ pub const PITCH_LIMIT: f32 = 1.54;
 #[derive(Component, Default)]
 #[require(Transform, PlayerInput)]
 pub struct PlayerController;
+
+#[derive(Resource)]
+pub struct PlayerControlsEnabled(pub bool);
+
+impl Default for PlayerControlsEnabled {
+    fn default() -> Self {
+        Self(true)
+    }
+}
 
 #[derive(Component, Default, Clone, Copy, Debug)]
 pub struct PlayerInput {
@@ -56,7 +72,8 @@ impl Plugin for PlayerControllerPlugin {
             app.is_plugin_added::<EnhancedInputPlugin>(),
             "PlayerControllerPlugin requires EnhancedInputPlugin"
         );
-        app.add_input_context::<PlayerController>()
+        app.init_resource::<PlayerControlsEnabled>()
+            .add_input_context::<PlayerController>()
             .add_observer(attach_input)
             .add_observer(on_move)
             .add_observer(on_move_complete)
@@ -65,7 +82,8 @@ impl Plugin for PlayerControllerPlugin {
             .add_observer(on_look)
             .add_systems(Update, apply_input);
         if self.camera {
-            app.add_observer(attach_camera);
+            app.add_observer(attach_camera)
+                .add_systems(Update, update_cursor);
         }
     }
 }
@@ -139,10 +157,37 @@ fn on_look(fire: On<Fire<Look>>, mut players: Query<&mut PlayerInput, With<Playe
     }
 }
 
+fn update_cursor(
+    enabled: Res<PlayerControlsEnabled>,
+    players: Query<(), With<PlayerController>>,
+    mut cursors: Query<&mut CursorOptions, With<PrimaryWindow>>,
+) {
+    let capture = enabled.0 && !players.is_empty();
+    for mut cursor in &mut cursors {
+        cursor.visible = !capture;
+        cursor.grab_mode = if capture {
+            CursorGrabMode::Locked
+        } else {
+            CursorGrabMode::None
+        };
+    }
+}
+
 fn apply_input(
     time: Res<Time>,
+    enabled: Res<PlayerControlsEnabled>,
+    rooms: Query<(&Room, Option<&Doors>)>,
+    links: Query<(&DoorRef, &DoorOf)>,
+    doors: Query<(&Door, &DoorSwing)>,
+    passages: Query<&Passage>,
     mut players: Query<(&mut Transform, &mut PlayerInput), With<PlayerController>>,
 ) {
+    if !enabled.0 {
+        for (_, mut input) in &mut players {
+            *input = PlayerInput::default();
+        }
+        return;
+    }
     for (mut transform, mut input) in &mut players {
         let (yaw, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
         let yaw = yaw - input.look.x * LOOK_SENSITIVITY;
@@ -153,6 +198,13 @@ fn apply_input(
         let movement = input.movement.clamp_length_max(1.0);
         let direction = Quat::from_rotation_y(yaw) * Vec3::new(movement.x, 0.0, -movement.y);
         let speed = if input.running { RUN_SPEED } else { WALK_SPEED };
-        transform.translation += direction * speed * time.delta_secs();
+        let delta = direction * speed * time.delta_secs();
+        if delta != Vec3::ZERO {
+            let obstacles = collision::colliders(&rooms, &links, &doors, &passages);
+            let start = transform.translation.xz();
+            let next = collision::move_player(start, delta.xz(), &obstacles);
+            transform.translation.x = next.x;
+            transform.translation.z = next.y;
+        }
     }
 }

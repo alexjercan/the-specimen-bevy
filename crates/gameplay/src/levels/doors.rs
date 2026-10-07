@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
-use crate::controller::player::{Interact, PlayerController};
+use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
 
 use super::{
     animation::{animate_doors, DoorSwing},
@@ -9,9 +9,9 @@ use super::{
 };
 
 const INTERACT_RANGE: f32 = 2.5;
-const PANEL_WIDTH: f32 = 1.18;
+pub(crate) const PANEL_WIDTH: f32 = 1.18;
 const PANEL_HEIGHT: f32 = 2.2;
-const PANEL_HALF_THICKNESS: f32 = 0.03;
+pub(crate) const PANEL_HALF_THICKNESS: f32 = 0.03;
 pub(crate) const PANEL_OFFSET: Vec3 = Vec3::new(-0.59, 0.0, 0.0);
 
 #[derive(Message)]
@@ -34,9 +34,13 @@ impl Plugin for DoorPlugin {
 fn interact(
     _: On<Start<Interact>>,
     players: Query<&Transform, With<PlayerController>>,
+    enabled: Res<PlayerControlsEnabled>,
     doors: Query<(Entity, &Door, &DoorSwing)>,
     mut toggles: MessageWriter<ToggleDoor>,
 ) {
+    if !enabled.0 {
+        return;
+    }
     for player in &players {
         if let Some(door) = aimed_door(player, &doors) {
             toggles.write(ToggleDoor(door));

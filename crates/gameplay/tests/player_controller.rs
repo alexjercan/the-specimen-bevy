@@ -4,10 +4,12 @@ use bevy::{
     input::{mouse::MouseMotion, InputPlugin},
     prelude::*,
     time::TimeUpdateStrategy,
+    window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
 use bevy_enhanced_input::EnhancedInputPlugin;
 use gameplay::controller::{
-    PlayerController, PlayerControllerPlugin, PlayerInput, RUN_SPEED, WALK_SPEED,
+    PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput, RUN_SPEED,
+    WALK_SPEED,
 };
 
 fn app(camera: bool) -> (App, Entity) {
@@ -37,6 +39,30 @@ fn player_spawns_with_camera_and_wasd_input() {
     let (app, player) = app(true);
     assert!(app.world().get::<Camera3d>(player).is_some());
     assert!(app.world().get::<PlayerInput>(player).is_some());
+}
+
+#[test]
+fn camera_player_captures_cursor_and_pause_releases_it() {
+    let (mut app, player) = app(true);
+    let window = app
+        .world_mut()
+        .spawn((PrimaryWindow, CursorOptions::default()))
+        .id();
+    app.update();
+    let cursor = app.world().get::<CursorOptions>(window).unwrap();
+    assert!(!cursor.visible);
+    assert_eq!(cursor.grab_mode, CursorGrabMode::Locked);
+    app.world_mut().resource_mut::<PlayerControlsEnabled>().0 = false;
+    app.update();
+    let cursor = app.world().get::<CursorOptions>(window).unwrap();
+    assert!(cursor.visible);
+    assert_eq!(cursor.grab_mode, CursorGrabMode::None);
+    app.world_mut().resource_mut::<PlayerControlsEnabled>().0 = true;
+    app.update();
+    assert!(!app.world().get::<CursorOptions>(window).unwrap().visible);
+    app.world_mut().despawn(player);
+    app.update();
+    assert!(app.world().get::<CursorOptions>(window).unwrap().visible);
 }
 
 #[test]

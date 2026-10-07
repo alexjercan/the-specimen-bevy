@@ -10,7 +10,7 @@ use bevy::{
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use game_assets::UiAssets;
 use gameplay::{
-    controller::{PlayerController, PlayerControllerPlugin},
+    controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{Door, DoorPlugin, DoorRef, Room},
 };
 
@@ -158,11 +158,13 @@ fn play_pause_and_main_menu_cycle_without_duplicate_worlds() {
     );
     assert_eq!(count::<With<PauseMenu>>(&mut app), 1);
     assert!(app.world().resource::<Time<Virtual>>().is_paused());
+    assert!(!app.world().resource::<PlayerControlsEnabled>().0);
     assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
 
     press(&mut app, MenuAction::Resume);
     assert_eq!(count::<With<PauseMenu>>(&mut app), 0);
     assert!(!app.world().resource::<Time<Virtual>>().is_paused());
+    assert!(app.world().resource::<PlayerControlsEnabled>().0);
     assert_eq!(
         *app.world().resource::<State<PauseState>>().get(),
         PauseState::Running

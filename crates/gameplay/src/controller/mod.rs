@@ -1,8 +1,9 @@
+mod collision;
 pub mod player;
 pub mod wasd_camera;
 
 pub use player::{
-    PlayerController, PlayerControllerPlugin, PlayerInput, LOOK_SENSITIVITY,
+    PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput, LOOK_SENSITIVITY,
     PITCH_LIMIT as PLAYER_PITCH_LIMIT, RUN_SPEED, WALK_SPEED,
 };
 
