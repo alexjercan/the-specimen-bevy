@@ -9,6 +9,7 @@ use bevy::{
     prelude::*,
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
+use game_audio::{PlaySound, Sound};
 
 use crate::CoreState;
 
@@ -46,7 +47,8 @@ impl Plugin for MenuPlugin {
         if !app.is_plugin_added::<game_ui::GameUiPlugin>() {
             app.add_plugins(game_ui::GameUiPlugin);
         }
-        app.add_sub_state::<GameState>()
+        app.add_message::<PlaySound>()
+            .add_sub_state::<GameState>()
             .add_sub_state::<PauseState>()
             .add_plugins((
                 loading::plugin,
@@ -54,7 +56,7 @@ impl Plugin for MenuPlugin {
                 pause::plugin,
                 complete::plugin,
             ))
-            .add_systems(Update, activate_buttons);
+            .add_systems(Update, (activate_buttons, hover_buttons));
     }
 }
 
@@ -63,18 +65,47 @@ fn activate_buttons(
     mut game: ResMut<NextState<GameState>>,
     mut pause: ResMut<NextState<PauseState>>,
     mut exit: MessageWriter<AppExit>,
+    mut sounds: MessageWriter<PlaySound>,
 ) {
     for (interaction, action) in &buttons {
         if *interaction != Interaction::Pressed {
             continue;
         }
-        match action {
-            MenuAction::Play => game.set(GameState::Playing),
-            MenuAction::Resume => pause.set(PauseState::Running),
-            MenuAction::MainMenu => game.set(GameState::MainMenu),
+        let sound = match action {
+            MenuAction::Play => {
+                game.set(GameState::Playing);
+                Sound::UiConfirm
+            }
+            MenuAction::Resume => {
+                pause.set(PauseState::Running);
+                Sound::UiResume
+            }
+            MenuAction::MainMenu => {
+                game.set(GameState::MainMenu);
+                Sound::UiBack
+            }
             MenuAction::Quit => {
                 exit.write(AppExit::Success);
+                Sound::UiPress
             }
+        };
+        sounds.write(PlaySound {
+            sound,
+            position: None,
+        });
+    }
+}
+
+fn hover_buttons(
+    buttons: Query<&Interaction, (With<MenuAction>, Changed<Interaction>)>,
+    mut sounds: MessageWriter<PlaySound>,
+) {
+    for interaction in &buttons {
+        if *interaction == Interaction::Hovered {
+            sounds.write(PlaySound {
+                sound: Sound::UiHover,
+                position: None,
+            });
         }
     }
 }

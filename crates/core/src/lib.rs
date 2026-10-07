@@ -11,16 +11,19 @@ use bevy::{
     state::app::StatesPlugin,
 };
 use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy_rand::prelude::{ChaCha8Rng, EntropyPlugin};
 use game_assets::GameAssetsState;
 use gameplay::{
     controller::PlayerController,
-    levels::{build_first_floor, FuseSeed},
+    levels::{build_first_floor, FuseSeed, LightIntensity},
 };
 
 pub use menu::{GameState, MenuPlugin, PauseState};
 
 const LOG_FILTER: &str = "wgpu=error,naga=warn,bevy_ecs=warn,bevy_time=warn";
 const EYE_HEIGHT: f32 = 1.6;
+const WINDOWED_AMBIENT_BRIGHTNESS: f32 = 6.0;
+const WINDOWED_LIGHT_SCALE: f32 = 0.45;
 
 #[derive(States, Default, Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum CoreState {
@@ -104,8 +107,15 @@ impl AppBuilder {
                 app.add_plugins(transport::TransportPlugin);
             }
         } else {
-            app.add_plugins(DefaultPlugins.set(logging))
-                .init_state::<CoreState>()
+            app.add_plugins(DefaultPlugins.set(logging));
+            if let Some(seed) = self.seed {
+                let mut bytes = [0; 32];
+                bytes[..8].copy_from_slice(&seed.to_le_bytes());
+                app.add_plugins(EntropyPlugin::<ChaCha8Rng>::with_seed(bytes));
+            } else {
+                app.add_plugins(EntropyPlugin::<ChaCha8Rng>::default());
+            }
+            app.init_state::<CoreState>()
                 .add_plugins((
                     game_assets::GameAssetsPlugin,
                     gameplay::levels::LevelRenderPlugin,
@@ -119,12 +129,21 @@ impl AppBuilder {
                     gameplay::levels::FusePlugin,
                     gameplay::levels::ObjectivePlugin,
                 ))
-                .add_plugins((glue::InteractionHintPlugin, glue::FuseHudPlugin));
+                .add_plugins((glue::InteractionHintPlugin, glue::FuseHudPlugin))
+                .add_plugins((game_audio::GameAudioPlugin, glue::SoundGluePlugin));
             if self.transport {
                 app.add_plugins(transport::RenderedTransportPlugin);
             }
             #[cfg(feature = "debug")]
             app.add_plugins(debug::DebugPlugin);
+            if self.main_plugin.is_none() && !self.transport {
+                app.insert_resource(GlobalAmbientLight {
+                    color: Color::WHITE,
+                    brightness: WINDOWED_AMBIENT_BRIGHTNESS,
+                    ..default()
+                })
+                .add_systems(Update, dim_new_lights);
+            }
         }
         if self.transport {
             app.add_systems(OnEnter(CoreState::Ready), transport_ready);
@@ -154,6 +173,15 @@ impl Plugin for GamePlugin {
     }
 }
 
+fn dim_new_lights(
+    mut lights: Query<(&mut PointLight, &mut LightIntensity), Added<LightIntensity>>,
+) {
+    for (mut light, mut base) in &mut lights {
+        base.0 *= WINDOWED_LIGHT_SCALE;
+        light.intensity = base.0;
+    }
+}
+
 fn core_ready(mut next: ResMut<NextState<CoreState>>) {
     next.set(CoreState::Ready);
 }
@@ -173,3 +201,7 @@ fn player() -> impl Bundle {
 fn spawn_controller(mut commands: Commands) {
     commands.spawn(player());
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/dark_lighting.rs"]
+mod tests;

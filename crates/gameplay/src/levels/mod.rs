@@ -6,6 +6,7 @@ mod fuses;
 mod interaction;
 mod objective;
 mod render;
+mod sounds;
 
 pub use animation::DoorSwing;
 pub use builder::{
@@ -22,3 +23,4 @@ pub use fuses::{
 pub use interaction::{InteractTarget, InteractTargets};
 pub use objective::{Escaped, ObjectivePlugin};
 pub use render::{LevelRenderPlugin, RenderCeilings};
+pub use sounds::{GameplaySound, GameplaySoundKind};

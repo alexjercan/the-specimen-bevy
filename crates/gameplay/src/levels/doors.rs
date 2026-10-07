@@ -8,6 +8,7 @@ use super::{
     builder::{Door, DoorState},
     fuses::FuseInventory,
     interaction::{InteractTarget, InteractTargets},
+    sounds::{GameplaySound, GameplaySoundKind},
 };
 
 pub(crate) const INTERACT_RANGE: f32 = 2.5;
@@ -33,6 +34,7 @@ pub struct DoorPlugin;
 impl Plugin for DoorPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<ToggleDoor>()
+            .add_message::<GameplaySound>()
             .add_observer(interact)
             .add_systems(Update, (toggle_doors, animate_doors).chain())
             .add_systems(PostUpdate, update_panels);
@@ -120,6 +122,7 @@ fn panel_hit(origin: Vec3, direction: Vec3) -> Option<f32> {
 fn toggle_doors(
     mut toggles: MessageReader<ToggleDoor>,
     mut doors: Query<&mut Door, Without<DoorLock>>,
+    mut sounds: MessageWriter<GameplaySound>,
 ) {
     for ToggleDoor(entity) in toggles.read() {
         if let Ok(mut door) = doors.get_mut(*entity) {
@@ -127,6 +130,17 @@ fn toggle_doors(
                 DoorState::Closed => DoorState::Open,
                 DoorState::Open => DoorState::Closed,
             };
+            let position = Vec3::new(door.position.x, 1.0, door.position.y);
+            if door.state == DoorState::Open {
+                sounds.write(GameplaySound {
+                    kind: GameplaySoundKind::DoorUnlatch,
+                    position,
+                });
+            }
+            sounds.write(GameplaySound {
+                kind: GameplaySoundKind::DoorSwing,
+                position,
+            });
         }
     }
 }

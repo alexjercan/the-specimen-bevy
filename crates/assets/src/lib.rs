@@ -85,6 +85,46 @@ pub struct UiAssets {
     pub font: Handle<Font>,
 }
 
+#[derive(AssetCollection, Resource)]
+pub struct SoundAssets {
+    #[asset(path = "sounds/amb/boiler/rumble.wav")]
+    pub boiler: Handle<AudioSource>,
+    #[asset(path = "sounds/amb/roomtone.wav")]
+    pub roomtone: Handle<AudioSource>,
+    #[asset(path = "sounds/door/unlatch/01.wav")]
+    pub door_unlatch: Handle<AudioSource>,
+    #[asset(path = "sounds/door/swing/open/01.wav")]
+    pub door_swing: Handle<AudioSource>,
+    #[asset(path = "sounds/door/shut/01.wav")]
+    pub door_shut: Handle<AudioSource>,
+    #[asset(path = "sounds/fuse/pickup/01.wav")]
+    pub fuse_pickup: Handle<AudioSource>,
+    #[asset(path = "sounds/panel/install/01.wav")]
+    pub panel_install: Handle<AudioSource>,
+    #[asset(path = "sounds/step/subway/01.ogg")]
+    pub step_01: Handle<AudioSource>,
+    #[asset(path = "sounds/step/subway/02.ogg")]
+    pub step_02: Handle<AudioSource>,
+    #[asset(path = "sounds/step/subway/04.ogg")]
+    pub step_04: Handle<AudioSource>,
+    #[asset(path = "sounds/ui/back/01.wav")]
+    pub ui_back: Handle<AudioSource>,
+    #[asset(path = "sounds/ui/confirm/01.wav")]
+    pub ui_confirm: Handle<AudioSource>,
+    #[asset(path = "sounds/ui/denied/01.wav")]
+    pub ui_denied: Handle<AudioSource>,
+    #[asset(path = "sounds/ui/focus/01.wav")]
+    pub ui_focus: Handle<AudioSource>,
+    #[asset(path = "sounds/ui/hover/01.wav")]
+    pub ui_hover: Handle<AudioSource>,
+    #[asset(path = "sounds/ui/pause/01.wav")]
+    pub ui_pause: Handle<AudioSource>,
+    #[asset(path = "sounds/ui/press/01.wav")]
+    pub ui_press: Handle<AudioSource>,
+    #[asset(path = "sounds/ui/resume/01.wav")]
+    pub ui_resume: Handle<AudioSource>,
+}
+
 pub struct GameAssetsPlugin;
 
 impl Plugin for GameAssetsPlugin {
@@ -95,7 +135,8 @@ impl Plugin for GameAssetsPlugin {
                     .continue_to_state(GameAssetsState::Ready)
                     .on_failure_continue_to_state(GameAssetsState::Failed)
                     .load_collection::<FacilityAssets>()
-                    .load_collection::<UiAssets>(),
+                    .load_collection::<UiAssets>()
+                    .load_collection::<SoundAssets>(),
             )
             .add_systems(OnEnter(GameAssetsState::Ready), report_loaded_assets)
             .add_systems(OnEnter(GameAssetsState::Failed), report_failed_assets);

@@ -1,0 +1,10 @@
+[package]
+name = "game_audio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+bevy.workspace = true
+game_assets.workspace = true

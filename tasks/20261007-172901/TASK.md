@@ -8,6 +8,34 @@
 
 Based on approved audio prototypes, add footsteps by movement/surface, door/latch, pickup/panel, flashlight, menu, boiler and ambient loops. Keep UI cues non-spatial and world cues spatial; tune loudness, concurrency and pause/headless behavior. Retain provenance and test event-to-sound triggering without relying on audio output. Depends on audio research.
 
+## Approved catalog selection (2026-10-07)
+
+The approved runtime audio consists of 18 clips: subway step takes 01, 02,
+and 04, three edited recorded-door cues, and current objective, UI, and
+ambience cues. The HTML catalog uses an explicit allowlist. All uncataloged
+audio, including the source recordings for the rendered doors, was removed
+at the user's request; source URLs, license claims, and hashes remain in
+`art/sounds/README.md`. Matching copies are in `assets/sounds/`.
+
+## Integration draft (unvalidated)
+
+`game_assets` now declares explicit audio paths, and `game_audio` handles
+playback, ambience, spatial attenuation, and sink pause. Gameplay emits
+asset-independent door/fuse/panel sound messages. Core glue maps these
+messages and player movement to audio, picks among the three approved steps,
+adds the player listener, and maps menu actions/hover. `bevy_rand` 0.15
+ChaCha8 replaces handwritten fuse selection and footstep random sequences;
+explicit `--seed` retains reproducible fuse selection and seeded windowed
+step sequences. No Rust compilation, Rust tests, or game/audio runtime review
+has been performed after this draft. Footstep cadence, sound levels, spatial
+mix, menu transitions, audio concurrency, and missing-asset handling need
+validation. The boiler loop is loaded but not yet wired to a positional
+emitter; flashlight and monster audio await those gameplay features.
+
+## Starter sound catalog (historical prototype)
+
+The user approved original starter cues plus a browsable catalog before game audio integration. `scripts/generate_sounds.py` produces 11 deterministic 48 kHz mono PCM WAV prototypes (walk/run tile steps, door unlatch/swing/shut, fuse pickup, panel install, UI hover/press, room tone, boiler rumble) in `art/sounds/generated/`. `scripts/build_sound_catalog.py` scans `art/sounds/` and `assets/sounds/`, groups files by category folder, draws WAV peak waveforms and offers browser playback in `art/sounds/catalog.html`. For compressed files it lists a playback link but cannot draw a waveform without a decoder. No game SFX hooks, audio buses, spatial emitters, pause handling or runtime audio are included in this first prototype. Two Python catalog/generator tests and the facility_layout example compile check passed; no browser or game was run. Audition and approve the prototypes before shipping or integrating them. Source and provenance are recorded in `art/sounds/README.md`.
+
 ## Sound inventory research (step 1, 2026-10-07)
 
 Research only. No sound is generated, sourced, downloaded or wired in. No
@@ -362,5 +390,6 @@ notes, crossfaded by mix state. One rare stinger for an earned reveal.
 
 ## Status
 
-Planned only. Do not claim implementation or runtime review. Step 1 (sound
-inventory research) is written above; no audio prototype is approved.
+Integration remains planned only. The selected review clips above have user
+audio approval, but no sound is wired into the game and no runtime mix review
+has occurred. Step 1 (sound inventory research) is written above.

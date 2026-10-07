@@ -1,13 +1,14 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
+use bevy_rand::prelude::ChaCha8Rng;
+use rand_core::{Rng, SeedableRng};
 
 use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
 
 use super::{
     doors::{DoorLock, ExitDoor, INTERACT_RANGE},
     interaction::{InteractTarget, InteractTargets},
+    sounds::{GameplaySound, GameplaySoundKind},
 };
 
 pub const FUSE_COUNT: usize = 3;
@@ -46,6 +47,7 @@ pub struct FusePlugin;
 impl Plugin for FusePlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<InstallFuses>()
+            .add_message::<GameplaySound>()
             .add_observer(attach_inventory)
             .add_observer(use_fuses)
             .add_systems(Update, install_fuses);
@@ -62,6 +64,7 @@ fn use_fuses(
     targets: InteractTargets,
     mut players: Query<(Entity, &Transform, &mut FuseInventory), With<PlayerController>>,
     mut installs: MessageWriter<InstallFuses>,
+    mut sounds: MessageWriter<GameplaySound>,
     mut commands: Commands,
 ) {
     if !enabled.0 {
@@ -76,6 +79,12 @@ fn use_fuses(
                 }
                 taken.push(fuse);
                 inventory.0 += 1;
+                if let Some(position) = targets.anchor(InteractTarget::Fuse(fuse)) {
+                    sounds.write(GameplaySound {
+                        kind: GameplaySoundKind::FusePickup,
+                        position,
+                    });
+                }
                 commands.entity(fuse).despawn();
             }
             Some(InteractTarget::Panel(panel)) => {
@@ -92,12 +101,13 @@ fn use_fuses(
 fn install_fuses(
     mut installs: MessageReader<InstallFuses>,
     mut players: Query<&mut FuseInventory>,
-    mut panels: Query<&mut FusePanel>,
+    mut panels: Query<(&mut FusePanel, &Transform)>,
     exits: Query<Entity, (With<ExitDoor>, With<DoorLock>)>,
+    mut sounds: MessageWriter<GameplaySound>,
     mut commands: Commands,
 ) {
     for install in installs.read() {
-        let (Ok(mut inventory), Ok(mut panel)) = (
+        let (Ok(mut inventory), Ok((mut panel, position))) = (
             players.get_mut(install.player),
             panels.get_mut(install.panel),
         ) else {
@@ -108,6 +118,10 @@ fn install_fuses(
         }
         inventory.0 -= FUSE_COUNT;
         panel.installed = FUSE_COUNT;
+        sounds.write(GameplaySound {
+            kind: GameplaySoundKind::PanelInstall,
+            position: position.translation,
+        });
         for door in &exits {
             commands.entity(door).remove::<DoorLock>();
         }
@@ -117,11 +131,11 @@ fn install_fuses(
 
 pub fn select_fuse_slots(seed: u64, pool: usize) -> [usize; FUSE_COUNT] {
     assert!(pool >= FUSE_COUNT, "fuse pool is smaller than {FUSE_COUNT}");
-    let mut state = seed;
+    let mut rng = ChaCha8Rng::seed_from_u64(seed);
     let mut indices: Vec<usize> = (0..pool).collect();
     let mut slots = [0; FUSE_COUNT];
     for (index, slot) in slots.iter_mut().enumerate() {
-        let pick = index + (splitmix(&mut state) % (pool - index) as u64) as usize;
+        let pick = index + (rng.next_u64() % (pool - index) as u64) as usize;
         indices.swap(index, pick);
         *slot = indices[index];
     }
@@ -130,20 +144,8 @@ pub fn select_fuse_slots(seed: u64, pool: usize) -> [usize; FUSE_COUNT] {
 }
 
 pub(crate) fn run_seed(seed: Option<&FuseSeed>) -> u64 {
-    seed.map(|seed| seed.0).unwrap_or_else(|| {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|elapsed| elapsed.as_nanos() as u64)
-            .unwrap_or_default()
-    })
-}
-
-fn splitmix(state: &mut u64) -> u64 {
-    *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
-    let mut z = *state;
-    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    z ^ (z >> 31)
+    seed.map(|seed| seed.0)
+        .unwrap_or_else(|| ChaCha8Rng::default().next_u64())
 }
 
 pub(crate) fn fuse_center(transform: &Transform) -> Vec3 {

@@ -13,6 +13,7 @@ name = "game"
 [workspace]
 members = [
     "crates/assets",
+    "crates/audio",
     "crates/autopilot",
     "crates/capture",
     "crates/core",
@@ -30,9 +31,11 @@ edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
-bevy = { version = "0.19.1", features = ["jpeg"] }
+bevy = { version = "0.19.1", features = ["jpeg", "wav"] }
 bevy_asset_loader = "0.27.0"
 bevy_enhanced_input = "0.26.0"
+bevy_rand = { version = "0.15.0", features = ["chacha20"] }
+rand_core = "0.10.0"
 clap = { version = "4.5.49", features = ["derive"] }
 bevy_egui = { version = "0.40.1", default-features = false, features = ["bevy_ui", "default_fonts", "render"] }
 bevy-inspector-egui = { version = "0.37.0", default-features = false, features = ["bevy"] }
@@ -40,6 +43,7 @@ autopilot = { path = "crates/autopilot" }
 capture = { path = "crates/capture" }
 game_core = { path = "crates/core" }
 game_assets = { path = "crates/assets" }
+game_audio = { path = "crates/audio" }
 gameplay = { path = "crates/gameplay" }
 debug = { path = "crates/debug" }
 probe = { path = "crates/probe" }

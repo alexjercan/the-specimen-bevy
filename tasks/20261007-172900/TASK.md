@@ -10,4 +10,4 @@ Research rights, provenance and original synthesis for footsteps, door movement/
 
 ## Status
 
-Planned only. Do not claim implementation or runtime review.
+Eleven original Python-synthesized starter WAV prototypes and an HTML listening catalog were authored under `art/sounds/`; see its README. This is a prototype, not approved sound design or game audio integration. Browser audition, mix review, accessibility, and any third-party source research remain outstanding; keep this task OPEN.

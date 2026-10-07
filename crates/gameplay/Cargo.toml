@@ -8,4 +8,6 @@ publish = false
 [dependencies]
 bevy.workspace = true
 bevy_enhanced_input.workspace = true
+bevy_rand.workspace = true
+rand_core.workspace = true
 game_assets.workspace = true
