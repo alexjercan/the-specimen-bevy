@@ -170,6 +170,19 @@ fn forward_follows_pitch_and_strafe_stays_level() {
 }
 
 #[test]
+fn same_frame_turn_steers_flight() {
+    let (mut app, camera) = app();
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::KeyW);
+    turn(&mut app, Vec2::new(300.0, 200.0));
+    let rotation = transform(&app, camera).rotation;
+    let moved = moved(&app, camera);
+    let expected = rotation * Vec3::NEG_Z * step();
+    assert!(moved.abs_diff_eq(expected, 1e-4), "{moved:?}");
+}
+
+#[test]
 fn mouse_without_right_button_does_not_turn() {
     let (mut app, camera) = app();
     let before = transform(&app, camera);

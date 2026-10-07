@@ -66,4 +66,4 @@ path = "examples/facility_gallery.rs"
 
 [[example]]
 name = "facility_layout"
-path = "examples/facility_layout/main.rs"
+path = "examples/facility_layout.rs"

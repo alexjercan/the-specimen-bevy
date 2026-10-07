@@ -36,8 +36,10 @@ impl AppBuilder {
             .add_plugins(logging);
             return app;
         }
-        app.add_plugins(DefaultPlugins.set(logging))
-            .add_plugins(game_assets::GameAssetsPlugin);
+        app.add_plugins(DefaultPlugins.set(logging)).add_plugins((
+            game_assets::GameAssetsPlugin,
+            gameplay::levels::LevelRenderPlugin,
+        ));
         #[cfg(feature = "debug")]
         app.add_plugins(debug::DebugPlugin);
         app

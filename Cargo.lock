@@ -3008,6 +3008,7 @@ dependencies = [
  "bevy",
  "debug",
  "game_assets",
+ "gameplay",
 ]
 
 [[package]]

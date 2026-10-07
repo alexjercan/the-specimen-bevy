@@ -305,6 +305,9 @@ GLYPHS = {
     "N": ("10001", "11001", "10101", "10101", "10011", "10001", "10001"),
     "C": ("01111", "10000", "10000", "10000", "10000", "10000", "01111"),
     "F": ("11111", "10000", "10000", "11110", "10000", "10000", "10000"),
+    "P": ("11110", "10001", "10001", "11110", "10000", "10000", "10000"),
+    "U": ("10001", "10001", "10001", "10001", "10001", "10001", "01110"),
+    "Y": ("10001", "10001", "01010", "00100", "00100", "00100", "00100"),
     "X": ("10001", "10001", "01010", "00100", "01010", "10001", "10001"),
     " ": ("000", "000", "000", "000", "000", "000", "000"),
 }
@@ -1108,6 +1111,9 @@ SIGN_LABELS = {
     "sign_label_storage": ("STORAGE", "sign_plate", "route_blue"),
     "sign_label_maintenance": ("MAINTENANCE", "sign_plate", "steel_dark"),
     "sign_label_office": ("OFFICE", "sign_plate", "steel_dark"),
+    "sign_label_lab": ("LAB", "sign_plate", "steel_dark"),
+    "sign_label_security": ("SECURITY", "sign_plate", "steel_dark"),
+    "sign_label_prep": ("PREP", "sign_plate", "steel_dark"),
     "sign_label_exit": ("EXIT", "route_green", None),
 }
 
@@ -1144,6 +1150,9 @@ KIT = {
     "sign_label_storage": ("sign", "wall_mount", None, {"text": "STORAGE", "text_cap_m": SIGN_CAP}),
     "sign_label_maintenance": ("sign", "wall_mount", None, {"text": "MAINTENANCE", "text_cap_m": SIGN_CAP}),
     "sign_label_office": ("sign", "wall_mount", None, {"text": "OFFICE", "text_cap_m": SIGN_CAP}),
+    "sign_label_lab": ("sign", "wall_mount", None, {"text": "LAB", "text_cap_m": SIGN_CAP}),
+    "sign_label_security": ("sign", "wall_mount", None, {"text": "SECURITY", "text_cap_m": SIGN_CAP}),
+    "sign_label_prep": ("sign", "wall_mount", None, {"text": "PREP", "text_cap_m": SIGN_CAP}),
     "sign_label_exit": ("sign", "wall_mount", None, {"text": "EXIT", "text_cap_m": SIGN_CAP}),
     "sign_arrow": ("sign", "wall_mount", None, {"points": "+X"}),
     "sign_hanger": ("sign", "ceiling_hang", None, None),

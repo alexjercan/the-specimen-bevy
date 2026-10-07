@@ -30,7 +30,7 @@ impl Plugin for ControllerPlugin {
             Update,
             (
                 (release, resume, toggle_hold).chain(),
-                (look, fly).run_if(controller_active),
+                (look, fly).chain().run_if(controller_active),
             )
                 .chain(),
         );
