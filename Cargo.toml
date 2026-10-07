@@ -18,6 +18,7 @@ members = [
     "crates/core",
     "crates/debug",
     "crates/gameplay",
+    "crates/probe",
 ]
 resolver = "2"
 
@@ -38,6 +39,7 @@ game_core = { path = "crates/core" }
 game_assets = { path = "crates/assets" }
 gameplay = { path = "crates/gameplay" }
 debug = { path = "crates/debug" }
+probe = { path = "crates/probe" }
 
 [features]
 debug = ["game_core/debug"]
@@ -50,6 +52,7 @@ game_assets.workspace = true
 gameplay.workspace = true
 autopilot.workspace = true
 capture.workspace = true
+probe.workspace = true
 
 [[example]]
 name = "facility_gallery"

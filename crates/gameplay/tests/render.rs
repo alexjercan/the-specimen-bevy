@@ -94,6 +94,16 @@ fn ready_renders_every_piece_once_under_its_logical_owner() {
 }
 
 #[test]
+fn facility_lights_do_not_render_shadow_cubemaps() {
+    let mut app = app();
+    ready(&mut app);
+    let world = app.world_mut();
+    let lights: Vec<_> = world.query::<&PointLight>().iter(world).collect();
+    assert!(!lights.is_empty());
+    assert!(lights.iter().all(|light| !light.shadow_maps_enabled));
+}
+
+#[test]
 fn rendered_pieces_keep_their_authored_world_placement() {
     let mut app = app();
     ready(&mut app);

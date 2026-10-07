@@ -3,6 +3,7 @@ pub use capture;
 pub use game_assets;
 pub use game_core;
 pub use gameplay;
+pub use probe;
 
 pub mod prelude {
     pub use bevy::prelude::*;
@@ -16,4 +17,5 @@ pub mod prelude {
         screenshot::{screenshot_start, screenshot_written_at},
         CapturePlugin,
     };
+    pub use probe::{ProbeArgs, ProbeConfig, ProbePlugin, Readiness};
 }
