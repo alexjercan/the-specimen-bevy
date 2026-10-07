@@ -37,6 +37,7 @@ pub struct FacilityAssets {
             "facility/modules/sign_label_boiler_room.glb#Scene0",
             "facility/modules/sign_label_storage.glb#Scene0",
             "facility/modules/sign_label_maintenance.glb#Scene0",
+            "facility/modules/sign_label_utility.glb#Scene0",
             "facility/modules/sign_label_office.glb#Scene0",
             "facility/modules/sign_label_lab.glb#Scene0",
             "facility/modules/sign_label_security.glb#Scene0",

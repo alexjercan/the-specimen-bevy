@@ -38,6 +38,11 @@ pub(super) fn spawn_fixtures(commands: &mut Commands) {
         Transform::from_xyz(-1.15, 2.6, -20.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
     ));
     commands.spawn(prop(
+        "sign_label_utility",
+        "sign_label_utility",
+        Transform::from_xyz(-6.15, 2.6, -10.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
         "sign_label_office",
         "sign_label_office",
         Transform::from_xyz(1.15, 2.6, -17.5).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
@@ -71,6 +76,16 @@ pub(super) fn spawn_fixtures(commands: &mut Commands) {
         "concept_crawl_vent",
         "concept_crawl_vent",
         Transform::from_xyz(-13.65, 0.55, 3.1).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "concept_crawl_vent",
+        "concept_crawl_vent",
+        Transform::from_xyz(-13.65, 0.55, -8.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "concept_crawl_vent",
+        "concept_crawl_vent",
+        Transform::from_xyz(13.65, 0.55, -4.5).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
     commands.spawn(prop(
         "trace_claw_marks",
@@ -164,6 +179,26 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         "concept_locker",
         "concept_locker",
         Transform::from_xyz(9.5, 0.0, -9.15).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "concept_locker",
+        "concept_locker",
+        Transform::from_xyz(13.35, 0.0, -12.5).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "shelf_unit_low",
+        "shelf_unit_low",
+        Transform::from_xyz(13.15, 0.0, -6.25).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "workbench",
+        "workbench",
+        Transform::from_xyz(9.5, 0.0, -8.1).with_rotation(Quat::from_rotation_y(PI)),
+    ));
+    commands.spawn(prop(
+        "storage_crate",
+        "storage_crate",
+        Transform::from_xyz(12.0, 0.0, -8.0),
     ));
     commands.spawn(prop(
         "concept_locker",

@@ -63,6 +63,7 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
     assert!((plate.rotation * Vec3::NEG_Z).distance(Vec3::X) < 0.001);
 
     for (module, position, facing) in [
+        ("sign_label_utility", Vec3::new(-6.15, 2.6, -10.0), Vec3::X),
         ("sign_label_lab", Vec3::new(3.85, 2.6, 0.0), Vec3::X),
         (
             "sign_label_security",
@@ -94,6 +95,7 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
         ("concept_locker", 9.5, -9.15, Vec3::NEG_Z),
         ("concept_locker", 13.35, -2.2, Vec3::NEG_X),
         ("concept_locker", 13.35, 2.2, Vec3::NEG_X),
+        ("concept_locker", 13.35, -12.5, Vec3::NEG_X),
         ("concept_locker", -10.0, -16.65, Vec3::NEG_Z),
         ("shelf_unit", 13.35, -18.75, Vec3::NEG_X),
         ("shelf_unit_bins", 8.4, -17.5, Vec3::NEG_X),
@@ -137,6 +139,61 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
                 .contains(Vec2::new(transform.translation.x, transform.translation.z))
         });
         assert!(added.count() > 0, "{name} has no detail props");
+    }
+}
+
+#[test]
+fn prep_and_new_crawl_vents_preserve_room_routes() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_systems(Startup, build_first_floor);
+    app.update();
+
+    let world = app.world_mut();
+    let mut props = world.query::<(&Prop, &Transform)>();
+    let placements: Vec<_> = props
+        .iter(world)
+        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .collect();
+    for (module, position) in [
+        ("shelf_unit_low", Vec3::new(13.15, 0.0, -6.25)),
+        ("workbench", Vec3::new(9.5, 0.0, -8.1)),
+        ("storage_crate", Vec3::new(12.0, 0.0, -8.0)),
+        ("concept_locker", Vec3::new(13.35, 0.0, -12.5)),
+        ("concept_crawl_vent", Vec3::new(-13.65, 0.55, -8.0)),
+        ("concept_crawl_vent", Vec3::new(13.65, 0.55, -4.5)),
+    ] {
+        assert!(
+            placements
+                .iter()
+                .any(|(name, transform)| { name == module && transform.translation == position }),
+            "missing {module} at {position}"
+        );
+    }
+    assert_eq!(
+        placements
+            .iter()
+            .filter(|(name, _)| name == "concept_crawl_vent")
+            .count(),
+        3
+    );
+
+    let mut rooms = world.query::<(&Name, &Room)>();
+    let prep = rooms
+        .iter(world)
+        .find(|(name, _)| name.as_str() == "prep")
+        .unwrap()
+        .1
+         .0;
+    for (x, z, half_x, half_z) in [
+        (13.15, -6.25, 0.225, 0.6),
+        (9.5, -8.1, 0.8, 0.35),
+        (12.0, -8.0, 0.5, 0.4),
+    ] {
+        assert!(prep.contains(Vec2::new(x - half_x, z - half_z)));
+        assert!(prep.contains(Vec2::new(x + half_x, z + half_z)));
+        assert!(Vec2::new(x, z).distance(Vec2::new(6.25, -5.0)) > 1.5);
+        assert!(Vec2::new(x, z).distance(Vec2::new(10.0, -3.75)) > 1.5);
     }
 }
 

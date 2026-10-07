@@ -1,6 +1,6 @@
 # Review facility layout, landmarks and objective routes
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 95
 - TAGS: backlog, level-design
 
@@ -18,6 +18,10 @@ Research only: no level edits, tests, game run, or measured playtest. Findings b
 - Additive out-and-back hop sums for the ten combinations (not actual multi-stop tour lengths): office+maintenance+security 14; office+maintenance+hiding 15; office+utility+security 15; office+hiding+security 15; office+maintenance+utility 15; maintenance+utility+security 16; maintenance+hiding+security 16; office+utility+hiding 16; maintenance+utility+hiding 17; utility+hiding+security 17. The 14-17 spread is a rough difficulty indicator; shared paths and search order may change the real ranking. Without hints identifying active rooms, a blind player may search all five sites regardless of seed.
 - Door plaques identify maintenance, office and security, but no utility or hiding plaque asset exists. Utility is the clearest signage candidate; hiding may intentionally remain unmarked. Existing color accents distinguish boiler, storage and lab better than the five eligible fuse rooms. The HUD shows collected count, not active room locations.
 - `art/visuals/generated/README.md` cites removed gameplay/example paths and claims no player collision. Historical captures do not establish the current rendered layout. Refresh its stale sections separately before using it as a route reference.
+
+## Follow-up draft
+
+Utility sign generation/placement, two more visual-only crawl vents (utility and prep), prep-room furniture, and a storage-room locker have been authored in source. The utility GLB has not yet been generated or promoted; the runtime loader requires it, so do not launch rendered play before regenerating the kit. None of these placements has been test-run or visually reviewed. The vents and locker do not add functional traversal/hiding behavior.
 
 ## Next review
 

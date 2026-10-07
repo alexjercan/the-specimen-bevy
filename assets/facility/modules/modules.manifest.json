@@ -1,6 +1,6 @@
 {
   "generator": "scripts/generate_facility.py",
-  "blender": "5.2.2 LTS",
+  "blender": "5.2.0 LTS",
   "units": "1 unit = 1 meter (scene.unit_settings.scale_length = 1.0)",
   "axes": "glTF +Y up. The front of each module faces -Z. bevy = (x, z, -y) from Blender",
   "grid": {
@@ -47,7 +47,7 @@
           1.25
         ]
       },
-      "glb_sha256": "0ca4583ce2b7935a856dab346fb1afc60da249383df068f04be37687e1dad55b",
+      "glb_sha256": "44185443cec30f839b613259888d44b103c2899c38328d04374432d04a6471ce",
       "glb_bytes": 389396
     },
     "floor_tile_marked": {
@@ -72,7 +72,7 @@
           1.25
         ]
       },
-      "glb_sha256": "513fa1b65dc2b99936816b55f8441f2d6142fbbd86bf262b2ecc6bdb3baceb3f",
+      "glb_sha256": "2a6250ee3d9c7a7e019191bbceeb93776f5386e2c3857327f7ec31bcf490fe39",
       "glb_bytes": 392884
     },
     "ceiling_tile": {
@@ -97,7 +97,7 @@
           1.25
         ]
       },
-      "glb_sha256": "a938314e7d1d04e9dcb7eac299d3d61316271fca6b956251668658b130fc47cb",
+      "glb_sha256": "99ff800e0a3a159987c4e1fe05af7fc958b6c7d9432f3ff4a8b93b2d7844af51",
       "glb_bytes": 9640
     },
     "wall": {
@@ -123,7 +123,7 @@
           0.125
         ]
       },
-      "glb_sha256": "bacefb0c128eeb1ef1cfd50ee66e4ffdb4feea5cd737d7cc0cf96fe1507cbf63",
+      "glb_sha256": "7958e57c01284d32c68bf391d193e37106ec43fdf851931f29ac6153f8c557c1",
       "glb_bytes": 403552
     },
     "wall_conduit": {
@@ -150,7 +150,7 @@
           0.125
         ]
       },
-      "glb_sha256": "385769f4c6076e4b4267826c284b8034cc8c8fe098ce441bf1859036f26f4228",
+      "glb_sha256": "9b967d5b52b78238dcfd0cbb531f572febb9b1d61b56c3540b55890a0b3bbb15",
       "glb_bytes": 413408
     },
     "wall_doorway": {
@@ -178,7 +178,7 @@
           0.139
         ]
       },
-      "glb_sha256": "cdf09961c219ce2508bb6bdf85391e20941da2eafe92bdca59b2d1fe2b8c2940",
+      "glb_sha256": "b5afbd7dde44d7ee839c276618d122662262ab3bbb8068061be7fcd35f951efb",
       "glb_bytes": 446104
     },
     "door_panel": {
@@ -205,7 +205,7 @@
           0.065
         ]
       },
-      "glb_sha256": "c7ec4159d838c007e191ec40167ef9b6bf1f62dde90a35ed6447633975c1fad6",
+      "glb_sha256": "a850cb2c41c1abf55e4c4082d59dd1186b87c678007339581aec0ac96aa858cf",
       "glb_bytes": 14096
     },
     "wall_post": {
@@ -230,7 +230,7 @@
           0.19
         ]
       },
-      "glb_sha256": "c0e0558ef9b0d4d17cefba8fb289b45efe26072df1f9b6f45de47ae13d8a8928",
+      "glb_sha256": "8aec32b7177de02806a4c834d1dfc8b85aa175665d882f05ff26f5be32dcce36",
       "glb_bytes": 8456
     },
     "ceiling_light_cool": {
@@ -265,7 +265,7 @@
         0.88,
         1.0
       ],
-      "glb_sha256": "a123dd0fe1c201a86940b6e4225a2ce5ccd14bd04044540fe5c4931c2bc4eab2",
+      "glb_sha256": "c82c5d514208a25649d95b17d5c03dc19084b1ddc33e7120eeeddcc5af0551f3",
       "glb_bytes": 12236
     },
     "ceiling_light_dead": {
@@ -296,7 +296,7 @@
         0.0
       ],
       "light_color_linear": null,
-      "glb_sha256": "afd5c180eb878e62a8a5214ec53030a0eff4f2e02f497fa84ad2143f4cef73be",
+      "glb_sha256": "9d5c5e69688f77b80626b532a2bb3406f948636f3560eb20a4af07212f232d36",
       "glb_bytes": 12068
     },
     "ceiling_light_amber": {
@@ -331,7 +331,7 @@
         0.58,
         0.2
       ],
-      "glb_sha256": "080211e02fcf927525c6a1dc8757e0ec166dbefd60214a9c5cf341005a35a7f7",
+      "glb_sha256": "3d9b2b0057da9f6fd88e074d90d24e694f9293c46c5950441c8ddad9f195f3dc",
       "glb_bytes": 12240
     },
     "wall_lamp_red": {
@@ -366,7 +366,7 @@
         0.06,
         0.03
       ],
-      "glb_sha256": "3616857336f7081f6a730b3b6da20d3a58bda7b0205bb9e3a50a2950295bce67",
+      "glb_sha256": "9bf8fd323420a440856720c4f4ac5893cad58e82809fae4630c8a3e38200464b",
       "glb_bytes": 18532
     },
     "exit_sign": {
@@ -402,7 +402,7 @@
         1.0,
         0.35
       ],
-      "glb_sha256": "6d5b0ccfc6b69759f04c98a8b9fbd79448d4b28cf3e4e1dcd4f59c32c30bc7a4",
+      "glb_sha256": "56a451577dbf61ed536cf6e485df93a787453aca0b578e7b04a2268d0b9b30fd",
       "glb_bytes": 13208
     },
     "wall_vent": {
@@ -428,7 +428,7 @@
           0.0
         ]
       },
-      "glb_sha256": "89bf357b32060c316e7f2954e2aca29faac15b6bbfb15d853ab27ad85ae377d1",
+      "glb_sha256": "f66dd5b39aaca24c63ed8bb2f7058eede0f9999d1753b6a8741ba951d7c76ef4",
       "glb_bytes": 30320
     },
     "fuse_panel": {
@@ -455,7 +455,7 @@
           0.0
         ]
       },
-      "glb_sha256": "f64709d36764db905905d43bba605a54829a3d5cc7061510ca0a0c8afce22fbf",
+      "glb_sha256": "425027a46c8d3af65c57a14dfeaea1cd7d513e382bee5e9c19878e1803022996",
       "glb_bytes": 170680
     },
     "fuse_pickup": {
@@ -482,7 +482,7 @@
           0.03
         ]
       },
-      "glb_sha256": "6a11c6c2f864468454582c85db7ffbe3d1ae9c4671da53a6fa98d7ae6818582e",
+      "glb_sha256": "19bcaae6351524008b799fb1032a6d0a09f40e75e370d844166b664d84715a95",
       "glb_bytes": 37416
     },
     "storage_crate": {
@@ -508,7 +508,7 @@
           0.41
         ]
       },
-      "glb_sha256": "26e86da1db304242b3535f7913a13421a654552f084f3900a55bc9fb3cc655da",
+      "glb_sha256": "fb0f713042f9a101fa0c67231d35779f64eeb98f722311a77f69901f1655002d",
       "glb_bytes": 14440
     },
     "steel_drum": {
@@ -534,7 +534,7 @@
           0.3
         ]
       },
-      "glb_sha256": "e9d07fd7d2fbf3aa235f0c1c6d5414adacadd97ae94dd4c0ff2fc0dfed6b1da2",
+      "glb_sha256": "07d6f1200adf6feed13bb618b3e9469f0d95460f0ac1f84a1fa3213684e3b640",
       "glb_bytes": 24924
     },
     "shelf_unit": {
@@ -562,7 +562,7 @@
           0.258
         ]
       },
-      "glb_sha256": "9b39d02dc3c0f4cf8687f218cb45196ec5af2d6d034728ef620650a1cca43967",
+      "glb_sha256": "1c4fac47cc55dac5bfa9d470c4e5e977655d5884cce08ffaf557fea4d48341be",
       "glb_bytes": 73752
     },
     "workbench": {
@@ -590,7 +590,7 @@
           0.35
         ]
       },
-      "glb_sha256": "8699513d94cc6732dd0543d482fbed4cb19eba0c57cebc7de8a759bb14ecb945",
+      "glb_sha256": "0a5028fb4758811b36cd85b73350cb67984a0693156e7bbe7d70074855a86ab0",
       "glb_bytes": 27964
     },
     "route_line_orange": {
@@ -615,7 +615,7 @@
         ]
       },
       "walkable": true,
-      "glb_sha256": "f6d9a1d5328548085c5aed02a1c998be9015efa4222ae80455ff3d3fdc46b3ee",
+      "glb_sha256": "4d129630f5113b52ea27fd38174a2c4a09ca85087aa624fa0c5c9cec5486ab72",
       "glb_bytes": 2596
     },
     "route_line_blue": {
@@ -640,7 +640,7 @@
         ]
       },
       "walkable": true,
-      "glb_sha256": "d4046af9a5e3dad38f23408a3a03a10b48b881b05d2adf53d0d03d9e3d842c3c",
+      "glb_sha256": "543ea6d1f350c2db8df6f94279effba3bb0135bb577006f0ccb66385a16f99ec",
       "glb_bytes": 2564
     },
     "route_line_green": {
@@ -665,7 +665,7 @@
         ]
       },
       "walkable": true,
-      "glb_sha256": "f66bccc8bd2735ee6beb5c1b3422cf48172daf285227a26b4899abd29eed18fa",
+      "glb_sha256": "899e1b51c5e27b97ec1e2ab177a8bbfafdceb3ff0b513da45eb62fb48cde393b",
       "glb_bytes": 2624
     },
     "sign_label_boiler_room": {
@@ -693,7 +693,7 @@
       },
       "text": "BOILER ROOM",
       "text_cap_m": 0.112,
-      "glb_sha256": "aca495629af92930d5c9da0c9ebd61279317632fbffb11ff31bf9b10fd163f45",
+      "glb_sha256": "968fba862736cd23d254f5d50263a0bec75a1fb3ce7e20688020e4d8c41edcca",
       "glb_bytes": 138024
     },
     "sign_label_storage": {
@@ -721,7 +721,7 @@
       },
       "text": "STORAGE",
       "text_cap_m": 0.112,
-      "glb_sha256": "c8aa6f9d6615799fa8eac4ecec093293998403fae29bdac0c7a50f8a03f0d1e0",
+      "glb_sha256": "8a0e00f7c9708a3372a6e00b009a6659e7270dc1776c86c15e851e8533863018",
       "glb_bytes": 87796
     },
     "sign_label_maintenance": {
@@ -749,8 +749,36 @@
       },
       "text": "MAINTENANCE",
       "text_cap_m": 0.112,
-      "glb_sha256": "969d75575969b729e258726bffdee9b4be13bf93c2eb61d6660b916ceac42290",
+      "glb_sha256": "def4cb6aaa001e29f9a3e9c83bce1c67f4bfaf16e921d25ccd3795b70ff03eaa",
       "glb_bytes": 156352
+    },
+    "sign_label_utility": {
+      "file": "sign_label_utility.glb",
+      "category": "sign",
+      "snap": "wall_mount",
+      "triangles": 720,
+      "materials": [
+        "sign_plate",
+        "steel_dark",
+        "sign_text"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.65,
+          -0.1,
+          -0.034
+        ],
+        "max": [
+          0.65,
+          0.1,
+          0.0
+        ]
+      },
+      "text": "UTILITY",
+      "text_cap_m": 0.112,
+      "glb_sha256": "dec94ac9acaac970f55ace90f0b576ffdd0403f84a15fbd5e981e444b39f04f4",
+      "glb_bytes": 76780
     },
     "sign_label_office": {
       "file": "sign_label_office.glb",
@@ -777,7 +805,7 @@
       },
       "text": "OFFICE",
       "text_cap_m": 0.112,
-      "glb_sha256": "43d8bd0889bec595b4729f330547aa830e55a1bfcdec1ace8598981912c492a8",
+      "glb_sha256": "6b63024823d9995abe440d8d5209c7a612762e2b4150e1e40c3b69a34518672b",
       "glb_bytes": 63312
     },
     "sign_label_lab": {
@@ -805,7 +833,7 @@
       },
       "text": "LAB",
       "text_cap_m": 0.112,
-      "glb_sha256": "f905be74281824f337cdcca25bb90653f5026e4e45e2e8bd3476472b6bd439da",
+      "glb_sha256": "b0cee87fe32164eb51a92bad60aa17c6ebb99a0c5ac555dfd69ad2a67567427f",
       "glb_bytes": 42496
     },
     "sign_label_security": {
@@ -833,7 +861,7 @@
       },
       "text": "SECURITY",
       "text_cap_m": 0.112,
-      "glb_sha256": "69b14e3358eb9f1c0fea81c273ac0aa5abf41125e055739f51a2655ae2ca4153",
+      "glb_sha256": "63b77ae2e762bc38e50e6b117d0476b621bdafccea0ffc618bd64c2348e5f631",
       "glb_bytes": 91472
     },
     "sign_label_prep": {
@@ -861,7 +889,7 @@
       },
       "text": "PREP",
       "text_cap_m": 0.112,
-      "glb_sha256": "171a81efad5c7ccad6fc7c1669330a20cdd51d5265ad7392dd788ab11fb79fb1",
+      "glb_sha256": "a089bf4450e53972a1a3baa3a7322bbdb3356d23765256640e8d67fd026830a8",
       "glb_bytes": 51064
     },
     "sign_label_exit": {
@@ -888,7 +916,7 @@
       },
       "text": "EXIT",
       "text_cap_m": 0.112,
-      "glb_sha256": "d6669498e28569fe5e551ff07320fb3457546aafe58b190dec534fbf9c1f7a5a",
+      "glb_sha256": "49a352ecc6a11f9e0e00d93382e3704f0b04eca3b51787affa4dcc1bd10029a2",
       "glb_bytes": 45404
     },
     "sign_arrow": {
@@ -914,7 +942,7 @@
         ]
       },
       "points": "+X",
-      "glb_sha256": "38fa39ea1b0732cda0e95aed31966c9891ef45640bc7db0277f3de18727c3d63",
+      "glb_sha256": "b5ad0489eb5841d24abf37621c6d3ab21cb2461b7eb292a4632971916a4d88b7",
       "glb_bytes": 12252
     },
     "sign_hanger": {
@@ -939,7 +967,7 @@
           0.015
         ]
       },
-      "glb_sha256": "9e2b5304dc0223854fc47d171c78c42c934013af1221d546b95c2e7ac06c0377",
+      "glb_sha256": "5cb7359cb39cd1b8607d7f54c2d58f97d828be8c01ab66583386197a492b5af9",
       "glb_bytes": 11692
     },
     "boiler_unit": {
@@ -976,7 +1004,7 @@
         0.35,
         0.08
       ],
-      "glb_sha256": "d4cdfef25b5e288105e33c58b1b8f6e6563053d25cdc9b002e48ae8973b37751",
+      "glb_sha256": "112d1f0a9ea759555dcd2f66cf638a368784c4292e85c0fa1c128c50ec73a35a",
       "glb_bytes": 64476
     },
     "pipe_manifold": {
@@ -1001,7 +1029,7 @@
           -0.05
         ]
       },
-      "glb_sha256": "ad0b804dc359ce3dc03375bbc5bebc25e693c804fa88a9a470a59cc9a07c19c5",
+      "glb_sha256": "98737bb4e44c70dab48a29a6c556a855f326454ae0406bbc40e9ef70663405a8",
       "glb_bytes": 56712
     },
     "tool_pegboard": {
@@ -1028,7 +1056,7 @@
           0.0
         ]
       },
-      "glb_sha256": "88c6fe5b63006f8e0ae473bd603fdc476960c6e9505019da9dde49dae0cf58e5",
+      "glb_sha256": "efbcc4942fd5ea9a349ee7ad50a20711c0f231c43cd4735af42b9b77a6422d52",
       "glb_bytes": 24100
     },
     "shelf_unit_low": {
@@ -1054,7 +1082,7 @@
           0.225
         ]
       },
-      "glb_sha256": "086423af157683ee2eef1c4c966dc3c11c127a7e6c6bddd65b86be3f92372682",
+      "glb_sha256": "ad56ee5fdf2907aecffa18ab2892cc28ea82fe77af25aea92949c52e144efdcf",
       "glb_bytes": 47324
     },
     "shelf_unit_bins": {
@@ -1080,7 +1108,7 @@
           0.25
         ]
       },
-      "glb_sha256": "80ca903668dfbe6730d411ad0323dd7c6d3855a23336aa8b7fbab4bbe284a55f",
+      "glb_sha256": "64a136d3c1486e4dc9dda24f9c5efdd389cb50ae9f656a735e0338f758fe0b9a",
       "glb_bytes": 91316
     },
     "concept_table": {
@@ -1119,7 +1147,7 @@
           0.38
         ]
       },
-      "glb_sha256": "89e71b007ae50d54c9a72a3b410d9f13b20ed50172f524e3b7d65bc3316bd416",
+      "glb_sha256": "003e25edbbcb2caf9e1f08ae43397f601fe6c17fe1c75e626c3eb8fad5bac5b4",
       "glb_bytes": 29040
     },
     "concept_locker": {
@@ -1146,7 +1174,7 @@
         ]
       },
       "concept": "Visual concept only: a locker interior dark enough to suggest something could be hidden inside. No hiding, collision, or interaction.",
-      "glb_sha256": "d9fc2dc583c2b94fe1f99c08feee45783e8be7d10537f353925eecf0f5c71a9b",
+      "glb_sha256": "42c59212ed1735388474b2d7af4c8df9644efa05ad12b4f4562a723e2a2c1878",
       "glb_bytes": 38920
     },
     "concept_crawl_vent": {
@@ -1182,7 +1210,7 @@
           0.25
         ]
       },
-      "glb_sha256": "54d606510802f54c978f06b5eca8a65758a8a8a0d9e1939525e703806d560bc2",
+      "glb_sha256": "7fe9f66f5945ebe1ea17a4b47df8c27461af13af323e098967425efdec985c69",
       "glb_bytes": 27968
     },
     "vent_grille": {
@@ -1207,7 +1235,7 @@
         ]
       },
       "concept": "Visual concept only: a removed vent grille lying on the floor, suggesting an opening nearby. No hiding, collision, or interaction.",
-      "glb_sha256": "23965928c8e0945001ee59497bbe1e13e694d2d0d152ad0b08ee95bbfd84e12b",
+      "glb_sha256": "ef2fcc11ddc0b8635b83d9582c6e412cc5a2584a722730d635769044714454b5",
       "glb_bytes": 13592
     },
     "concept_containment_tank": {
@@ -1248,7 +1276,7 @@
           -0.3
         ]
       },
-      "glb_sha256": "5107b799bc37ab24183088444df2bb434154491cdb329d836a780dc50d74e910",
+      "glb_sha256": "876a39984ca1ec515b19042109378f0c51fdf5f149a7d45a725d3e1c57426d28",
       "glb_bytes": 139476
     },
     "lab_console": {
@@ -1275,7 +1303,7 @@
           0.35
         ]
       },
-      "glb_sha256": "ad6828a576490fc99228ef0c2446fdd22863ee6e57e4090d500f02b356bb9f59",
+      "glb_sha256": "67988bcdff3bab95ecdf20089874972828d3fd87680f761f68723b438344b172",
       "glb_bytes": 40504
     },
     "work_island": {
@@ -1302,7 +1330,7 @@
           0.4529
         ]
       },
-      "glb_sha256": "0c8e1bb027b4e2b1caeb5b1e8c10e214532e064aecebb0ed19cd4f07fe7f1ae1",
+      "glb_sha256": "a616aa8ccef90afd2577757988c663602326190e2050e87dabe593f44295a8cd",
       "glb_bytes": 36236
     },
     "clutter_papers": {
@@ -1329,7 +1357,7 @@
         ]
       },
       "walkable": true,
-      "glb_sha256": "d6d7945bed2734c18b95543d3df82661fc5b29c8ca052c8c6a3ea9e5290201a6",
+      "glb_sha256": "0389790c5ff0762291492b39542444f5d8d1029fc4848ecb2c068382854d4b62",
       "glb_bytes": 19404
     },
     "clutter_tools": {
@@ -1354,7 +1382,7 @@
           0.343
         ]
       },
-      "glb_sha256": "bcf1ab71e11a02e3b9f2b48edce48eb9578b725b5dc37ec7f4c9331a82529e40",
+      "glb_sha256": "1b1be0bcb292d9fcfd90817d0aac541de0bc76fedac09b64faa6871b71f658f2",
       "glb_bytes": 26416
     },
     "chair_tipped": {
@@ -1378,7 +1406,7 @@
           0.311
         ]
       },
-      "glb_sha256": "7d5cba245c7f24c1b3226f68bf7b659069f247deb632fbca75a1885e42a122b6",
+      "glb_sha256": "29dce783d3223c80b01cf28e6bcfada26177a74d0be02e05cb98e6dfe0b6bfc9",
       "glb_bytes": 19956
     },
     "drum_spilled": {
@@ -1404,7 +1432,7 @@
           0.35
         ]
       },
-      "glb_sha256": "24cd2c294b28cc29e0dd3f580fb098a9ffb008a1645543b74fd214d4da3eaaed",
+      "glb_sha256": "9e41344a8dcf8b880a3322609bfe6fbd3b724eadaa473e780ab65643daf79720",
       "glb_bytes": 30004
     },
     "trace_claw_marks": {
@@ -1429,7 +1457,7 @@
           0.0
         ]
       },
-      "glb_sha256": "6b65f7e568de6a407d259f6929c84f196ceaaf99b5dbf1bb516c39c5fb268a9f",
+      "glb_sha256": "41e493f70a60f1ec98cb5b04a82c517e7e5fdd696c2efcc898b1de1cfb5cdee3",
       "glb_bytes": 395444
     },
     "trace_drag_marks": {
@@ -1454,7 +1482,7 @@
         ]
       },
       "walkable": true,
-      "glb_sha256": "ddbf2823095db779f3071b0c0e5db904b4df0af66e19d437e65da55b28c19d53",
+      "glb_sha256": "088a27d3cf24899618dc2ddd5e7ba73286f8ec8d43257dc7513b67eaf68f6657",
       "glb_bytes": 23404
     }
   }
