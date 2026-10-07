@@ -9,8 +9,8 @@ is a review artifact, not a shipped asset. It is the frozen baseline for the
 `modules/` holds the source generator output as separate GLB files, plus
 original props and decorations. `scripts/promote-facility-modules.sh` verifies
 and copies the 47 GLBs and their manifest to `assets/facility/modules/` for
-distribution. The `facility_layout` example still uses this source directory
-until its migration to gameplay. See "Module kit" below.
+distribution. The `facility_layout` example and the game load the promoted
+copy through `game_assets`. See "Module kit" below.
 
 ## Regenerate and check
 
@@ -204,8 +204,10 @@ projection, modulo 1. Thus the UVs at the two sides of a joint agree.
 
 ## Bevy composition (`facility_layout`)
 
-`examples/facility_layout/` composes the kit in Bevy from an authored layout
-in `layout.rs`. The layout gives areas as cell rectangles, openings (passage
+`examples/facility_layout/` composes the kit in Bevy from the authored layout
+in `crates/gameplay/src/facility/layout.rs`, through the gameplay
+`FacilityPlugin` (logical entities) and `FacilityRenderPlugin` (scene
+children after the asset loader is ready). The layout gives areas as cell rectangles, openings (passage
 or door, closed or open by an angle), ceiling lights, wall mounts, and props.
 The example does not place walls by hand. `derive` makes:
 
@@ -223,8 +225,9 @@ The example does not place walls by hand. `derive` makes:
 
 `derive` returns an error for overlapping areas, openings inside one area,
 passages to empty space, wall mounts on passages, door frames, trim bands or
-conduit, and props that are near a wall or block a door swing zone. The unit
-tests are in `examples/facility_layout/tests/layout.rs`.
+conduit, and props that are near a wall or block a door swing zone. The
+tests are in `crates/gameplay/tests/layout.rs`. Set `FACILITY_SHOT_DIR` to
+write the example captures to another directory.
 
 The current first floor uses sixteen areas on a 2.5 m grid:
 
@@ -259,7 +262,7 @@ Those images are retained as history; `facility_floor1_v2_*.png` shows this
 current plan.
 
 ```sh
-nix develop -c cargo test --example facility_layout
+nix develop -c cargo test -p gameplay
 nix develop -c xvfb-run -a cargo run --example facility_layout
 ```
 
@@ -367,7 +370,7 @@ colors.
 ```sh
 scripts/generate-facility.sh
 python3 scripts/check_facility_modules.py
-nix develop -c cargo test --example facility_layout
+nix develop -c cargo test -p gameplay
 nix develop -c xvfb-run -a cargo run --example facility_layout
 ```
 

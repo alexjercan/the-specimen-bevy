@@ -1,0 +1,13 @@
+[package]
+name = "gameplay"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+bevy.workspace = true
+game_assets.workspace = true
+
+[dev-dependencies]
+bevy_asset_loader.workspace = true

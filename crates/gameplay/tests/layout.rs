@@ -1,7 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use super::*;
+use bevy::math::{IVec2, Quat, Vec2, Vec3};
+use gameplay::facility::layout::*;
+
+fn modules_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/facility/modules")
+}
 
 fn plan() -> Plan {
     derive(&authored()).expect("authored layout derives")
@@ -421,15 +426,49 @@ fn wall_mounts_sit_on_wall_faces() {
 
 #[test]
 fn every_module_file_exists() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("art/visuals/generated/modules");
-    let manifest = std::fs::read_to_string(dir.join("modules.manifest.json"))
-        .expect("modules manifest; run scripts/generate-facility.sh");
-    for module in MODULES {
+    let dir = modules_dir();
+    let manifest = manifest();
+    let modules: BTreeSet<_> = plan().pieces.iter().map(|p| p.module).collect();
+    for module in modules {
         assert!(dir.join(format!("{module}.glb")).is_file(), "{module}.glb");
         assert!(manifest.contains(&format!("\"{module}\": {{")), "{module}");
     }
+}
+
+#[test]
+fn every_piece_and_light_belongs_to_an_authored_owner() {
+    let layout = authored();
     let plan = plan();
-    assert!(plan.pieces.iter().all(|p| MODULES.contains(&p.module)));
+    let valid = |owner: Owner| match owner {
+        Owner::Cell(key) => plan.cells.contains_key(&key),
+        Owner::Edge(key) => plan.edges.contains_key(&key),
+        Owner::Post(key) => plan.posts.contains(&key),
+        Owner::Fixture(index) => index < layout.fixtures.len(),
+        Owner::Prop(index) => index < layout.props.len(),
+        Owner::Line(index) => index < layout.lines.len(),
+    };
+    assert!(plan.pieces.iter().all(|p| valid(p.owner)));
+    assert!(plan.lights.iter().all(|l| valid(l.owner)));
+    for (index, fixture) in layout.fixtures.iter().enumerate() {
+        let owned = plan
+            .pieces
+            .iter()
+            .filter(|p| p.owner == Owner::Fixture(index))
+            .count();
+        assert!(owned > 0, "{fixture:?} has no pieces");
+    }
+    for piece in plan.pieces.iter().filter(|p| p.part == Part::Door) {
+        let Owner::Edge(key) = piece.owner else {
+            panic!("door panel is not owned by an edge");
+        };
+        let edge = plan.edges[&key];
+        let EdgeKind::Doorway(door) = edge.kind else {
+            panic!("door panel at {key:?} is not in a doorway");
+        };
+        let (translation, yaw) = door_panel(key, edge.facing, door);
+        assert!(translation.distance(piece.translation) < 1e-5);
+        assert!((yaw - piece.yaw).abs() < 1e-5);
+    }
 }
 
 fn tiny() -> Layout {
@@ -572,10 +611,19 @@ const AISLE: f32 = 0.5;
 const GRID: f32 = 0.1;
 const LINE_H: f32 = 0.003;
 
+fn shipped_modules() -> BTreeSet<String> {
+    std::fs::read_dir(modules_dir())
+        .expect("promoted modules")
+        .filter_map(|entry| {
+            let path = entry.expect("module entry").path();
+            (path.extension()? == "glb").then(|| path.file_stem()?.to_str().map(String::from))?
+        })
+        .collect()
+}
+
 fn manifest() -> String {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("art/visuals/generated/modules/modules.manifest.json");
-    std::fs::read_to_string(path).expect("modules manifest; run scripts/generate-facility.sh")
+    std::fs::read_to_string(modules_dir().join("modules.manifest.json"))
+        .expect("modules manifest; run scripts/promote-facility-modules.sh")
 }
 
 fn entry<'a>(manifest: &'a str, module: &str) -> &'a str {
@@ -987,11 +1035,11 @@ fn only_exit_signs_hang_overhead() {
     }
     assert!(arrows >= 8, "{arrows} hanging arrows");
     let m = manifest();
-    let hanging: Vec<_> = MODULES
-        .iter()
+    let hanging: Vec<_> = shipped_modules()
+        .into_iter()
         .filter(|module| entry(&m, module).contains("\"snap\": \"ceiling_hang\""))
         .collect();
-    assert_eq!(hanging, [&"sign_hanger"]);
+    assert_eq!(hanging, ["sign_hanger"]);
 }
 
 #[test]
@@ -1857,4 +1905,14 @@ fn prop_footprints_cover_the_generated_meshes() {
     assert!(Vec3::from_slice(&fire).distance(FIREBOX) < 0.15);
     let (_, tank) = bounds_of(&m, "concept_containment_tank");
     assert!(TANK_LAMP.y < tank.y);
+}
+
+#[test]
+fn player_start_must_be_inside_an_area() {
+    let mut layout = tiny();
+    layout.start = Some((IVec2::new(0, 1), Side::North));
+    assert!(derive(&layout).is_ok());
+    layout.start = Some((IVec2::new(5, 5), Side::North));
+    let error = derive(&layout).unwrap_err();
+    assert!(error.contains("player start"), "{error}");
 }

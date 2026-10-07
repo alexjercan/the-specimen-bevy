@@ -11,7 +11,14 @@ autoexamples = false
 name = "game"
 
 [workspace]
-members = ["crates/assets", "crates/autopilot", "crates/capture", "crates/core", "crates/debug"]
+members = [
+    "crates/assets",
+    "crates/autopilot",
+    "crates/capture",
+    "crates/core",
+    "crates/debug",
+    "crates/gameplay",
+]
 resolver = "2"
 
 [workspace.package]
@@ -29,6 +36,7 @@ autopilot = { path = "crates/autopilot" }
 capture = { path = "crates/capture" }
 game_core = { path = "crates/core" }
 game_assets = { path = "crates/assets" }
+gameplay = { path = "crates/gameplay" }
 debug = { path = "crates/debug" }
 
 [features]
@@ -39,6 +47,7 @@ bevy.workspace = true
 clap.workspace = true
 game_core.workspace = true
 game_assets.workspace = true
+gameplay.workspace = true
 autopilot.workspace = true
 capture.workspace = true
 
@@ -49,4 +58,3 @@ path = "examples/facility_gallery.rs"
 [[example]]
 name = "facility_layout"
 path = "examples/facility_layout/main.rs"
-test = true

@@ -3011,6 +3011,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "gameplay"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_asset_loader",
+ "game_assets",
+]
+
+[[package]]
 name = "gethostname"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3326,6 +3335,7 @@ dependencies = [
  "clap",
  "game_assets",
  "game_core",
+ "gameplay",
 ]
 
 [[package]]

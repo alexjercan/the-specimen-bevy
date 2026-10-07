@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::f32::consts::{FRAC_PI_2, PI};
 
 use bevy::math::{IVec2, Quat, Vec2, Vec3};
@@ -31,56 +31,6 @@ pub const STRIPE_HALF_W: f32 = 0.04;
 pub const STRIPE_END: f32 = 0.02;
 
 pub type Key = (i32, i32);
-
-pub const MODULES: [&str; 47] = [
-    "floor_tile",
-    "floor_tile_marked",
-    "ceiling_tile",
-    "wall",
-    "wall_conduit",
-    "wall_doorway",
-    "door_panel",
-    "wall_post",
-    "ceiling_light_cool",
-    "ceiling_light_dead",
-    "ceiling_light_amber",
-    "wall_lamp_red",
-    "exit_sign",
-    "wall_vent",
-    "storage_crate",
-    "steel_drum",
-    "shelf_unit",
-    "workbench",
-    "route_line_orange",
-    "route_line_blue",
-    "route_line_green",
-    "sign_label_boiler_room",
-    "sign_label_storage",
-    "sign_label_maintenance",
-    "sign_label_office",
-    "sign_label_exit",
-    "sign_arrow",
-    "sign_hanger",
-    "boiler_unit",
-    "pipe_manifold",
-    "tool_pegboard",
-    "shelf_unit_low",
-    "shelf_unit_bins",
-    "concept_locker",
-    "concept_table",
-    "concept_crawl_vent",
-    "vent_grille",
-    "concept_containment_tank",
-    "lab_console",
-    "work_island",
-    "clutter_papers",
-    "clutter_tools",
-    "chair_tipped",
-    "drum_spilled",
-    "trace_claw_marks",
-    "trace_drag_marks",
-    "fuse_panel",
-];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Side {
@@ -344,6 +294,17 @@ pub enum Fixture {
     },
 }
 
+impl Fixture {
+    pub fn cell(&self) -> IVec2 {
+        match *self {
+            Fixture::Ceiling { cell, .. }
+            | Fixture::Wall { cell, .. }
+            | Fixture::WallSign { cell, .. }
+            | Fixture::ExitHanger { cell, .. } => cell,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PropKind {
     Crate,
@@ -433,6 +394,7 @@ pub struct Layout {
     pub props: Vec<Prop>,
     pub lines: Vec<RouteLine>,
     pub exit: Option<(IVec2, Side)>,
+    pub start: Option<(IVec2, Side)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -457,8 +419,19 @@ pub enum Glow {
     Pulse,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Owner {
+    Cell(Key),
+    Edge(Key),
+    Post(Key),
+    Fixture(usize),
+    Prop(usize),
+    Line(usize),
+}
+
 #[derive(Clone, Debug)]
 pub struct Piece {
+    pub owner: Owner,
     pub module: &'static str,
     pub part: Part,
     pub translation: Vec3,
@@ -476,6 +449,7 @@ impl Piece {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LightSpec {
+    pub owner: Owner,
     pub position: Vec3,
     pub color: [f32; 3],
     pub intensity: f32,
@@ -525,6 +499,33 @@ pub struct Plan {
 pub struct Step {
     pub cell: IVec2,
     pub side: Side,
+}
+
+impl Plan {
+    pub fn anchor(&self, layout: &Layout, owner: Owner) -> (Vec3, f32) {
+        match owner {
+            Owner::Cell(key) => (cell_center(IVec2::new(key.0, key.1)), 0.0),
+            Owner::Edge(key) => (half_point(key), self.edges[&key].facing.yaw()),
+            Owner::Post(key) => (half_point(key), 0.0),
+            Owner::Prop(index) => {
+                let prop = &layout.props[index];
+                (
+                    cell_center(prop.cell) + Vec3::new(prop.offset.x, 0.0, prop.offset.y),
+                    prop.facing.yaw(),
+                )
+            }
+            Owner::Fixture(index) => match layout.fixtures[index] {
+                Fixture::Wall { .. } => self
+                    .pieces
+                    .iter()
+                    .find(|piece| piece.owner == owner)
+                    .map(|piece| (piece.translation, piece.yaw))
+                    .expect("wall fixture has a piece"),
+                fixture => (cell_center(fixture.cell()), 0.0),
+            },
+            Owner::Line(index) => (cell_center(layout.lines[index].start), 0.0),
+        }
+    }
 }
 
 pub fn half_point(key: (i32, i32)) -> Vec3 {
@@ -691,14 +692,17 @@ pub fn derive(layout: &Layout) -> Result<Plan, String> {
             Floor::Concrete => "floor_tile",
             Floor::Striped => "floor_tile_marked",
         };
-        plan.pieces.push(piece(floor, Part::Floor, center, 0.0));
+        let owner = Owner::Cell((x, z));
         plan.pieces
-            .push(piece("ceiling_tile", Part::Ceiling, center, 0.0));
+            .push(piece(owner, floor, Part::Floor, center, 0.0));
+        plan.pieces
+            .push(piece(owner, "ceiling_tile", Part::Ceiling, center, 0.0));
     }
 
     for (&key, edge) in &plan.edges {
         let mid = half_point(key);
         let yaw = edge.facing.yaw();
+        let owner = Owner::Edge(key);
         match edge.kind {
             EdgeKind::Passage => {}
             EdgeKind::Wall(style) => {
@@ -706,29 +710,27 @@ pub fn derive(layout: &Layout) -> Result<Plan, String> {
                     WallStyle::Plain => "wall",
                     WallStyle::Conduit => "wall_conduit",
                 };
-                plan.pieces.push(piece(module, Part::Wall, mid, yaw));
+                plan.pieces.push(piece(owner, module, Part::Wall, mid, yaw));
             }
             EdgeKind::Doorway(door) => {
                 plan.pieces
-                    .push(piece("wall_doorway", Part::Doorway, mid, yaw));
-                let hinge = mid - wall_right(edge.facing) * (DOOR_W / 2.0 - 0.01);
-                let (translation, swing) = match door {
-                    Door::Closed => (hinge, 0.0),
-                    Door::Open(degrees) => (
-                        hinge + edge.facing.dir() * (FRAME_DEPTH + 0.035),
-                        degrees.to_radians(),
-                    ),
-                };
+                    .push(piece(owner, "wall_doorway", Part::Doorway, mid, yaw));
+                let (translation, yaw) = door_panel(key, edge.facing, door);
                 plan.pieces
-                    .push(piece("door_panel", Part::Door, translation, yaw + swing));
+                    .push(piece(owner, "door_panel", Part::Door, translation, yaw));
             }
         }
     }
 
     plan.posts = derive_posts(&plan.edges);
     for &vertex in &plan.posts {
-        plan.pieces
-            .push(piece("wall_post", Part::Post, half_point(vertex), 0.0));
+        plan.pieces.push(piece(
+            Owner::Post(vertex),
+            "wall_post",
+            Part::Post,
+            half_point(vertex),
+            0.0,
+        ));
     }
 
     if let Some((cell, side)) = layout.exit {
@@ -743,12 +745,18 @@ pub fn derive(layout: &Layout) -> Result<Plan, String> {
         }
     }
 
-    for fixture in &layout.fixtures {
-        place_fixture(&mut plan, layout, fixture)?;
+    if let Some((cell, _)) = layout.start {
+        if !plan.cells.contains_key(&(cell.x, cell.y)) {
+            return Err(format!("player start at {cell} is outside every area"));
+        }
     }
 
-    for line in &layout.lines {
-        place_line(&mut plan, layout, line)?;
+    for (index, fixture) in layout.fixtures.iter().enumerate() {
+        place_fixture(&mut plan, layout, fixture, Owner::Fixture(index))?;
+    }
+
+    for (index, line) in layout.lines.iter().enumerate() {
+        place_line(&mut plan, layout, line, Owner::Line(index))?;
     }
 
     let zones = door_zones(&plan);
@@ -795,12 +803,20 @@ pub fn derive(layout: &Layout) -> Result<Plan, String> {
             _ => None,
         };
         let glow = light.map(|l| Glow::Flicker(l.4));
+        let owner = Owner::Prop(index);
         plan.pieces.push(Piece {
             glow,
-            ..piece(prop.kind.module(), Part::Prop, center, prop.facing.yaw())
+            ..piece(
+                owner,
+                prop.kind.module(),
+                Part::Prop,
+                center,
+                prop.facing.yaw(),
+            )
         });
         if let (Some((anchor, color, intensity, range, _)), Some(glow)) = (light, glow) {
             plan.lights.push(LightSpec {
+                owner,
                 position: center + Quat::from_rotation_y(prop.facing.yaw()) * anchor,
                 color,
                 intensity,
@@ -816,8 +832,20 @@ pub fn derive(layout: &Layout) -> Result<Plan, String> {
 pub const FIREBOX: Vec3 = Vec3::new(0.0, 0.5, -0.85);
 pub const TANK_LAMP: Vec3 = Vec3::new(0.0, 2.1, 0.0);
 
-fn piece(module: &'static str, part: Part, translation: Vec3, yaw: f32) -> Piece {
+pub fn door_panel(key: Key, facing: Side, door: Door) -> (Vec3, f32) {
+    let hinge = half_point(key) - wall_right(facing) * (DOOR_W / 2.0 - 0.01);
+    match door {
+        Door::Closed => (hinge, facing.yaw()),
+        Door::Open(degrees) => (
+            hinge + facing.dir() * (FRAME_DEPTH + 0.035),
+            facing.yaw() + degrees.to_radians(),
+        ),
+    }
+}
+
+fn piece(owner: Owner, module: &'static str, part: Part, translation: Vec3, yaw: f32) -> Piece {
     Piece {
+        owner,
         module,
         part,
         translation,
@@ -829,6 +857,14 @@ fn piece(module: &'static str, part: Part, translation: Vec3, yaw: f32) -> Piece
 }
 
 pub fn moves(plan: &Plan, cell: IVec2) -> Vec<(Side, Option<IVec2>)> {
+    moves_through(plan, cell, |_| true)
+}
+
+pub fn moves_through(
+    plan: &Plan,
+    cell: IVec2,
+    door_open: impl Fn(Key) -> bool,
+) -> Vec<(Side, Option<IVec2>)> {
     let Some(&area) = plan.cells.get(&(cell.x, cell.y)) else {
         return Vec::new();
     };
@@ -840,12 +876,42 @@ pub fn moves(plan: &Plan, cell: IVec2) -> Vec<(Side, Option<IVec2>)> {
             if neighbor == Some(area) {
                 return Some((side, Some(n)));
             }
-            match plan.edges.get(&edge_key(cell, side))?.kind {
+            let key = edge_key(cell, side);
+            match plan.edges.get(&key)?.kind {
                 EdgeKind::Wall(_) => None,
+                EdgeKind::Doorway(_) if !door_open(key) => None,
                 EdgeKind::Passage | EdgeKind::Doorway(_) => Some((side, neighbor.map(|_| n))),
             }
         })
         .collect()
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Reach {
+    pub cells: BTreeSet<Key>,
+    pub outside: bool,
+}
+
+pub fn reachable(plan: &Plan, from: IVec2, door_open: impl Fn(Key) -> bool) -> Reach {
+    let mut reach = Reach::default();
+    if !plan.cells.contains_key(&(from.x, from.y)) {
+        return reach;
+    }
+    reach.cells.insert((from.x, from.y));
+    let mut queue = VecDeque::from([from]);
+    while let Some(cell) = queue.pop_front() {
+        for (_, next) in moves_through(plan, cell, &door_open) {
+            match next {
+                None => reach.outside = true,
+                Some(next) => {
+                    if reach.cells.insert((next.x, next.y)) {
+                        queue.push_back(next);
+                    }
+                }
+            }
+        }
+    }
+    reach
 }
 
 pub fn path(plan: &Plan, layout: &Layout, from: IVec2, dest: Dest) -> Result<Vec<Step>, String> {
@@ -871,7 +937,7 @@ pub fn path(plan: &Plan, layout: &Layout, from: IVec2, dest: Dest) -> Result<Vec
         return Ok(finish(from, Vec::new()));
     }
     let mut prev: BTreeMap<(i32, i32), Step> = BTreeMap::new();
-    let mut queue = std::collections::VecDeque::from([from]);
+    let mut queue = VecDeque::from([from]);
     while let Some(cell) = queue.pop_front() {
         for (side, next) in moves(plan, cell) {
             let Some(next) = next else { continue };
@@ -978,13 +1044,14 @@ fn check_arrow(
     Ok(())
 }
 
-fn push_row(plan: &mut Plan, row: Row, center: Vec3, yaw: f32, roll: f32) {
+fn push_row(plan: &mut Plan, owner: Owner, row: Row, center: Vec3, yaw: f32, roll: f32) {
     let rot = Quat::from_rotation_y(yaw);
     let (arrow_x, label_x) = match row.arrow {
         Arrow::Right => (-ROW_ARROW_X, -ROW_LABEL_X),
         Arrow::Left | Arrow::Ahead | Arrow::Back => (ROW_ARROW_X, ROW_LABEL_X),
     };
     plan.pieces.push(piece(
+        owner,
         row.dest.label(),
         Part::Sign,
         center + rot * Vec3::new(label_x, 0.0, 0.0),
@@ -993,6 +1060,7 @@ fn push_row(plan: &mut Plan, row: Row, center: Vec3, yaw: f32, roll: f32) {
     plan.pieces.push(Piece {
         roll,
         ..piece(
+            owner,
             "sign_arrow",
             Part::Sign,
             center + rot * Vec3::new(arrow_x, 0.0, 0.0),
@@ -1008,6 +1076,7 @@ pub fn hanger_readers(facing: Side) -> [Side; 2] {
 fn place_hanger(
     plan: &mut Plan,
     layout: &Layout,
+    owner: Owner,
     cell: IVec2,
     facing: Side,
     shift: f32,
@@ -1051,6 +1120,7 @@ fn place_hanger(
         let face = Quat::from_rotation_y(yaw) * Vec3::new(0.0, HANGER_ROW, -HANGER_HALF.y);
         push_row(
             plan,
+            owner,
             Row {
                 dest: Dest::Exit,
                 arrow,
@@ -1060,8 +1130,13 @@ fn place_hanger(
             arrow.roll(),
         );
     }
-    plan.pieces
-        .push(piece("sign_hanger", Part::Sign, center, facing.yaw()));
+    plan.pieces.push(piece(
+        owner,
+        "sign_hanger",
+        Part::Sign,
+        center,
+        facing.yaw(),
+    ));
     Ok(())
 }
 
@@ -1102,7 +1177,12 @@ fn wall_slot(
     Ok(half_point(key) + face.dir() * (WALL_T / 2.0) + wall_right(face) * offset)
 }
 
-fn place_wall_sign(plan: &mut Plan, layout: &Layout, fixture: &Fixture) -> Result<(), String> {
+fn place_wall_sign(
+    plan: &mut Plan,
+    layout: &Layout,
+    fixture: &Fixture,
+    owner: Owner,
+) -> Result<(), String> {
     let Fixture::WallSign {
         cell,
         side,
@@ -1136,6 +1216,7 @@ fn place_wall_sign(plan: &mut Plan, layout: &Layout, fixture: &Fixture) -> Resul
         check_arrow(plan, layout, reader, side, row)?;
         push_row(
             plan,
+            owner,
             row,
             base + Vec3::Y * (height - drop),
             yaw,
@@ -1172,7 +1253,12 @@ fn solid(plan: &Plan, cell: IVec2, side: Side) -> bool {
         .is_some_and(Edge::solid)
 }
 
-fn place_line(plan: &mut Plan, layout: &Layout, line: &RouteLine) -> Result<(), String> {
+fn place_line(
+    plan: &mut Plan,
+    layout: &Layout,
+    line: &RouteLine,
+    owner: Owner,
+) -> Result<(), String> {
     let dest = line.dest;
     let Some(module) = dest.line() else {
         return Err(format!("{dest:?} has no route color"));
@@ -1247,7 +1333,13 @@ fn place_line(plan: &mut Plan, layout: &Layout, line: &RouteLine) -> Result<(), 
         let center = cell_center(cell) + line.side.dir() * LINE_OFFSET + along * (s0 + s1) / 2.0;
         let piece = Piece {
             scale: Vec3::new(s1 - s0, 1.0, 1.0),
-            ..piece(module, Part::Route, center, line.heading.yaw() + FRAC_PI_2)
+            ..piece(
+                owner,
+                module,
+                Part::Route,
+                center,
+                line.heading.yaw() + FRAC_PI_2,
+            )
         };
         let bounds = line_bounds(&piece);
         if let Some(prop) = layout
@@ -1306,14 +1398,19 @@ fn derive_posts(edges: &BTreeMap<(i32, i32), Edge>) -> Vec<(i32, i32)> {
         .collect()
 }
 
-fn place_fixture(plan: &mut Plan, layout: &Layout, fixture: &Fixture) -> Result<(), String> {
+fn place_fixture(
+    plan: &mut Plan,
+    layout: &Layout,
+    fixture: &Fixture,
+    owner: Owner,
+) -> Result<(), String> {
     match *fixture {
-        Fixture::WallSign { .. } => place_wall_sign(plan, layout, fixture)?,
+        Fixture::WallSign { .. } => place_wall_sign(plan, layout, fixture, owner)?,
         Fixture::ExitHanger {
             cell,
             facing,
             shift,
-        } => place_hanger(plan, layout, cell, facing, shift)?,
+        } => place_hanger(plan, layout, owner, cell, facing, shift)?,
         Fixture::Ceiling {
             cell,
             lamp,
@@ -1336,7 +1433,7 @@ fn place_fixture(plan: &mut Plan, layout: &Layout, fixture: &Fixture) -> Result<
             let yaw = if along_z { FRAC_PI_2 } else { 0.0 };
             plan.pieces.push(Piece {
                 glow,
-                ..piece(module, Part::Light, center, yaw)
+                ..piece(owner, module, Part::Light, center, yaw)
             });
             if let Some(glow) = glow {
                 let (color, intensity) = match lamp {
@@ -1344,6 +1441,7 @@ fn place_fixture(plan: &mut Plan, layout: &Layout, fixture: &Fixture) -> Result<
                     _ => ([0.78, 0.88, 1.0], 90_000.0),
                 };
                 plan.lights.push(LightSpec {
+                    owner,
                     position: center + Vec3::Y * LAMP_HEIGHT,
                     color,
                     intensity,
@@ -1385,10 +1483,11 @@ fn place_fixture(plan: &mut Plan, layout: &Layout, fixture: &Fixture) -> Result<
             };
             plan.pieces.push(Piece {
                 glow: light.map(|l| l.3),
-                ..piece(mount.module(), Part::Mount, position, face.yaw())
+                ..piece(owner, mount.module(), Part::Mount, position, face.yaw())
             });
             if let Some((color, intensity, depth, glow)) = light {
                 plan.lights.push(LightSpec {
+                    owner,
                     position: position + face.dir() * depth,
                     color,
                     intensity,
@@ -1636,9 +1735,6 @@ pub fn authored() -> Layout {
         ],
         lines: vec![],
         exit: Some((IVec2::new(0, -12), North)),
+        start: Some((IVec2::new(0, -2), North)),
     }
 }
-
-#[cfg(test)]
-#[path = "tests/layout.rs"]
-mod tests;
