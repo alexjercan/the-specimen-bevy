@@ -1154,28 +1154,29 @@
       "file": "concept_locker.glb",
       "category": "concept",
       "snap": "floor",
-      "triangles": 324,
+      "triangles": 564,
       "materials": [
         "steel_dark",
         "void_black",
-        "steel_door"
+        "steel_door",
+        "conduit"
       ],
       "textured": false,
       "bounds_bevy": {
         "min": [
           -0.3,
           0.0,
-          -0.4873
+          -0.4881
         ],
         "max": [
-          0.3144,
+          0.3152,
           1.95,
           0.3
         ]
       },
       "concept": "Visual concept only: a locker interior dark enough to suggest something could be hidden inside. No hiding, collision, or interaction.",
-      "glb_sha256": "42c59212ed1735388474b2d7af4c8df9644efa05ad12b4f4562a723e2a2c1878",
-      "glb_bytes": 38920
+      "glb_sha256": "6e6aec01d62734257a1e407b6f26542a36105773318117b5266843aa583464cb",
+      "glb_bytes": 67072
     },
     "concept_crawl_vent": {
       "file": "concept_crawl_vent.glb",

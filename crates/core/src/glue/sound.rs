@@ -37,6 +37,10 @@ fn forward_gameplay_sounds(
             GameplaySoundKind::DoorShut => Sound::DoorShut,
             GameplaySoundKind::FusePickup => Sound::FusePickup,
             GameplaySoundKind::PanelInstall => Sound::PanelInstall,
+            GameplaySoundKind::LockerOpen => Sound::LockerOpen,
+            GameplaySoundKind::LockerClose => Sound::LockerClose,
+            GameplaySoundKind::TableEnter => Sound::TableEnter,
+            GameplaySoundKind::TableLeave => Sound::TableLeave,
         };
         sounds.write(PlaySound {
             sound,
@@ -93,3 +97,7 @@ fn sync_pause(state: Option<Res<State<PauseState>>>, mut paused: ResMut<AudioPau
         paused.0 = value;
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/sound.rs"]
+mod tests;

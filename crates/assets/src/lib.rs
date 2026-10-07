@@ -97,6 +97,14 @@ pub struct SoundAssets {
     pub door_swing: Handle<AudioSource>,
     #[asset(path = "sounds/door/shut/01.wav")]
     pub door_shut: Handle<AudioSource>,
+    #[asset(path = "sounds/hiding/locker/open.wav")]
+    pub locker_open: Handle<AudioSource>,
+    #[asset(path = "sounds/hiding/locker/close.wav")]
+    pub locker_close: Handle<AudioSource>,
+    #[asset(path = "sounds/hiding/table/enter.wav")]
+    pub table_enter: Handle<AudioSource>,
+    #[asset(path = "sounds/hiding/table/leave.wav")]
+    pub table_leave: Handle<AudioSource>,
     #[asset(path = "sounds/fuse/pickup/01.wav")]
     pub fuse_pickup: Handle<AudioSource>,
     #[asset(path = "sounds/panel/install/01.wav")]

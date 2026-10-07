@@ -2,12 +2,14 @@ use bevy::{prelude::*, transform::TransformSystems};
 use game_assets::{GameAssetsState, UiAssets};
 use gameplay::{
     controller::PlayerController,
-    levels::{DoorState, FuseInventory, InteractTarget, InteractTargets},
+    levels::{DoorState, FuseInventory, Hidden, InteractTarget, InteractTargets},
 };
 
 const DOOR_HINT_WIDTH: f32 = 130.0;
 const FUSE_HINT_WIDTH: f32 = 160.0;
 const PANEL_HINT_WIDTH: f32 = 172.0;
+const HIDING_HINT_WIDTH: f32 = 130.0;
+const LEAVE_HINT_MARGIN: f32 = 80.0;
 
 #[derive(Component)]
 struct InteractionHint;
@@ -66,7 +68,13 @@ fn spawn_hint(mut commands: Commands, assets: Res<UiAssets>) {
 
 fn update_hint(
     players: Query<
-        (&Transform, &Camera, &GlobalTransform, Option<&FuseInventory>),
+        (
+            &Transform,
+            &Camera,
+            &GlobalTransform,
+            Option<&FuseInventory>,
+            Option<&Hidden>,
+        ),
         With<PlayerController>,
     >,
     targets: InteractTargets,
@@ -77,10 +85,10 @@ fn update_hint(
         return;
     };
     *visibility = Visibility::Hidden;
-    let Some((player, camera, camera_transform, inventory)) = players.iter().next() else {
+    let Some((player, camera, camera_transform, inventory, hidden)) = players.iter().next() else {
         return;
     };
-    let Some(target) = targets.aimed(player, inventory) else {
+    let Some(target) = targets.aimed(player, inventory, hidden) else {
         return;
     };
     let (action, width) = match target {
@@ -92,15 +100,22 @@ fn update_hint(
         },
         InteractTarget::Fuse(_) => ("PICK UP FUSE", FUSE_HINT_WIDTH),
         InteractTarget::Panel(_) => ("INSTALL FUSES", PANEL_HINT_WIDTH),
-    };
-    let Some(anchor) = targets.anchor(target) else {
-        return;
-    };
-    let Ok(point) = camera.world_to_viewport(camera_transform, anchor) else {
-        return;
+        InteractTarget::Hide(_) => ("HIDE", HIDING_HINT_WIDTH),
+        InteractTarget::Leave(_) => ("LEAVE", HIDING_HINT_WIDTH),
     };
     let Some(viewport) = camera.logical_viewport_rect() else {
         return;
+    };
+    let point = if let InteractTarget::Leave(_) = target {
+        Vec2::new(viewport.center().x, viewport.max.y - LEAVE_HINT_MARGIN)
+    } else {
+        let Some(anchor) = targets.anchor(target) else {
+            return;
+        };
+        let Ok(point) = camera.world_to_viewport(camera_transform, anchor) else {
+            return;
+        };
+        point
     };
     if point.x < viewport.min.x
         || point.x >= viewport.max.x

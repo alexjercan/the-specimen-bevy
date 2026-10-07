@@ -7,6 +7,7 @@ use super::{
     fuses::{
         fuse_center, fuse_hit, fuse_panel_hit, FuseInventory, FusePanel, FusePickup, FUSE_COUNT,
     },
+    hiding::{Hidden, HidingSpot},
 };
 
 const TILE: f32 = 2.5;
@@ -16,6 +17,8 @@ pub enum InteractTarget {
     Door(Entity),
     Fuse(Entity),
     Panel(Entity),
+    Hide(Entity),
+    Leave(Entity),
 }
 
 #[derive(SystemParam)]
@@ -24,6 +27,7 @@ pub struct InteractTargets<'w, 's> {
     locks: Query<'w, 's, (), With<DoorLock>>,
     fuses: Query<'w, 's, (Entity, &'static Transform), With<FusePickup>>,
     panels: Query<'w, 's, (Entity, &'static Transform, &'static FusePanel)>,
+    spots: Query<'w, 's, (Entity, &'static Transform, &'static HidingSpot)>,
     rooms: Query<'w, 's, (&'static Room, Option<&'static Doors>)>,
     links: Query<'w, 's, &'static DoorRef>,
     passages: Query<'w, 's, &'static Passage>,
@@ -34,7 +38,11 @@ impl InteractTargets<'_, '_> {
         &self,
         player: &Transform,
         inventory: Option<&FuseInventory>,
+        hidden: Option<&Hidden>,
     ) -> Option<InteractTarget> {
+        if let Some(hidden) = hidden {
+            return Some(InteractTarget::Leave(hidden.spot));
+        }
         let origin = player.translation;
         let forward = player.rotation * -Vec3::Z;
         let door = aimed_door(player, &self.doors);
@@ -53,8 +61,18 @@ impl InteractTargets<'_, '_> {
                 fuse_panel_hit(origin, forward, center)
                     .map(|distance| (InteractTarget::Panel(entity), center, distance))
             });
+        let spots = self.spots.iter().filter_map(|(entity, transform, spot)| {
+            spot.hit(transform, origin, forward).map(|distance| {
+                (
+                    InteractTarget::Hide(entity),
+                    transform.translation,
+                    distance,
+                )
+            })
+        });
         let mut candidates: Vec<_> = fuses
             .chain(panels)
+            .chain(spots)
             .filter(|&(_, _, distance)| door.is_none_or(|(_, nearest)| distance <= nearest))
             .collect();
         if !candidates.is_empty() {
@@ -87,6 +105,11 @@ impl InteractTargets<'_, '_> {
                 .get(entity)
                 .ok()
                 .map(|(_, transform, _)| transform.translation),
+            InteractTarget::Hide(entity) | InteractTarget::Leave(entity) => self
+                .spots
+                .get(entity)
+                .ok()
+                .map(|(_, transform, spot)| spot.anchor(transform)),
         }
     }
 

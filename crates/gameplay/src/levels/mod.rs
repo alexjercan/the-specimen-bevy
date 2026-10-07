@@ -3,6 +3,7 @@ mod builder;
 mod doors;
 mod first_floor_builder;
 mod fuses;
+mod hiding;
 mod interaction;
 mod objective;
 mod render;
@@ -19,6 +20,9 @@ pub use first_floor_builder::{build_first_floor, FuseTable, FUSE_TABLES};
 pub use fuses::{
     select_fuse_slots, FuseInventory, FusePanel, FusePickup, FusePlugin, FuseSeed, InstallFuses,
     FUSE_COUNT, FUSE_MODULE,
+};
+pub use hiding::{
+    Hidden, HidingMotion, HidingPhase, HidingPlugin, HidingSpot, UseHidingSpot, HIDING_TRANSITION,
 };
 pub use interaction::{InteractTarget, InteractTargets};
 pub use objective::{Escaped, ObjectivePlugin};

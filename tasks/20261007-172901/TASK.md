@@ -10,12 +10,28 @@ Based on approved audio prototypes, add footsteps by movement/surface, door/latc
 
 ## Approved catalog selection (2026-10-07)
 
-The approved runtime audio consists of 18 clips: subway step takes 01, 02,
-and 04, three edited recorded-door cues, and current objective, UI, and
-ambience cues. The HTML catalog uses an explicit allowlist. All uncataloged
+The approved runtime audio consists of 22 clips: subway step takes 01, 02,
+and 04, three edited recorded-door cues, four hiding cues, and current
+objective, UI, and ambience cues. The HTML catalog uses an explicit allowlist. All uncataloged
 audio, including the source recordings for the rendered doors, was removed
 at the user's request; source URLs, license claims, and hashes remain in
 `art/sounds/README.md`. Matching copies are in `assets/sounds/`.
+
+## Hiding audio and ambience review
+
+The user approved all four hiding clips (locker open/close and table enter/leave).
+Source WAVs remain under `art/sounds/review/hiding/`; byte-identical runtime
+copies are in `assets/sounds/hiding/`. Gameplay emits a cue on each enter/leave
+transition, and core maps it to `game_audio` for positional playback; Rust
+compilation and runtime mix remain unchecked. The source archive, license claim,
+and per-file rendered hashes are in `art/sounds/README.md`.
+
+Seven original ambience candidates are under `art/sounds/review/amb/` for
+listening, not runtime playback. The HTML catalog groups audio by the inventory's
+lettered sections; yellow cards mark these unapproved candidates. Existing
+approved objective, UI, step, door, and ambience cues remain unchanged.
+Catalog tests cover per-file provenance and review labels; gameplay audio checks
+and in-game audition remain outstanding.
 
 ## Integration draft (unvalidated)
 

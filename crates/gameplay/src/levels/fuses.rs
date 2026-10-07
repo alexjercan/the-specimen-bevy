@@ -7,6 +7,7 @@ use crate::controller::player::{Interact, PlayerController, PlayerControlsEnable
 
 use super::{
     doors::{DoorLock, ExitDoor, INTERACT_RANGE},
+    hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
     sounds::{GameplaySound, GameplaySoundKind},
 };
@@ -62,7 +63,10 @@ fn use_fuses(
     _: On<Start<Interact>>,
     enabled: Res<PlayerControlsEnabled>,
     targets: InteractTargets,
-    mut players: Query<(Entity, &Transform, &mut FuseInventory), With<PlayerController>>,
+    mut players: Query<
+        (Entity, &Transform, &mut FuseInventory, Option<&Hidden>),
+        With<PlayerController>,
+    >,
     mut installs: MessageWriter<InstallFuses>,
     mut sounds: MessageWriter<GameplaySound>,
     mut commands: Commands,
@@ -71,8 +75,8 @@ fn use_fuses(
         return;
     }
     let mut taken = Vec::new();
-    for (entity, player, mut inventory) in &mut players {
-        match targets.aimed(player, Some(&*inventory)) {
+    for (entity, player, mut inventory, hidden) in &mut players {
+        match targets.aimed(player, Some(&*inventory), hidden) {
             Some(InteractTarget::Fuse(fuse)) => {
                 if taken.contains(&fuse) || inventory.0 >= FUSE_COUNT {
                     continue;
@@ -93,7 +97,8 @@ fn use_fuses(
                     panel,
                 });
             }
-            Some(InteractTarget::Door(_)) | None => {}
+            Some(InteractTarget::Door(_) | InteractTarget::Hide(_) | InteractTarget::Leave(_))
+            | None => {}
         }
     }
 }

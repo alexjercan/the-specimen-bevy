@@ -23,12 +23,45 @@ APPROVED_FILES = {
     "art/sounds/generated/panel/install/01.wav",
     "art/sounds/generated/amb/boiler/rumble.wav",
     "art/sounds/generated/amb/roomtone.wav",
+    *{f"art/sounds/review/hiding/{name}.wav" for name in (
+        "locker/open", "locker/close", "table/enter", "table/leave"
+    )},
     *{f"art/sounds/generated/ui/{cue}/01.wav" for cue in (
         "back", "confirm", "denied", "focus", "hover", "pause", "press", "resume"
     )},
 }
-CATEGORIES = {"step": "Player", "door": "Doors", "fuse": "Objective", "panel": "Objective", "amb": "Ambience"}
-STYLE = """body{background:#101416;color:#e2e5df;font:16px system-ui,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem}h1,h2{color:#b0d9cf}section{margin:2rem 0}article{background:#1a2224;border:1px solid #354644;border-radius:8px;margin:.6rem 0;padding:.8rem 1rem}strong{display:block}small{color:#9aada9}audio{display:block;width:100%;margin:.5rem 0}svg{display:block;width:100%;height:72px;background:#111b1b;border-radius:4px}input{background:#1a2224;color:#fff;border:1px solid #6e8b84;border-radius:4px;padding:.5rem;width:min(25rem,95%)}.empty{color:#c1a886}"""
+REVIEW_FILES = {
+    f"art/sounds/review/amb/{name}.wav" for name in (
+        "roomtone/conduit", "boiler/tick/01", "vent/hvac/01", "tank/hum",
+        "light/buzz/cool-low",
+    )
+} | {"art/sounds/review/amb/light/flicker/recorded-01.ogg"}
+DRAFT_FILES = {
+    f"art/sounds/review/amb/{name}.wav" for name in (
+        "light/buzz/cool", "light/flicker/01", "distant/settle/01",
+    )
+}
+CATEGORIES = {
+    "step": "A. Player self (bus self)",
+    "door": "B. Doors (bus world)",
+    "fuse": "C. Objective, pickup and panel (bus world and ui)",
+    "panel": "C. Objective, pickup and panel (bus world and ui)",
+    "amb": "D. Facility ambience (bus ambience)",
+    "ui": "E. UI and front end (bus ui)",
+    "hiding": "G. Hiding (bus world)",
+}
+STEP_CREDIT = ('GboxMikeFozzy, "Footsteps" (CC0 1.0)', "https://opengameart.org/content/footsteps-0")
+METAL_WOOD_CREDIT = ('rubberduck, "100 CC0 metal and wood SFX" (CC0 1.0)', "https://opengameart.org/content/100-cc0-metal-and-wood-sfx")
+RECORDED_PATHS = {
+    path: STEP_CREDIT if path.startswith("art/sounds/source/step/") else METAL_WOOD_CREDIT
+    for path in APPROVED_FILES
+    if path.startswith(("art/sounds/source/step/", "art/sounds/generated/door/", "art/sounds/review/hiding/"))
+}
+RECORDED_PATHS["art/sounds/review/amb/light/flicker/recorded-01.ogg"] = (
+    'mmaruska, "Lights Flicker On.wav" (page-labeled CC0 1.0, Freesound preview)',
+    "https://freesound.org/people/mmaruska/sounds/232447/",
+)
+STYLE = """body{background:#101416;color:#e2e5df;font:16px system-ui,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem}h1,h2{color:#b0d9cf}section{margin:2rem 0}article{background:#1a2224;border:1px solid #354644;border-radius:8px;margin:.6rem 0;padding:.8rem 1rem}article.review{background:#302919;border-color:#c69a46}article.review small{color:#f2cf83}strong,small{display:block}small{color:#9aada9}audio{display:block;width:100%;margin:.5rem 0}svg{display:block;width:100%;height:72px;background:#111b1b;border-radius:4px}input{background:#1a2224;color:#fff;border:1px solid #6e8b84;border-radius:4px;padding:.5rem;width:min(25rem,95%)}.empty{color:#c1a886}"""
 
 
 def waveform(path, columns=240):
@@ -84,17 +117,22 @@ def collect(sources=SOURCES):
         path for source in sources if source.exists()
         for path in source.rglob("*")
         if path.is_file() and path.suffix.lower() in EXTENSIONS
-        and path.relative_to(ROOT).as_posix() in APPROVED_FILES
+        and path.relative_to(ROOT).as_posix() in APPROVED_FILES | REVIEW_FILES
     )
+
+
+def sound_parts(path):
+    part = path.relative_to(ROOT).parts[2:]
+    if part and part[0] in ("generated", "recorded", "source", "review"):
+        part = part[1:]
+    return part
 
 
 def build(paths, output=OUTPUT):
     groups = {}
     for path in paths:
         relative = path.relative_to(ROOT)
-        part = relative.parts[2:]
-        if part and part[0] in ("generated", "recorded", "source"):
-            part = part[1:]
+        part = sound_parts(path)
         category = CATEGORIES.get(part[0], part[0]) if len(part) > 1 else "misc"
         groups.setdefault(category, []).append(path)
     sections = []
@@ -105,18 +143,24 @@ def build(paths, output=OUTPUT):
             href = quote(pathlib.Path(os.path.relpath(path, output.parent)).as_posix())
             name = "/".join((*relative.parts[2:-1], path.stem)).replace("_", " ")
             searchable = f"{category} {name} {relative.as_posix()}".lower()
+            credit = RECORDED_PATHS.get(relative.as_posix())
+            source = (f'<small>Source: <a href="{html.escape(credit[1], quote=True)}">{html.escape(credit[0])}</a></small>'
+                      if credit else '<small>Original project-generated sound</small>')
+            review = relative.as_posix() in REVIEW_FILES
             cards.append(
-                f'<article data-search="{html.escape(searchable, quote=True)}">'
-                f'<strong>{html.escape(name)}</strong><small>{html.escape(relative.as_posix())}</small>'
+                f'<article class="{"review" if review else "approved"}" data-search="{html.escape(searchable, quote=True)}">'
+                f'<strong>{html.escape(name)}</strong><small>{html.escape(relative.as_posix())}</small>{source}'
+                f'{"<small>For review - not in game</small>" if review else ""}'
                 f'{waveform(path)}<audio controls preload="none" src="{html.escape(href, quote=True)}"></audio></article>'
             )
-        sections.append(f'<section><h2>{html.escape(category.title())}</h2>{"".join(cards)}</section>')
+        sections.append(f'<section><h2>{html.escape(category)}</h2>{"".join(cards)}</section>')
     content = "".join(sections) or '<p class="empty">No audio files found in art/sounds or assets/sounds.</p>'
     document = (
         '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
         '<title>Facility sound catalog</title><style>' + STYLE + '</style><body>'
         '<h1>Facility sound catalog</h1><p>Selected sounds from art/sounds and assets/sounds. Waveforms show peak amplitude, not loudness. '
-        'These approved cues have runtime copies in assets/sounds; their in-game mix remains provisional.</p>'
+        'Approved cues have runtime copies in assets/sounds. Yellow cards are review-only ambience sounds, not in the game. '
+        'Source-page CC0 labels are recorded as displayed, not independently verified authorship. In-game mix remains provisional.</p>'
         '<label for="filter">Filter sounds</label> <input id="filter" type="search" placeholder="Category or filename">'
         + content + '<script>document.addEventListener("play",e=>{if(e.target.tagName==="AUDIO")for(const a of document.querySelectorAll("audio"))if(a!==e.target)a.pause()},true);'
         'document.querySelector("#filter").addEventListener("input",e=>{const q=e.target.value.toLowerCase();'

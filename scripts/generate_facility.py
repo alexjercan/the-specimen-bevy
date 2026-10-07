@@ -767,9 +767,13 @@ def concept_locker(palette):
     b.box((-0.27, -0.27, 0.03), (0.27, 0.17, 1.92), "void_black")
     angle = -math.radians(25)
     pivot = (0.3, 0.2, 0.0)
-    rotated_box(b, (-0.6, 0.0, 0.05), (0.0, 0.04, 1.9), "steel_door", angle, pivot, bevel=0.006)
-    for z0 in (1.5, 1.57, 1.64, 1.71):
-        rotated_box(b, (-0.5, 0.04, z0), (-0.1, 0.045, z0 + 0.03), "void_black", angle, pivot)
+    rotated_box(b, (-0.6, 0.0, 0.05), (0.0, 0.04, 1.15), "steel_door", angle, pivot, bevel=0.006)
+    rotated_box(b, (-0.6, 0.0, 1.78), (0.0, 0.04, 1.9), "steel_door", angle, pivot, bevel=0.006)
+    for x0 in (-0.6, -0.09):
+        rotated_box(b, (x0, 0.0, 1.15), (x0 + 0.09, 0.04, 1.78), "steel_door", angle, pivot, bevel=0.004)
+    for i in range(13):
+        z0 = 1.185 + i * 0.045
+        rotated_box(b, (-0.51, 0.012, z0), (-0.09, 0.028, z0 + 0.028), "conduit", angle, pivot)
     return b.build()
 
 

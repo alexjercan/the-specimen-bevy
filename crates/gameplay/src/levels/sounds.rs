@@ -7,6 +7,10 @@ pub enum GameplaySoundKind {
     DoorShut,
     FusePickup,
     PanelInstall,
+    LockerOpen,
+    LockerClose,
+    TableEnter,
+    TableLeave,
 }
 
 #[derive(Message, Clone, Copy, Debug)]

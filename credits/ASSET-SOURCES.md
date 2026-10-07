@@ -9,7 +9,8 @@ https://juliocacko.itch.io/free-input-prompts . Licensed under CC0 1.0
 Universal (`credits/licenses/FREE-Input-Prompts_CC0-1.0.md`).
 
 The UI font source and its required license notice are recorded in
-`credits/CREDITS.md`.
+`credits/CREDITS.md`. Recorded footstep and door source credits are there too;
+see `art/sounds/README.md` for source hashes and edits.
 
 ## Facility modular kit
 

@@ -4,7 +4,7 @@ use bevy::{
 };
 use bevy_enhanced_input::prelude::*;
 
-use crate::levels::{Door, DoorOf, DoorRef, DoorSwing, Doors, Passage, PropCollider, Room};
+use crate::levels::{Door, DoorOf, DoorRef, DoorSwing, Doors, Hidden, Passage, PropCollider, Room};
 
 use super::collision;
 
@@ -174,7 +174,7 @@ fn update_cursor(
     }
 }
 
-fn apply_input(
+pub(crate) fn apply_input(
     time: Res<Time>,
     enabled: Res<PlayerControlsEnabled>,
     rooms: Query<(&Room, Option<&Doors>)>,
@@ -182,20 +182,29 @@ fn apply_input(
     doors: Query<(&Door, &DoorSwing)>,
     passages: Query<&Passage>,
     props: Query<(&PropCollider, &Transform), Without<PlayerController>>,
-    mut players: Query<(&mut Transform, &mut PlayerInput), With<PlayerController>>,
+    mut players: Query<(&mut Transform, &mut PlayerInput, Option<&Hidden>), With<PlayerController>>,
 ) {
     if !enabled.0 {
-        for (_, mut input) in &mut players {
+        for (_, mut input, _) in &mut players {
             *input = PlayerInput::default();
         }
         return;
     }
-    for (mut transform, mut input) in &mut players {
+    for (mut transform, mut input, hidden) in &mut players {
+        if hidden.is_some_and(|hidden| !hidden.settled()) {
+            *input = PlayerInput::default();
+            continue;
+        }
         let (yaw, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
         let yaw = yaw - input.look.x * LOOK_SENSITIVITY;
         let pitch = (pitch - input.look.y * LOOK_SENSITIVITY).clamp(-PITCH_LIMIT, PITCH_LIMIT);
         transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
         input.look = Vec2::ZERO;
+        if hidden.is_some() {
+            input.movement = Vec2::ZERO;
+            input.running = false;
+            continue;
+        }
 
         let movement = input.movement.clamp_length_max(1.0);
         let direction = Quat::from_rotation_y(yaw) * Vec3::new(movement.x, 0.0, -movement.y);

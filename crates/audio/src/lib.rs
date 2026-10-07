@@ -14,6 +14,10 @@ pub enum Sound {
     DoorShut,
     FusePickup,
     PanelInstall,
+    LockerOpen,
+    LockerClose,
+    TableEnter,
+    TableLeave,
     Step(usize),
     UiBack,
     UiConfirm,
@@ -120,6 +124,10 @@ fn play_sounds(
                 | Sound::DoorShut
                 | Sound::FusePickup
                 | Sound::PanelInstall
+                | Sound::LockerOpen
+                | Sound::LockerClose
+                | Sound::TableEnter
+                | Sound::TableLeave
                 | Sound::Step(_)
         );
         if paused.0 && world_sound {
@@ -131,6 +139,10 @@ fn play_sounds(
             Sound::DoorShut => &assets.door_shut,
             Sound::FusePickup => &assets.fuse_pickup,
             Sound::PanelInstall => &assets.panel_install,
+            Sound::LockerOpen => &assets.locker_open,
+            Sound::LockerClose => &assets.locker_close,
+            Sound::TableEnter => &assets.table_enter,
+            Sound::TableLeave => &assets.table_leave,
             Sound::Step(index) => match index % 3 {
                 0 => &assets.step_01,
                 1 => &assets.step_02,

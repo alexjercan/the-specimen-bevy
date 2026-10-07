@@ -7,6 +7,7 @@ use super::{
     animation::{animate_doors, DoorSwing},
     builder::{Door, DoorState},
     fuses::FuseInventory,
+    hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
     sounds::{GameplaySound, GameplaySoundKind},
 };
@@ -43,7 +44,7 @@ impl Plugin for DoorPlugin {
 
 fn interact(
     _: On<Start<Interact>>,
-    players: Query<(&Transform, Option<&FuseInventory>), With<PlayerController>>,
+    players: Query<(&Transform, Option<&FuseInventory>, Option<&Hidden>), With<PlayerController>>,
     enabled: Res<PlayerControlsEnabled>,
     targets: InteractTargets,
     mut toggles: MessageWriter<ToggleDoor>,
@@ -51,8 +52,8 @@ fn interact(
     if !enabled.0 {
         return;
     }
-    for (player, inventory) in &players {
-        if let Some(InteractTarget::Door(door)) = targets.aimed(player, inventory) {
+    for (player, inventory, hidden) in &players {
+        if let Some(InteractTarget::Door(door)) = targets.aimed(player, inventory, hidden) {
             toggles.write(ToggleDoor(door));
         }
     }
@@ -95,8 +96,17 @@ pub fn panel_top(door: &Door, swing: &DoorSwing) -> Vec3 {
 }
 
 fn panel_hit(origin: Vec3, direction: Vec3) -> Option<f32> {
-    let min = Vec3::new(0.0, 0.01, -PANEL_HALF_THICKNESS).to_array();
-    let max = Vec3::new(PANEL_WIDTH, PANEL_HEIGHT - 0.01, PANEL_HALF_THICKNESS).to_array();
+    box_hit(
+        origin,
+        direction,
+        Vec3::new(0.0, 0.01, -PANEL_HALF_THICKNESS),
+        Vec3::new(PANEL_WIDTH, PANEL_HEIGHT - 0.01, PANEL_HALF_THICKNESS),
+    )
+}
+
+pub(crate) fn box_hit(origin: Vec3, direction: Vec3, min: Vec3, max: Vec3) -> Option<f32> {
+    let min = min.to_array();
+    let max = max.to_array();
     let origin = origin.to_array();
     let direction = direction.to_array();
     let mut entry: f32 = 0.0;
