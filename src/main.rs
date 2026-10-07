@@ -6,13 +6,21 @@ use game::prelude::AppBuilder;
 struct Cli {
     #[arg(long)]
     norender: bool,
+    #[arg(long)]
+    transport: bool,
 }
 
 fn main() -> AppExit {
     let cli = Cli::parse();
-    if cli.norender {
-        AppBuilder::headless().build().run()
+    let builder = if cli.norender {
+        AppBuilder::headless()
     } else {
-        AppBuilder::new().build().run()
-    }
+        AppBuilder::new()
+    };
+    let builder = if cli.transport {
+        builder.with_transport()
+    } else {
+        builder
+    };
+    builder.build().run()
 }

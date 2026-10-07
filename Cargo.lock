@@ -3035,6 +3035,7 @@ dependencies = [
  "debug",
  "game_assets",
  "gameplay",
+ "serde_json",
  "transport",
 ]
 
@@ -5652,6 +5653,8 @@ name = "transport"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_enhanced_input",
+ "gameplay",
  "serde",
  "serde_json",
 ]

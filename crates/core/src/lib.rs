@@ -19,11 +19,11 @@ pub enum CoreState {
     #[default]
     Loading,
     Ready,
-    Failed,
 }
 
 pub struct AppBuilder {
     headless: bool,
+    transport: bool,
     main_plugin: Box<dyn FnOnce(&mut App) + Send + Sync>,
 }
 
@@ -31,6 +31,7 @@ impl Default for AppBuilder {
     fn default() -> Self {
         Self {
             headless: false,
+            transport: false,
             main_plugin: Box::new(|app| {
                 app.add_plugins(GamePlugin);
             }),
@@ -48,6 +49,11 @@ impl AppBuilder {
             headless: true,
             ..default()
         }
+    }
+
+    pub fn with_transport(mut self) -> Self {
+        self.transport = true;
+        self
     }
 
     pub fn with_main_plugin(mut self, plugin: impl Plugin) -> Self {
@@ -68,11 +74,14 @@ impl AppBuilder {
             app.add_plugins(
                 MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_millis(10))),
             )
+            .add_plugins(logging)
             .add_plugins((InputPlugin, StatesPlugin))
             .insert_state(CoreState::Ready)
             .add_plugins(EnhancedInputPlugin)
-            .add_plugins(gameplay::controller::PlayerControllerPlugin::default().without_camera())
-            .add_plugins(transport::TransportPlugin);
+            .add_plugins(gameplay::controller::PlayerControllerPlugin::default().without_camera());
+            if self.transport {
+                app.add_plugins(transport::TransportPlugin);
+            }
         } else {
             app.add_plugins(DefaultPlugins.set(logging))
                 .init_state::<CoreState>()
@@ -84,8 +93,14 @@ impl AppBuilder {
                 .add_systems(OnEnter(GameAssetsState::Failed), core_failed)
                 .add_plugins(EnhancedInputPlugin)
                 .add_plugins(gameplay::controller::PlayerControllerPlugin::default());
+            if self.transport {
+                app.add_plugins(transport::RenderedTransportPlugin);
+            }
             #[cfg(feature = "debug")]
             app.add_plugins(debug::DebugPlugin);
+        }
+        if self.transport {
+            app.add_systems(OnEnter(CoreState::Ready), transport_ready);
         }
         (self.main_plugin)(&mut app);
         app
@@ -105,8 +120,12 @@ fn core_ready(mut next: ResMut<NextState<CoreState>>) {
     next.set(CoreState::Ready);
 }
 
-fn core_failed(mut next: ResMut<NextState<CoreState>>) {
-    next.set(CoreState::Failed);
+fn core_failed(mut exit: MessageWriter<AppExit>) {
+    exit.write(AppExit::error());
+}
+
+fn transport_ready(mut timeline: ResMut<transport::TransportTimeline>) {
+    timeline.ready();
 }
 
 fn spawn_controller(mut commands: Commands) {

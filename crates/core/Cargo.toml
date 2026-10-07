@@ -15,3 +15,6 @@ game_assets.workspace = true
 gameplay.workspace = true
 transport.workspace = true
 debug = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = "1"
