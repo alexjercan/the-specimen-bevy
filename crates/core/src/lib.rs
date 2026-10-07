@@ -1,4 +1,5 @@
 mod glue;
+mod menu;
 
 use std::time::Duration;
 
@@ -13,6 +14,8 @@ use bevy_enhanced_input::EnhancedInputPlugin;
 use game_assets::GameAssetsState;
 use gameplay::{controller::PlayerController, levels::build_first_floor};
 
+pub use menu::{GameState, PauseState};
+
 const LOG_FILTER: &str = "wgpu=error,naga=warn,bevy_ecs=warn,bevy_time=warn";
 const EYE_HEIGHT: f32 = 1.6;
 
@@ -23,22 +26,14 @@ pub enum CoreState {
     Ready,
 }
 
+type MainPlugin = Box<dyn FnOnce(&mut App) + Send + Sync>;
+
+#[derive(Default)]
 pub struct AppBuilder {
     headless: bool,
     transport: bool,
-    main_plugin: Box<dyn FnOnce(&mut App) + Send + Sync>,
-}
-
-impl Default for AppBuilder {
-    fn default() -> Self {
-        Self {
-            headless: false,
-            transport: false,
-            main_plugin: Box::new(|app| {
-                app.add_plugins(GamePlugin);
-            }),
-        }
-    }
+    menu: bool,
+    main_plugin: Option<MainPlugin>,
 }
 
 impl AppBuilder {
@@ -58,14 +53,24 @@ impl AppBuilder {
         self
     }
 
-    pub fn with_main_plugin(mut self, plugin: impl Plugin) -> Self {
-        self.main_plugin = Box::new(|app| {
-            app.add_plugins(plugin);
-        });
+    pub fn with_menu(mut self) -> Self {
+        self.menu = true;
         self
     }
 
+    pub fn with_main_plugin(mut self, plugin: impl Plugin) -> Self {
+        self.main_plugin = Some(Box::new(|app| {
+            app.add_plugins(plugin);
+        }));
+        self
+    }
+
+    fn menu_enabled(&self) -> bool {
+        self.menu && !self.headless && !self.transport && self.main_plugin.is_none()
+    }
+
     pub fn build(self) -> App {
+        let menu = self.menu_enabled();
         let mut app = App::new();
         let logging = LogPlugin {
             level: Level::INFO,
@@ -107,7 +112,15 @@ impl AppBuilder {
         if self.transport {
             app.add_systems(OnEnter(CoreState::Ready), transport_ready);
         }
-        (self.main_plugin)(&mut app);
+        match self.main_plugin {
+            Some(main_plugin) => main_plugin(&mut app),
+            None if menu => {
+                app.add_plugins(menu::MenuPlugin);
+            }
+            None => {
+                app.add_plugins(GamePlugin);
+            }
+        }
         app
     }
 }
@@ -133,6 +146,10 @@ fn transport_ready(mut timeline: ResMut<transport::TransportTimeline>) {
     timeline.ready();
 }
 
+fn player() -> impl Bundle {
+    (PlayerController, Transform::from_xyz(0.0, EYE_HEIGHT, -5.0))
+}
+
 fn spawn_controller(mut commands: Commands) {
-    commands.spawn((PlayerController, Transform::from_xyz(0.0, EYE_HEIGHT, -5.0)));
+    commands.spawn(player());
 }

@@ -1,0 +1,85 @@
+use bevy::{platform::collections::HashSet, prelude::*};
+use game_assets::UiAssets;
+use game_ui::{menu_button, text, theme};
+use gameplay::levels::build_first_floor;
+
+use super::{release_cursor, screen_camera, GameState, MenuAction, TITLE};
+
+#[derive(Component)]
+pub(super) struct MainMenu;
+
+pub(super) fn plugin(app: &mut App) {
+    app.add_systems(
+        OnEnter(GameState::MainMenu),
+        (spawn_main_menu, release_cursor),
+    )
+    .add_systems(OnEnter(GameState::Playing), enter_world);
+}
+
+fn spawn_main_menu(mut commands: Commands, assets: Res<UiAssets>) {
+    let font = assets.font.clone();
+    commands.spawn(screen_camera(GameState::MainMenu));
+    commands.spawn((
+        MainMenu,
+        Name::new("Main menu"),
+        DespawnOnExit(GameState::MainMenu),
+        Node {
+            width: percent(100),
+            height: percent(100),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            padding: UiRect::left(px(96)),
+            row_gap: px(12),
+            ..default()
+        },
+        BackgroundColor(theme::BACKGROUND),
+        children![
+            (
+                text(TITLE, 56.0, theme::TEXT, font.clone()),
+                Node {
+                    margin: UiRect::bottom(px(28)),
+                    ..default()
+                },
+            ),
+            (
+                Node {
+                    width: px(240),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: px(10),
+                    ..default()
+                },
+                children![
+                    (
+                        Name::new("Play button"),
+                        MenuAction::Play,
+                        menu_button("Play", font.clone()),
+                    ),
+                    (
+                        Name::new("Quit button"),
+                        MenuAction::Quit,
+                        menu_button("Quit", font.clone()),
+                    ),
+                ],
+            ),
+        ],
+    ));
+}
+
+fn enter_world(world: &mut World) {
+    let build = world.register_system_cached(build_first_floor);
+    let existing: HashSet<Entity> = world.query::<Entity>().iter(world).collect();
+    if let Err(error) = world.run_system(build) {
+        error!("first floor build failed: {error}");
+    }
+    let spawned: Vec<Entity> = world
+        .query_filtered::<Entity, Without<ChildOf>>()
+        .iter(world)
+        .filter(|entity| !existing.contains(entity))
+        .collect();
+    for entity in spawned {
+        world
+            .entity_mut(entity)
+            .insert(DespawnOnExit(GameState::Playing));
+    }
+    world.spawn((crate::player(), DespawnOnExit(GameState::Playing)));
+}

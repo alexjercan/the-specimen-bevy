@@ -15,7 +15,7 @@ fn main() -> AppExit {
     let builder = if cli.norender {
         AppBuilder::headless()
     } else {
-        AppBuilder::new()
+        AppBuilder::new().with_menu()
     };
     let builder = if cli.transport {
         builder.with_transport()
