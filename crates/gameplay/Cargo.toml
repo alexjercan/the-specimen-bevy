@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 bevy.workspace = true
+bevy_enhanced_input.workspace = true
 game_assets.workspace = true
 
 [dev-dependencies]

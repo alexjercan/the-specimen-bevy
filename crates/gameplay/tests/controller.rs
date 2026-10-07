@@ -7,7 +7,7 @@ use bevy::{
     window::{CursorOptions, PrimaryWindow},
 };
 use gameplay::controller::{
-    ControllerPlugin, ControllerState, PlayerController, DOWN_KEY, HOLD_KEY, LOOK_BUTTON,
+    ControllerState, WASDController, WASDControllerPlugin, DOWN_KEY, HOLD_KEY, LOOK_BUTTON,
     MOVE_SPEED, PITCH_LIMIT, RELEASE_KEY, RESUME_BUTTON, UP_KEY,
 };
 
@@ -21,14 +21,35 @@ fn app() -> (App, Entity) {
         .init_resource::<ButtonInput<KeyCode>>()
         .init_resource::<ButtonInput<MouseButton>>()
         .init_resource::<AccumulatedMouseMotion>()
-        .add_plugins(ControllerPlugin);
+        .add_plugins(WASDControllerPlugin::default());
     let camera = app
         .world_mut()
-        .spawn((PlayerController, Transform::from_translation(EYE)))
+        .spawn((WASDController, Transform::from_translation(EYE)))
         .id();
     app.update();
     app.update();
     (app, camera)
+}
+
+#[test]
+fn controller_add_attaches_camera() {
+    let (app, entity) = app();
+    assert!(app.world().get::<Camera3d>(entity).is_some());
+    assert!(app.world().get::<Projection>(entity).is_some());
+}
+
+#[test]
+fn headless_controller_does_not_attach_camera() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .init_resource::<ButtonInput<KeyCode>>()
+        .init_resource::<ButtonInput<MouseButton>>()
+        .init_resource::<AccumulatedMouseMotion>()
+        .add_plugins(WASDControllerPlugin::default().without_camera());
+    let entity = app.world_mut().spawn(WASDController).id();
+    app.update();
+    assert!(app.world().get::<Camera3d>(entity).is_none());
+    assert!(app.world().get::<Transform>(entity).is_some());
 }
 
 fn step() -> f32 {

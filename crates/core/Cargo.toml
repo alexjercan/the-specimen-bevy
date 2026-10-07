@@ -10,6 +10,8 @@ debug = ["dep:debug"]
 
 [dependencies]
 bevy.workspace = true
+bevy_enhanced_input.workspace = true
 game_assets.workspace = true
 gameplay.workspace = true
+transport.workspace = true
 debug = { workspace = true, optional = true }

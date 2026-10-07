@@ -1,25 +1,32 @@
 # probe
 
-Opt-in frame-time capture for the windowed game. The probe is off unless the
-root binary gets `--probe`. There is no environment variable that turns it on.
+Frame-time capture for dedicated windowed examples. Running either example
+starts the probe. The main game does not install it.
 
 ## Run
 
 ```sh
-cargo run --release -- --probe --probe-out target/probe/runs.csv
+scripts/run-probes.sh
+cargo run --release --example facility_probe -- --probe-out target/probe/facility.json
+cargo run --release --example facility_overhead_probe -- --probe-out target/probe/overhead.json
 ```
+
+The script runs both examples in order and writes separate JSON reports under
+`target/probe/`. Pass extra probe flags to the script to apply them to both
+runs, for example `scripts/run-probes.sh --probe-frames 600`. The first-person
+example uses the main game's camera, fog and ceilings, but does not move its
+camera. The overhead example hides ceilings and adds review lighting; it is a
+different scene configuration, not a direct A/B comparison.
+
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--probe` | off | Turn on the capture. Conflicts with `--norender`. |
 | `--probe-warmup N` | `180` | Frames to discard after the scene is ready. At least one frame is discarded. |
 | `--probe-frames N` | `900` | Frames in the measured window. Must be 1 or more. |
 | `--probe-res WxH` | `1280x720` | Logical window size. The window is not resizable. |
 | `--probe-present MODE` | `autonovsync` | `immediate`, `mailbox`, `fifo`, `fiforelaxed`, `autovsync` or `autonovsync`. |
 | `--probe-label NAME` | `facility` | Row label. No commas, quotes or control characters. |
 | `--probe-out PATH` | none | `.csv` appends one row (creates the header). `.json` overwrites one object. |
-
-All `--probe-*` options need `--probe`.
 
 ## What is measured
 

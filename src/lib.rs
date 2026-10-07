@@ -8,7 +8,7 @@ pub use probe;
 pub mod prelude {
     pub use bevy::prelude::*;
     pub use game_assets::{FacilityAssets, GameAssetsPlugin, GameAssetsState};
-    pub use game_core::AppBuilder;
+    pub use game_core::{AppBuilder, CoreState};
     pub use gameplay::prelude::*;
 
     pub use autopilot::{frames, AutopilotPlugin};

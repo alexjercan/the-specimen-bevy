@@ -19,6 +19,7 @@ members = [
     "crates/debug",
     "crates/gameplay",
     "crates/probe",
+    "crates/transport",
 ]
 resolver = "2"
 
@@ -30,6 +31,7 @@ license = "MIT"
 [workspace.dependencies]
 bevy = { version = "0.19.1", features = ["jpeg"] }
 bevy_asset_loader = "0.27.0"
+bevy_enhanced_input = "0.26.0"
 clap = { version = "4.5.49", features = ["derive"] }
 bevy_egui = { version = "0.40.1", default-features = false, features = ["bevy_ui", "default_fonts", "render"] }
 bevy-inspector-egui = { version = "0.37.0", default-features = false, features = ["bevy"] }
@@ -40,6 +42,7 @@ game_assets = { path = "crates/assets" }
 gameplay = { path = "crates/gameplay" }
 debug = { path = "crates/debug" }
 probe = { path = "crates/probe" }
+transport = { path = "crates/transport" }
 
 [profile.dev]
 opt-level = 1
@@ -67,3 +70,11 @@ path = "examples/facility_gallery.rs"
 [[example]]
 name = "facility_layout"
 path = "examples/facility_layout.rs"
+
+[[example]]
+name = "facility_probe"
+path = "examples/facility_probe.rs"
+
+[[example]]
+name = "facility_overhead_probe"
+path = "examples/facility_overhead_probe.rs"

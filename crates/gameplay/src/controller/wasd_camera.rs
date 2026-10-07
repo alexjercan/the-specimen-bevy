@@ -1,4 +1,8 @@
-use bevy::{input::mouse::AccumulatedMouseMotion, prelude::*};
+use bevy::{
+    input::mouse::AccumulatedMouseMotion,
+    pbr::{DistanceFog, FogFalloff},
+    prelude::*,
+};
 
 pub const MOVE_SPEED: f32 = 3.0;
 pub const LOOK_SENSITIVITY: f32 = 0.002;
@@ -12,7 +16,7 @@ pub const DOWN_KEY: KeyCode = KeyCode::ShiftLeft;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 #[require(Transform)]
-pub struct PlayerController;
+pub struct WASDController;
 
 #[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum ControllerState {
@@ -22,10 +26,28 @@ pub enum ControllerState {
     Held,
 }
 
-pub struct ControllerPlugin;
+pub struct WASDControllerPlugin {
+    camera: bool,
+}
 
-impl Plugin for ControllerPlugin {
+impl WASDControllerPlugin {
+    pub fn without_camera(mut self) -> Self {
+        self.camera = false;
+        self
+    }
+}
+
+impl Default for WASDControllerPlugin {
+    fn default() -> Self {
+        Self { camera: true }
+    }
+}
+
+impl Plugin for WASDControllerPlugin {
     fn build(&self, app: &mut App) {
+        if self.camera {
+            app.add_observer(attach_camera);
+        }
         app.init_resource::<ControllerState>().add_systems(
             Update,
             (
@@ -35,6 +57,21 @@ impl Plugin for ControllerPlugin {
                 .chain(),
         );
     }
+}
+
+fn attach_camera(added: On<Add, WASDController>, mut commands: Commands) {
+    commands.entity(added.entity).insert((
+        Camera3d::default(),
+        Projection::Perspective(PerspectiveProjection {
+            fov: 55.0_f32.to_radians(),
+            ..default()
+        }),
+        DistanceFog {
+            color: Color::srgb(0.015, 0.018, 0.022),
+            falloff: FogFalloff::ExponentialSquared { density: 0.045 },
+            ..default()
+        },
+    ));
 }
 
 pub fn controller_active(state: Res<ControllerState>) -> bool {
@@ -66,7 +103,7 @@ fn toggle_hold(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<ControllerStat
 fn look(
     buttons: Res<ButtonInput<MouseButton>>,
     motion: Res<AccumulatedMouseMotion>,
-    mut controllers: Query<&mut Transform, With<PlayerController>>,
+    mut controllers: Query<&mut Transform, With<WASDController>>,
 ) {
     if !buttons.pressed(LOOK_BUTTON) || motion.delta == Vec2::ZERO {
         return;
@@ -82,7 +119,7 @@ fn look(
 fn fly(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    mut controllers: Query<&mut Transform, With<PlayerController>>,
+    mut controllers: Query<&mut Transform, With<WASDController>>,
 ) {
     let axis = |positive, negative| {
         f32::from(u8::from(keys.pressed(positive))) - f32::from(u8::from(keys.pressed(negative)))
