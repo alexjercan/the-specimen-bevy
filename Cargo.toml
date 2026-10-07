@@ -20,6 +20,7 @@ members = [
     "crates/gameplay",
     "crates/probe",
     "crates/transport",
+    "crates/ui",
 ]
 resolver = "2"
 
@@ -43,6 +44,7 @@ gameplay = { path = "crates/gameplay" }
 debug = { path = "crates/debug" }
 probe = { path = "crates/probe" }
 transport = { path = "crates/transport" }
+game_ui = { path = "crates/ui" }
 
 [profile.dev]
 opt-level = 1

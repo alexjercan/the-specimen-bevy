@@ -29,6 +29,10 @@ struct Run;
 #[action_output(Vec2)]
 struct Look;
 
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct Interact;
+
 pub struct PlayerControllerPlugin {
     camera: bool,
 }
@@ -81,6 +85,10 @@ fn attach_input(added: On<Add, PlayerController>, mut commands: Commands) {
             (
                 Action::<Look>::new(),
                 bindings![Binding::mouse_motion()],
+            ),
+            (
+                Action::<Interact>::new(),
+                bindings![KeyCode::KeyF],
             ),
         ]));
 }

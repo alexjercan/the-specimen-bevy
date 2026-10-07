@@ -1,3 +1,5 @@
+mod glue;
+
 use std::time::Duration;
 
 use bevy::{
@@ -78,7 +80,8 @@ impl AppBuilder {
             .add_plugins((InputPlugin, StatesPlugin))
             .insert_state(CoreState::Ready)
             .add_plugins(EnhancedInputPlugin)
-            .add_plugins(gameplay::controller::PlayerControllerPlugin::default().without_camera());
+            .add_plugins(gameplay::controller::PlayerControllerPlugin::default().without_camera())
+            .add_plugins(gameplay::levels::DoorPlugin);
             if self.transport {
                 app.add_plugins(transport::TransportPlugin);
             }
@@ -92,7 +95,9 @@ impl AppBuilder {
                 .add_systems(OnEnter(GameAssetsState::Ready), core_ready)
                 .add_systems(OnEnter(GameAssetsState::Failed), core_failed)
                 .add_plugins(EnhancedInputPlugin)
-                .add_plugins(gameplay::controller::PlayerControllerPlugin::default());
+                .add_plugins(gameplay::controller::PlayerControllerPlugin::default())
+                .add_plugins(gameplay::levels::DoorPlugin)
+                .add_plugins(glue::DoorHintPlugin);
             if self.transport {
                 app.add_plugins(transport::RenderedTransportPlugin);
             }

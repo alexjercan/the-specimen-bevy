@@ -32,6 +32,7 @@ pub(super) struct Controls {
     s: Option<bool>,
     d: Option<bool>,
     shift: Option<bool>,
+    f: Option<bool>,
     look: [f32; 2],
 }
 
@@ -48,6 +49,7 @@ impl Controls {
             (KeyCode::KeyS, self.s),
             (KeyCode::KeyD, self.d),
             (KeyCode::ShiftLeft, self.shift),
+            (KeyCode::KeyF, self.f),
         ] {
             match held {
                 Some(true) => keyboard.press(key),

@@ -75,6 +75,14 @@ impl FacilityAssets {
     }
 }
 
+#[derive(AssetCollection, Resource)]
+pub struct UiAssets {
+    #[asset(path = "ui/input-prompts/T_F_Key_Alt.png")]
+    pub interact_key: Handle<Image>,
+    #[asset(path = "ui/fonts/SGr-IosevkaTerm-Medium.ttf")]
+    pub font: Handle<Font>,
+}
+
 pub struct GameAssetsPlugin;
 
 impl Plugin for GameAssetsPlugin {
@@ -84,17 +92,18 @@ impl Plugin for GameAssetsPlugin {
                 LoadingState::new(GameAssetsState::Loading)
                     .continue_to_state(GameAssetsState::Ready)
                     .on_failure_continue_to_state(GameAssetsState::Failed)
-                    .load_collection::<FacilityAssets>(),
+                    .load_collection::<FacilityAssets>()
+                    .load_collection::<UiAssets>(),
             )
             .add_systems(OnEnter(GameAssetsState::Ready), report_loaded_assets)
             .add_systems(OnEnter(GameAssetsState::Failed), report_failed_assets);
     }
 }
 
-fn report_loaded_assets(assets: Res<FacilityAssets>) {
+fn report_loaded_assets(assets: Res<FacilityAssets>, _ui: Res<UiAssets>) {
     info!("facility assets ready: {} modules", assets.modules.len());
 }
 
 fn report_failed_assets() {
-    error!("facility asset loading failed; check the asset-loader errors for the missing or invalid GLB under assets/facility/modules/");
+    error!("facility asset loading failed; check the asset-loader errors for the missing or invalid asset under assets/");
 }

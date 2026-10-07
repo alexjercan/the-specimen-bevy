@@ -1,5 +1,7 @@
 use bevy::{math::Rect, prelude::*};
 
+use super::animation::DoorSwing;
+
 #[derive(Component)]
 pub struct Room(pub Rect);
 
@@ -13,6 +15,7 @@ pub struct Walls(pub String);
 pub struct Ceiling(pub String);
 
 #[derive(Component)]
+#[require(DoorSwing)]
 pub struct Door {
     pub position: Vec2,
     pub rotation: Quat,

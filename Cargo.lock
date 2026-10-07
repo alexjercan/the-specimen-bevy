@@ -3034,9 +3034,17 @@ dependencies = [
  "bevy_enhanced_input",
  "debug",
  "game_assets",
+ "game_ui",
  "gameplay",
  "serde_json",
  "transport",
+]
+
+[[package]]
+name = "game_ui"
+version = "0.1.0"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]
@@ -3044,7 +3052,6 @@ name = "gameplay"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bevy_asset_loader",
  "bevy_enhanced_input",
  "game_assets",
 ]

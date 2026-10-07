@@ -11,6 +11,10 @@ use super::builder::{
     Ceiling, Door, DoorOf, DoorRef, Doors, Floor, LightEffect, LightIntensity, Passage, Prop, Room,
     Walls,
 };
+use super::{
+    animation::DoorSwing,
+    doors::{panel_transform, DoorPanel},
+};
 
 const TILE: f32 = 2.5;
 const GLOWING_MATERIALS: [&str; 4] = ["lamp_cool", "lamp_red", "lamp_fire", "specimen_fluid"];
@@ -269,14 +273,14 @@ fn render_rooms(
 }
 
 fn render_doors(
-    doors: Query<(Entity, &Door), With<PendingDoorRender>>,
+    doors: Query<(Entity, &Door, &DoorSwing), With<PendingDoorRender>>,
     assets: Option<Res<FacilityAssets>>,
     mut commands: Commands,
 ) {
     let Some(assets) = assets else {
         return;
     };
-    for (entity, door) in &doors {
+    for (entity, door, swing) in &doors {
         let frame = assets
             .module(&door.frame)
             .unwrap_or_else(|| panic!("missing door frame module: {}", door.frame));
@@ -294,8 +298,9 @@ fn render_doors(
             ChildOf(entity),
         ));
         commands.spawn((
+            DoorPanel,
             WorldAssetRoot(panel.clone()),
-            Transform::from_xyz(-0.59, 0.0, 0.0),
+            panel_transform(swing.0),
             ChildOf(entity),
         ));
         commands.entity(entity).remove::<PendingDoorRender>();
