@@ -1,8 +1,8 @@
 # Research monster design, cues and fair chase loops
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,monster,research
+- PRIORITY: 40
+- TAGS: backlog, monster, research
 
 ## Delivery / research
 

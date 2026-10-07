@@ -1,8 +1,8 @@
 # Review facility layout, landmarks and objective routes
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,level-design
+- PRIORITY: 95
+- TAGS: backlog, level-design
 
 ## Delivery / research
 

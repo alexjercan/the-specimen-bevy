@@ -1,8 +1,8 @@
 # Gate the EXIT door behind the fuse panel and finish the run
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,gameplay
+- PRIORITY: 85
+- TAGS: backlog, gameplay
 
 ## Delivery / research
 

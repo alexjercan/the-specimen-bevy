@@ -1,8 +1,8 @@
 # Prototype and playtest monster AI and encounters
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,monster
+- PRIORITY: 30
+- TAGS: backlog, monster
 
 ## Delivery / research
 

@@ -1,8 +1,8 @@
 # Create three collectible fuse items and inventory
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,gameplay
+- PRIORITY: 90
+- TAGS: backlog, gameplay
 
 ## Delivery / research
 

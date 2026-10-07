@@ -1,8 +1,8 @@
 # Add an external Python transport playtest harness
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,testing
+- PRIORITY: 70
+- TAGS: backlog, testing
 
 ## Delivery / research
 

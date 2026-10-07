@@ -1,8 +1,8 @@
 # Prototype a boiler-room power outage event
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,gameplay
+- PRIORITY: 55
+- TAGS: backlog, gameplay
 
 ## Delivery / research
 

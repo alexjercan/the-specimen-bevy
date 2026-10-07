@@ -1,8 +1,8 @@
 # Research facility audio palette and Python sound generation
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,audio,research
+- PRIORITY: 65
+- TAGS: backlog, audio, research
 
 ## Delivery / research
 

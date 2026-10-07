@@ -1,8 +1,8 @@
 # Prototype hiding under tables and in lockers
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,gameplay
+- PRIORITY: 60
+- TAGS: backlog, gameplay
 
 ## Delivery / research
 

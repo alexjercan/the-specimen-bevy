@@ -1,8 +1,8 @@
 # Implement a toggleable unlimited flashlight
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,gameplay
+- PRIORITY: 75
+- TAGS: backlog, gameplay
 
 ## Delivery / research
 

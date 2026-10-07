@@ -1,8 +1,8 @@
 # Research and prototype darker facility lighting
 
 - STATUS: OPEN
-- PRIORITY: 0
-- TAGS: backlog,visuals
+- PRIORITY: 80
+- TAGS: backlog, visuals
 
 ## Delivery / research
 
