@@ -62,7 +62,8 @@ pub struct FacilityAssets {
             "facility/modules/drum_spilled.glb#Scene0",
             "facility/modules/trace_claw_marks.glb#Scene0",
             "facility/modules/trace_drag_marks.glb#Scene0",
-            "facility/modules/fuse_panel.glb#Scene0"
+            "facility/modules/fuse_panel.glb#Scene0",
+            "facility/modules/fuse_pickup.glb#Scene0"
         ),
         collection(mapped, typed)
     )]

@@ -12,7 +12,10 @@ use bevy::{
 };
 use bevy_enhanced_input::EnhancedInputPlugin;
 use game_assets::GameAssetsState;
-use gameplay::{controller::PlayerController, levels::build_first_floor};
+use gameplay::{
+    controller::PlayerController,
+    levels::{build_first_floor, FuseSeed},
+};
 
 pub use menu::{GameState, PauseState};
 
@@ -33,6 +36,7 @@ pub struct AppBuilder {
     headless: bool,
     transport: bool,
     menu: bool,
+    seed: Option<u64>,
     main_plugin: Option<MainPlugin>,
 }
 
@@ -55,6 +59,11 @@ impl AppBuilder {
 
     pub fn with_menu(mut self) -> Self {
         self.menu = true;
+        self
+    }
+
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
         self
     }
 
@@ -86,7 +95,7 @@ impl AppBuilder {
             .insert_state(CoreState::Ready)
             .add_plugins(EnhancedInputPlugin)
             .add_plugins(gameplay::controller::PlayerControllerPlugin::default().without_camera())
-            .add_plugins(gameplay::levels::DoorPlugin);
+            .add_plugins((gameplay::levels::DoorPlugin, gameplay::levels::FusePlugin));
             if self.transport {
                 app.add_plugins(transport::TransportPlugin);
             }
@@ -101,8 +110,8 @@ impl AppBuilder {
                 .add_systems(OnEnter(GameAssetsState::Failed), core_failed)
                 .add_plugins(EnhancedInputPlugin)
                 .add_plugins(gameplay::controller::PlayerControllerPlugin::default())
-                .add_plugins(gameplay::levels::DoorPlugin)
-                .add_plugins(glue::DoorHintPlugin);
+                .add_plugins((gameplay::levels::DoorPlugin, gameplay::levels::FusePlugin))
+                .add_plugins((glue::InteractionHintPlugin, glue::FuseHudPlugin));
             if self.transport {
                 app.add_plugins(transport::RenderedTransportPlugin);
             }
@@ -111,6 +120,9 @@ impl AppBuilder {
         }
         if self.transport {
             app.add_systems(OnEnter(CoreState::Ready), transport_ready);
+        }
+        if let Some(seed) = self.seed {
+            app.insert_resource(FuseSeed(seed));
         }
         match self.main_plugin {
             Some(main_plugin) => main_plugin(&mut app),

@@ -8,6 +8,8 @@ struct Cli {
     norender: bool,
     #[arg(long)]
     transport: bool,
+    #[arg(long)]
+    seed: Option<u64>,
 }
 
 fn main() -> AppExit {
@@ -21,6 +23,10 @@ fn main() -> AppExit {
         builder.with_transport()
     } else {
         builder
+    };
+    let builder = match cli.seed {
+        Some(seed) => builder.with_seed(seed),
+        None => builder,
     };
     builder.build().run()
 }

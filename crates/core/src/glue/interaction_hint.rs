@@ -2,20 +2,21 @@ use bevy::{prelude::*, transform::TransformSystems};
 use game_assets::{GameAssetsState, UiAssets};
 use gameplay::{
     controller::PlayerController,
-    levels::{aimed_door, panel_center, Door, DoorState, DoorSwing},
+    levels::{DoorState, InteractTarget, InteractTargets},
 };
 
-const HINT_WIDTH: f32 = 130.0;
+const DOOR_HINT_WIDTH: f32 = 130.0;
+const FUSE_HINT_WIDTH: f32 = 160.0;
 
 #[derive(Component)]
-struct DoorHint;
+struct InteractionHint;
 
 #[derive(Component)]
-struct DoorHintLabel;
+struct InteractionHintLabel;
 
-pub struct DoorHintPlugin;
+pub struct InteractionHintPlugin;
 
-impl Plugin for DoorHintPlugin {
+impl Plugin for InteractionHintPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameAssetsState::Ready), spawn_hint)
             .add_systems(PostUpdate, update_hint.after(TransformSystems::Propagate));
@@ -25,11 +26,11 @@ impl Plugin for DoorHintPlugin {
 fn spawn_hint(mut commands: Commands, assets: Res<UiAssets>) {
     commands
         .spawn((
-            DoorHint,
-            Name::new("Door interaction hint"),
+            InteractionHint,
+            Name::new("Interaction hint"),
             Node {
                 position_type: PositionType::Absolute,
-                width: px(HINT_WIDTH),
+                width: px(DOOR_HINT_WIDTH),
                 height: px(38),
                 padding: UiRect::axes(px(7), px(4)),
                 border: UiRect::all(px(1)),
@@ -54,7 +55,7 @@ fn spawn_hint(mut commands: Commands, assets: Res<UiAssets>) {
                 },
             ));
             hint.spawn((
-                DoorHintLabel,
+                InteractionHintLabel,
                 Text::new("OPEN"),
                 TextFont::from_font_size(16.0).with_font(assets.font.clone()),
                 TextColor(Color::srgb(0.91, 0.94, 0.86)),
@@ -64,9 +65,9 @@ fn spawn_hint(mut commands: Commands, assets: Res<UiAssets>) {
 
 fn update_hint(
     players: Query<(&Transform, &Camera, &GlobalTransform), With<PlayerController>>,
-    doors: Query<(Entity, &Door, &DoorSwing)>,
-    mut hint: Query<(&mut Node, &mut Visibility), With<DoorHint>>,
-    mut label: Query<&mut Text, With<DoorHintLabel>>,
+    targets: InteractTargets,
+    mut hint: Query<(&mut Node, &mut Visibility), With<InteractionHint>>,
+    mut label: Query<&mut Text, With<InteractionHintLabel>>,
 ) {
     let Ok((mut node, mut visibility)) = hint.single_mut() else {
         return;
@@ -75,13 +76,21 @@ fn update_hint(
     let Some((player, camera, camera_transform)) = players.iter().next() else {
         return;
     };
-    let Some(entity) = aimed_door(player, &doors) else {
+    let Some(target) = targets.aimed(player) else {
         return;
     };
-    let Ok((_, door, swing)) = doors.get(entity) else {
+    let (action, width) = match target {
+        InteractTarget::Door(entity) => match targets.door(entity).map(|door| door.state) {
+            Some(DoorState::Closed) => ("OPEN", DOOR_HINT_WIDTH),
+            Some(DoorState::Open) => ("CLOSE", DOOR_HINT_WIDTH),
+            None => return,
+        },
+        InteractTarget::Fuse(_) => ("PICK UP FUSE", FUSE_HINT_WIDTH),
+    };
+    let Some(anchor) = targets.anchor(target) else {
         return;
     };
-    let Ok(point) = camera.world_to_viewport(camera_transform, panel_center(door, swing)) else {
+    let Ok(point) = camera.world_to_viewport(camera_transform, anchor) else {
         return;
     };
     let Some(viewport) = camera.logical_viewport_rect() else {
@@ -95,13 +104,12 @@ fn update_hint(
         return;
     }
     if let Ok(mut text) = label.single_mut() {
-        text.0 = match door.state {
-            DoorState::Closed => "OPEN",
-            DoorState::Open => "CLOSE",
+        if text.0 != action {
+            text.0 = action.to_owned();
         }
-        .to_owned();
     }
-    node.left = px(point.x - HINT_WIDTH / 2.0);
+    node.width = px(width);
+    node.left = px(point.x - width / 2.0);
     node.top = px(point.y - 19.0);
     *visibility = Visibility::Visible;
 }
@@ -119,14 +127,14 @@ mod tests {
                 interact_key: Handle::default(),
                 font: Handle::default(),
             })
-            .add_plugins(DoorHintPlugin);
+            .add_plugins(InteractionHintPlugin);
         app.world_mut()
             .resource_mut::<NextState<GameAssetsState>>()
             .set(GameAssetsState::Ready);
         app.update();
         let mut hints = app
             .world_mut()
-            .query_filtered::<(&Visibility, &Children), With<DoorHint>>();
+            .query_filtered::<(&Visibility, &Children), With<InteractionHint>>();
         let (visibility, children) = hints.single(app.world()).unwrap();
         assert_eq!(*visibility, Visibility::Hidden);
         assert_eq!(children.len(), 2);

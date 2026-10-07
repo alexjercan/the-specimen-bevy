@@ -3,6 +3,7 @@ use std::f32::consts::{FRAC_PI_2, PI};
 use bevy::{
     gltf::GltfMaterialName,
     prelude::*,
+    render::render_resource::Face,
     world_serialization::{WorldAssetRoot, WorldInstanceReady},
 };
 use game_assets::FacilityAssets;
@@ -14,10 +15,14 @@ use super::builder::{
 use super::{
     animation::DoorSwing,
     doors::{panel_transform, DoorPanel},
+    fuses::{FusePickup, FUSE_LENGTH, FUSE_MODULE, FUSE_RADIUS},
 };
 
 const TILE: f32 = 2.5;
 const GLOWING_MATERIALS: [&str; 4] = ["lamp_cool", "lamp_red", "lamp_fire", "specimen_fluid"];
+const FUSE_OUTLINE_WIDTH: f32 = 0.008;
+const FUSE_OUTLINE: Color = Color::srgb(1.0, 0.72, 0.22);
+const FUSE_PLACEHOLDER: Color = Color::srgb(0.78, 0.74, 0.64);
 
 pub struct LevelRenderPlugin;
 
@@ -38,6 +43,9 @@ struct PendingDoorRender;
 
 #[derive(Component)]
 struct PendingPropRender;
+
+#[derive(Component)]
+struct PendingFuseRender;
 
 #[derive(Component)]
 struct GlowSurface {
@@ -65,8 +73,12 @@ impl Plugin for LevelRenderPlugin {
             .add_observer(mark_room_for_render)
             .add_observer(mark_door_for_render)
             .add_observer(mark_prop_for_render)
+            .add_observer(mark_fuse_for_render)
             .add_observer(attach_prop_glow)
-            .add_systems(PostUpdate, (render_rooms, render_doors, render_props))
+            .add_systems(
+                PostUpdate,
+                (render_rooms, render_doors, render_props, render_fuses),
+            )
             .add_systems(Update, (animate_lights, animate_surfaces));
     }
 }
@@ -81,6 +93,72 @@ fn mark_door_for_render(added: On<Add, Door>, mut commands: Commands) {
 
 fn mark_prop_for_render(added: On<Add, Prop>, mut commands: Commands) {
     commands.entity(added.entity).insert(PendingPropRender);
+}
+
+fn mark_fuse_for_render(added: On<Add, FusePickup>, mut commands: Commands) {
+    commands.entity(added.entity).insert(PendingFuseRender);
+}
+
+fn render_fuses(
+    fuses: Query<Entity, With<PendingFuseRender>>,
+    assets: Option<Res<FacilityAssets>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut commands: Commands,
+) {
+    let Some(assets) = assets else {
+        return;
+    };
+    if fuses.is_empty() {
+        return;
+    }
+    let module = assets.module(FUSE_MODULE);
+    let shape = Transform::from_xyz(0.0, FUSE_RADIUS, 0.0)
+        .with_rotation(Quat::from_rotation_z(FRAC_PI_2));
+    let placeholder = match module {
+        Some(_) => None,
+        None => {
+            warn!("missing {FUSE_MODULE} module; rendering placeholder fuses");
+            Some((
+                meshes.add(Cylinder::new(FUSE_RADIUS, FUSE_LENGTH)),
+                materials.add(StandardMaterial {
+                    base_color: FUSE_PLACEHOLDER,
+                    perceptual_roughness: 0.55,
+                    ..default()
+                }),
+            ))
+        }
+    };
+    let outline_mesh = meshes.add(Cylinder::new(
+        FUSE_RADIUS + FUSE_OUTLINE_WIDTH,
+        FUSE_LENGTH + 2.0 * FUSE_OUTLINE_WIDTH,
+    ));
+    let outline_material = materials.add(StandardMaterial {
+        base_color: FUSE_OUTLINE,
+        unlit: true,
+        cull_mode: Some(Face::Front),
+        ..default()
+    });
+    for entity in &fuses {
+        commands.entity(entity).with_children(|children| {
+            if let Some(module) = module {
+                children.spawn((WorldAssetRoot(module.clone()), Transform::IDENTITY));
+            } else if let Some((mesh, material)) = &placeholder {
+                children.spawn((
+                    Mesh3d(mesh.clone()),
+                    MeshMaterial3d(material.clone()),
+                    shape,
+                ));
+            }
+            children.spawn((
+                Name::new("fuse outline"),
+                Mesh3d(outline_mesh.clone()),
+                MeshMaterial3d(outline_material.clone()),
+                shape,
+            ));
+        });
+        commands.entity(entity).remove::<PendingFuseRender>();
+    }
 }
 
 fn render_props(

@@ -8,7 +8,7 @@ is a review artifact, not a shipped asset. It is the frozen baseline for the
 
 `modules/` holds the source generator output as separate GLB files, plus
 original props and decorations. `scripts/promote-facility-modules.sh` verifies
-and copies the 47 GLBs and their manifest to `assets/facility/modules/` for
+and copies the 51 GLBs and their manifest to `assets/facility/modules/` for
 distribution. The `facility_layout` example and the game load the promoted
 copy through `game_assets`. See "Module kit" below.
 
@@ -162,6 +162,7 @@ materials, the light anchor and color for light fixtures, and the GLB hash.
 | `ceiling_light_cool` / `_dead` / `_amber` | fixture | `cell_center` | 1.4 x 0.22 x 0.32 | 104 | 12 |
 | `wall_lamp_red` | fixture | `wall_mount` | 0.24 x 0.32 x 0.16 | 204 | 18 |
 | `fuse_panel` | decoration | `wall_mount` | 1.1 x 1.3 x 0.09 | 1564 | 167 |
+| `fuse_pickup` | prop | `floor` | 0.2 x 0.06 x 0.06 | 472 | 37 |
 | `exit_sign` | decoration | `wall_mount` | 0.5 x 0.2 x 0.07 | 92 | 13 |
 | `wall_vent` | decoration | `wall_mount` | 0.6 x 0.4 x 0.04 | 248 | 30 |
 | `storage_crate` | prop | `floor` | 1.02 x 0.7 x 0.825 | 104 | 14 |
@@ -173,6 +174,13 @@ The original visual fuse panel is a wall-mounted steel cabinet with a MAIN
 label, a breaker grid, two yellow tripped switches, and a small latch. It is
 not a working electrical system. Its GLB bounds and SHA-256 are recorded in
 `modules.manifest.json` and checked with the other modules.
+
+The original `fuse_pickup` is a knife-blade cartridge fuse: a ceramic body
+with a yellow band, steel end caps, and flat contact blades. It lies along X
+with its origin at the bottom center, so it rests on a table top (for example
+`concept_table` at 0.8 m) at the placement height. The -Z view gives a flat
+fuse silhouette for a possible UI icon. It is a visual mesh only; the
+pickup, outline, and collision are gameplay work.
 
 The initial 18-module kit was about 2.3 MB; later modules, including the
 fuse panel, extend that kit. The five concrete modules (floors and walls)

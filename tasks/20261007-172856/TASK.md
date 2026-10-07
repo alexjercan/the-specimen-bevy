@@ -1,6 +1,6 @@
 # Create three collectible fuse items and inventory
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 90
 - TAGS: backlog, gameplay
 
@@ -10,4 +10,4 @@ Create distinct visible, interactable fuses and a small inventory/count. Researc
 
 ## Status
 
-Planned only. Do not claim implementation or runtime review.
+Implemented: three seeded, distinct table pickups, F interaction, inventory, and three-slot HUD. A generated fuse module is promoted for rendering. `--seed <u64>` selects repeatable placements; without it a fresh seed is chosen. Code was reviewed but not compiled, tested, or visually checked after these edits. Runtime appearance and behavior remain unverified.

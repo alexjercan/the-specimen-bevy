@@ -13,7 +13,7 @@ The UI font source and its required license notice are recorded in
 
 ## Facility modular kit
 
-The 47 GLBs and manifest under `assets/facility/modules/` are copies of the
+The 51 GLBs and manifest under `assets/facility/modules/` are copies of the
 project-authored generator output under `art/visuals/generated/modules/`.
 `scripts/promote-facility-modules.sh` checks and copies these files. The manifest
 records each GLB hash. Regenerate source files with

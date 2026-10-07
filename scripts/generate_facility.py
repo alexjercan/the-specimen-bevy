@@ -151,6 +151,7 @@ def make_kit_materials(mats):
         "glass_edge": material("glass_edge", (0.75, 0.9, 0.9), roughness=0.15, emission=(0.5, 0.8, 0.8), strength=0.15),
         "paper": material("paper", (0.7, 0.68, 0.6), roughness=0.85),
         "spill_dark": material("spill_dark", (0.05, 0.03, 0.02), roughness=0.2),
+        "fuse_ceramic": material("fuse_ceramic", (0.78, 0.74, 0.64), roughness=0.55),
     }
 
 
@@ -541,6 +542,26 @@ def fuse_panel(palette):
             nub_z = z - hth + FUSE_PANEL_SWITCH_NUB_H / 2 if tripped else z + hth - FUSE_PANEL_SWITCH_NUB_H / 2
             nhh = FUSE_PANEL_SWITCH_NUB_H / 2
             b.box((x - hw2 + 0.006, 0.076, nub_z - nhh), (x + hw2 - 0.006, 0.086, nub_z + nhh), nub_mat, bevel=0.004)
+    return b.build()
+
+
+FUSE_PICKUP_R = 0.03
+FUSE_PICKUP_BODY_X = 0.055
+FUSE_PICKUP_CAP_X = 0.075
+FUSE_PICKUP_BLADE_X = 0.1
+
+
+def fuse_pickup(palette):
+    b = Builder("fuse_pickup", palette)
+    r, z = FUSE_PICKUP_R, FUSE_PICKUP_R
+    bx, cx, tx = FUSE_PICKUP_BODY_X, FUSE_PICKUP_CAP_X, FUSE_PICKUP_BLADE_X
+    b.cylinder((-bx, 0.0, z), (bx, 0.0, z), r - 0.004, "fuse_ceramic", segments=16)
+    b.cylinder((-0.022, 0.0, z), (0.022, 0.0, z), r - 0.0035, "paint_hazard", segments=16)
+    for s in (-1.0, 1.0):
+        b.cylinder((s * bx, 0.0, z), (s * cx, 0.0, z), r, "conduit", segments=16)
+        b.cylinder((s * (bx - 0.004), 0.0, z), (s * bx, 0.0, z), r - 0.002, "steel_dark", segments=16)
+        lo, hi = sorted((s * cx, s * tx))
+        b.box((lo, -0.003, z - 0.016), (hi, 0.003, z + 0.016), "conduit", bevel=0.001)
     return b.build()
 
 
@@ -1139,6 +1160,7 @@ KIT = {
     "exit_sign": ("decoration", "wall_mount", ((0.0, 0.2, 0.0), (0.12, 1.0, 0.35)), None),
     "wall_vent": ("decoration", "wall_mount", None, None),
     "fuse_panel": ("decoration", "wall_mount", None, None),
+    "fuse_pickup": ("prop", "floor", None, None),
     "storage_crate": ("prop", "floor", None, None),
     "steel_drum": ("prop", "floor", None, None),
     "shelf_unit": ("prop", "floor", None, None),
@@ -1218,6 +1240,7 @@ def build_modules(palette, names):
         "exit_sign": lambda: exit_sign(palette),
         "wall_vent": lambda: wall_vent(palette),
         "fuse_panel": lambda: fuse_panel(palette),
+        "fuse_pickup": lambda: fuse_pickup(palette),
         "storage_crate": lambda: storage_crate(palette),
         "steel_drum": lambda: steel_drum(palette),
         "shelf_unit": lambda: shelf_unit(palette),

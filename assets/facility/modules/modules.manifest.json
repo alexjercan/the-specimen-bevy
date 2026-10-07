@@ -458,6 +458,33 @@
       "glb_sha256": "f64709d36764db905905d43bba605a54829a3d5cc7061510ca0a0c8afce22fbf",
       "glb_bytes": 170680
     },
+    "fuse_pickup": {
+      "file": "fuse_pickup.glb",
+      "category": "prop",
+      "snap": "floor",
+      "triangles": 472,
+      "materials": [
+        "fuse_ceramic",
+        "paint_hazard",
+        "conduit",
+        "steel_dark"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.1,
+          0.0,
+          -0.03
+        ],
+        "max": [
+          0.1,
+          0.06,
+          0.03
+        ]
+      },
+      "glb_sha256": "6a11c6c2f864468454582c85db7ffbe3d1ae9c4671da53a6fa98d7ae6818582e",
+      "glb_bytes": 37416
+    },
     "storage_crate": {
       "file": "storage_crate.glb",
       "category": "prop",
@@ -752,6 +779,90 @@
       "text_cap_m": 0.112,
       "glb_sha256": "43d8bd0889bec595b4729f330547aa830e55a1bfcdec1ace8598981912c492a8",
       "glb_bytes": 63312
+    },
+    "sign_label_lab": {
+      "file": "sign_label_lab.glb",
+      "category": "sign",
+      "snap": "wall_mount",
+      "triangles": 384,
+      "materials": [
+        "sign_plate",
+        "steel_dark",
+        "sign_text"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.65,
+          -0.1,
+          -0.034
+        ],
+        "max": [
+          0.65,
+          0.1,
+          0.0
+        ]
+      },
+      "text": "LAB",
+      "text_cap_m": 0.112,
+      "glb_sha256": "f905be74281824f337cdcca25bb90653f5026e4e45e2e8bd3476472b6bd439da",
+      "glb_bytes": 42496
+    },
+    "sign_label_security": {
+      "file": "sign_label_security.glb",
+      "category": "sign",
+      "snap": "wall_mount",
+      "triangles": 864,
+      "materials": [
+        "sign_plate",
+        "steel_dark",
+        "sign_text"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.65,
+          -0.1,
+          -0.034
+        ],
+        "max": [
+          0.65,
+          0.1,
+          0.0
+        ]
+      },
+      "text": "SECURITY",
+      "text_cap_m": 0.112,
+      "glb_sha256": "69b14e3358eb9f1c0fea81c273ac0aa5abf41125e055739f51a2655ae2ca4153",
+      "glb_bytes": 91472
+    },
+    "sign_label_prep": {
+      "file": "sign_label_prep.glb",
+      "category": "sign",
+      "snap": "wall_mount",
+      "triangles": 468,
+      "materials": [
+        "sign_plate",
+        "steel_dark",
+        "sign_text"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.65,
+          -0.1,
+          -0.034
+        ],
+        "max": [
+          0.65,
+          0.1,
+          0.0
+        ]
+      },
+      "text": "PREP",
+      "text_cap_m": 0.112,
+      "glb_sha256": "171a81efad5c7ccad6fc7c1669330a20cdd51d5265ad7392dd788ab11fb79fb1",
+      "glb_bytes": 51064
     },
     "sign_label_exit": {
       "file": "sign_label_exit.glb",
@@ -1345,90 +1456,6 @@
       "walkable": true,
       "glb_sha256": "ddbf2823095db779f3071b0c0e5db904b4df0af66e19d437e65da55b28c19d53",
       "glb_bytes": 23404
-    },
-    "sign_label_lab": {
-      "file": "sign_label_lab.glb",
-      "category": "sign",
-      "snap": "wall_mount",
-      "triangles": 384,
-      "materials": [
-        "sign_plate",
-        "steel_dark",
-        "sign_text"
-      ],
-      "textured": false,
-      "bounds_bevy": {
-        "min": [
-          -0.65,
-          -0.1,
-          -0.034
-        ],
-        "max": [
-          0.65,
-          0.1,
-          0.0
-        ]
-      },
-      "text": "LAB",
-      "text_cap_m": 0.112,
-      "glb_sha256": "f905be74281824f337cdcca25bb90653f5026e4e45e2e8bd3476472b6bd439da",
-      "glb_bytes": 42496
-    },
-    "sign_label_security": {
-      "file": "sign_label_security.glb",
-      "category": "sign",
-      "snap": "wall_mount",
-      "triangles": 864,
-      "materials": [
-        "sign_plate",
-        "steel_dark",
-        "sign_text"
-      ],
-      "textured": false,
-      "bounds_bevy": {
-        "min": [
-          -0.65,
-          -0.1,
-          -0.034
-        ],
-        "max": [
-          0.65,
-          0.1,
-          0.0
-        ]
-      },
-      "text": "SECURITY",
-      "text_cap_m": 0.112,
-      "glb_sha256": "69b14e3358eb9f1c0fea81c273ac0aa5abf41125e055739f51a2655ae2ca4153",
-      "glb_bytes": 91472
-    },
-    "sign_label_prep": {
-      "file": "sign_label_prep.glb",
-      "category": "sign",
-      "snap": "wall_mount",
-      "triangles": 468,
-      "materials": [
-        "sign_plate",
-        "steel_dark",
-        "sign_text"
-      ],
-      "textured": false,
-      "bounds_bevy": {
-        "min": [
-          -0.65,
-          -0.1,
-          -0.034
-        ],
-        "max": [
-          0.65,
-          0.1,
-          0.0
-        ]
-      },
-      "text": "PREP",
-      "text_cap_m": 0.112,
-      "glb_sha256": "171a81efad5c7ccad6fc7c1669330a20cdd51d5265ad7392dd788ab11fb79fb1",
-      "glb_bytes": 51064
     }
   }
 }
