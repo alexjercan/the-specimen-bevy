@@ -6,10 +6,13 @@ use std::{
 use bevy::{
     app::{App, AppExit, Plugin, PluginsState},
     input::mouse::MouseMotion,
-    prelude::{ButtonInput, EulerRot, KeyCode, Transform, World},
+    prelude::{ButtonInput, EulerRot, KeyCode, Transform, With, World},
     time::TimeUpdateStrategy,
 };
-use gameplay::controller::{PlayerController, PlayerInput};
+use gameplay::{
+    controller::{PlayerController, PlayerInput},
+    levels::Escaped,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::TransportTimeline;
@@ -67,6 +70,7 @@ impl Controls {
 pub(super) struct Snapshot {
     tick: u64,
     player: Option<PlayerSnapshot>,
+    won: bool,
 }
 
 #[derive(Serialize)]
@@ -79,8 +83,7 @@ struct PlayerSnapshot {
 }
 
 pub(super) fn snapshot(world: &mut World, tick: u64) -> Snapshot {
-    let mut players =
-        world.query_filtered::<(&Transform, &PlayerInput), bevy::prelude::With<PlayerController>>();
+    let mut players = world.query_filtered::<(&Transform, &PlayerInput), With<PlayerController>>();
     let player = players.iter(world).next().map(|(pose, input)| {
         let (yaw, pitch, _) = pose.rotation.to_euler(EulerRot::YXZ);
         PlayerSnapshot {
@@ -91,7 +94,12 @@ pub(super) fn snapshot(world: &mut World, tick: u64) -> Snapshot {
             running: input.running,
         }
     });
-    Snapshot { tick, player }
+    let won = world
+        .query_filtered::<(), (With<PlayerController>, With<Escaped>)>()
+        .iter(world)
+        .next()
+        .is_some();
+    Snapshot { tick, player, won }
 }
 
 #[derive(Serialize)]

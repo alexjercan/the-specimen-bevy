@@ -6,7 +6,7 @@ use bevy_enhanced_input::prelude::*;
 use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
 
 use super::{
-    doors::INTERACT_RANGE,
+    doors::{DoorLock, ExitDoor, INTERACT_RANGE},
     interaction::{InteractTarget, InteractTargets},
 };
 
@@ -15,6 +15,7 @@ pub const FUSE_MODULE: &str = "fuse_pickup";
 pub(crate) const FUSE_RADIUS: f32 = 0.03;
 pub(crate) const FUSE_LENGTH: f32 = 0.2;
 pub(crate) const FUSE_AIM_RADIUS: f32 = 0.15;
+pub(crate) const FUSE_PANEL_AIM_RADIUS: f32 = 0.5;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 #[require(Transform, Visibility)]
@@ -25,6 +26,18 @@ pub struct FusePickup {
 #[derive(Component, Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FuseInventory(pub usize);
 
+#[derive(Component, Default, Clone, Copy, Debug, PartialEq, Eq)]
+#[require(Transform)]
+pub struct FusePanel {
+    pub installed: usize,
+}
+
+#[derive(Message, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InstallFuses {
+    pub player: Entity,
+    pub panel: Entity,
+}
+
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FuseSeed(pub u64);
 
@@ -32,7 +45,10 @@ pub struct FusePlugin;
 
 impl Plugin for FusePlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(attach_inventory).add_observer(pick_up);
+        app.add_message::<InstallFuses>()
+            .add_observer(attach_inventory)
+            .add_observer(use_fuses)
+            .add_systems(Update, install_fuses);
     }
 }
 
@@ -40,27 +56,62 @@ fn attach_inventory(added: On<Add, PlayerController>, mut commands: Commands) {
     commands.entity(added.entity).insert_if_new(FuseInventory::default());
 }
 
-fn pick_up(
+fn use_fuses(
     _: On<Start<Interact>>,
     enabled: Res<PlayerControlsEnabled>,
     targets: InteractTargets,
-    mut players: Query<(&Transform, &mut FuseInventory), With<PlayerController>>,
+    mut players: Query<(Entity, &Transform, &mut FuseInventory), With<PlayerController>>,
+    mut installs: MessageWriter<InstallFuses>,
     mut commands: Commands,
 ) {
     if !enabled.0 {
         return;
     }
     let mut taken = Vec::new();
-    for (player, mut inventory) in &mut players {
-        let Some(InteractTarget::Fuse(fuse)) = targets.aimed(player) else {
+    for (entity, player, mut inventory) in &mut players {
+        match targets.aimed(player, Some(&*inventory)) {
+            Some(InteractTarget::Fuse(fuse)) => {
+                if taken.contains(&fuse) || inventory.0 >= FUSE_COUNT {
+                    continue;
+                }
+                taken.push(fuse);
+                inventory.0 += 1;
+                commands.entity(fuse).despawn();
+            }
+            Some(InteractTarget::Panel(panel)) => {
+                installs.write(InstallFuses {
+                    player: entity,
+                    panel,
+                });
+            }
+            Some(InteractTarget::Door(_)) | None => {}
+        }
+    }
+}
+
+fn install_fuses(
+    mut installs: MessageReader<InstallFuses>,
+    mut players: Query<&mut FuseInventory>,
+    mut panels: Query<&mut FusePanel>,
+    exits: Query<Entity, (With<ExitDoor>, With<DoorLock>)>,
+    mut commands: Commands,
+) {
+    for install in installs.read() {
+        let (Ok(mut inventory), Ok(mut panel)) = (
+            players.get_mut(install.player),
+            panels.get_mut(install.panel),
+        ) else {
             continue;
         };
-        if taken.contains(&fuse) || inventory.0 >= FUSE_COUNT {
+        if panel.installed != 0 || inventory.0 < FUSE_COUNT {
             continue;
         }
-        taken.push(fuse);
-        inventory.0 += 1;
-        commands.entity(fuse).despawn();
+        inventory.0 -= FUSE_COUNT;
+        panel.installed = FUSE_COUNT;
+        for door in &exits {
+            commands.entity(door).remove::<DoorLock>();
+        }
+        info!("fuses installed; exit unlocked");
     }
 }
 
@@ -100,9 +151,17 @@ pub(crate) fn fuse_center(transform: &Transform) -> Vec3 {
 }
 
 pub(crate) fn fuse_hit(origin: Vec3, forward: Vec3, center: Vec3) -> Option<f32> {
+    aim_hit(origin, forward, center, FUSE_AIM_RADIUS)
+}
+
+pub(crate) fn fuse_panel_hit(origin: Vec3, forward: Vec3, center: Vec3) -> Option<f32> {
+    aim_hit(origin, forward, center, FUSE_PANEL_AIM_RADIUS)
+}
+
+fn aim_hit(origin: Vec3, forward: Vec3, center: Vec3, radius: f32) -> Option<f32> {
     let offset = origin - center;
     let b = offset.dot(forward);
-    let c = offset.length_squared() - FUSE_AIM_RADIUS * FUSE_AIM_RADIUS;
+    let c = offset.length_squared() - radius * radius;
     let discriminant = b * b - c;
     if discriminant < 0.0 {
         return None;

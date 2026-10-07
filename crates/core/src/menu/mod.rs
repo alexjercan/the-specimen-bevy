@@ -1,3 +1,4 @@
+mod complete;
 mod loading;
 mod main_menu;
 mod pause;
@@ -19,6 +20,7 @@ pub enum GameState {
     #[default]
     MainMenu,
     Playing,
+    Complete,
 }
 
 #[derive(SubStates, Default, Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -37,7 +39,7 @@ enum MenuAction {
     Quit,
 }
 
-pub(crate) struct MenuPlugin;
+pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
@@ -46,7 +48,12 @@ impl Plugin for MenuPlugin {
         }
         app.add_sub_state::<GameState>()
             .add_sub_state::<PauseState>()
-            .add_plugins((loading::plugin, main_menu::plugin, pause::plugin))
+            .add_plugins((
+                loading::plugin,
+                main_menu::plugin,
+                pause::plugin,
+                complete::plugin,
+            ))
             .add_systems(Update, activate_buttons);
     }
 }

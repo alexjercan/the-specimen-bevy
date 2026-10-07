@@ -17,7 +17,7 @@ use gameplay::{
     levels::{build_first_floor, FuseSeed},
 };
 
-pub use menu::{GameState, PauseState};
+pub use menu::{GameState, MenuPlugin, PauseState};
 
 const LOG_FILTER: &str = "wgpu=error,naga=warn,bevy_ecs=warn,bevy_time=warn";
 const EYE_HEIGHT: f32 = 1.6;
@@ -95,7 +95,11 @@ impl AppBuilder {
             .insert_state(CoreState::Ready)
             .add_plugins(EnhancedInputPlugin)
             .add_plugins(gameplay::controller::PlayerControllerPlugin::default().without_camera())
-            .add_plugins((gameplay::levels::DoorPlugin, gameplay::levels::FusePlugin));
+            .add_plugins((
+                gameplay::levels::DoorPlugin,
+                gameplay::levels::FusePlugin,
+                gameplay::levels::ObjectivePlugin,
+            ));
             if self.transport {
                 app.add_plugins(transport::TransportPlugin);
             }
@@ -110,7 +114,11 @@ impl AppBuilder {
                 .add_systems(OnEnter(GameAssetsState::Failed), core_failed)
                 .add_plugins(EnhancedInputPlugin)
                 .add_plugins(gameplay::controller::PlayerControllerPlugin::default())
-                .add_plugins((gameplay::levels::DoorPlugin, gameplay::levels::FusePlugin))
+                .add_plugins((
+                    gameplay::levels::DoorPlugin,
+                    gameplay::levels::FusePlugin,
+                    gameplay::levels::ObjectivePlugin,
+                ))
                 .add_plugins((glue::InteractionHintPlugin, glue::FuseHudPlugin));
             if self.transport {
                 app.add_plugins(transport::RenderedTransportPlugin);

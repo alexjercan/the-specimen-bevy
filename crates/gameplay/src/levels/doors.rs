@@ -6,6 +6,7 @@ use crate::controller::player::{Interact, PlayerController, PlayerControlsEnable
 use super::{
     animation::{animate_doors, DoorSwing},
     builder::{Door, DoorState},
+    fuses::FuseInventory,
     interaction::{InteractTarget, InteractTargets},
 };
 
@@ -21,6 +22,12 @@ pub struct ToggleDoor(pub Entity);
 #[derive(Component)]
 pub struct DoorPanel;
 
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ExitDoor;
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DoorLock;
+
 pub struct DoorPlugin;
 
 impl Plugin for DoorPlugin {
@@ -34,7 +41,7 @@ impl Plugin for DoorPlugin {
 
 fn interact(
     _: On<Start<Interact>>,
-    players: Query<&Transform, With<PlayerController>>,
+    players: Query<(&Transform, Option<&FuseInventory>), With<PlayerController>>,
     enabled: Res<PlayerControlsEnabled>,
     targets: InteractTargets,
     mut toggles: MessageWriter<ToggleDoor>,
@@ -42,8 +49,8 @@ fn interact(
     if !enabled.0 {
         return;
     }
-    for player in &players {
-        if let Some(InteractTarget::Door(door)) = targets.aimed(player) {
+    for (player, inventory) in &players {
+        if let Some(InteractTarget::Door(door)) = targets.aimed(player, inventory) {
             toggles.write(ToggleDoor(door));
         }
     }
@@ -110,7 +117,10 @@ fn panel_hit(origin: Vec3, direction: Vec3) -> Option<f32> {
     (exit > 0.0).then_some(entry)
 }
 
-fn toggle_doors(mut toggles: MessageReader<ToggleDoor>, mut doors: Query<&mut Door>) {
+fn toggle_doors(
+    mut toggles: MessageReader<ToggleDoor>,
+    mut doors: Query<&mut Door, Without<DoorLock>>,
+) {
     for ToggleDoor(entity) in toggles.read() {
         if let Ok(mut door) = doors.get_mut(*entity) {
             door.state = match door.state {

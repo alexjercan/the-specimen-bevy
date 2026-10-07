@@ -2,11 +2,12 @@ use bevy::{prelude::*, transform::TransformSystems};
 use game_assets::{GameAssetsState, UiAssets};
 use gameplay::{
     controller::PlayerController,
-    levels::{DoorState, InteractTarget, InteractTargets},
+    levels::{DoorState, FuseInventory, InteractTarget, InteractTargets},
 };
 
 const DOOR_HINT_WIDTH: f32 = 130.0;
 const FUSE_HINT_WIDTH: f32 = 160.0;
+const PANEL_HINT_WIDTH: f32 = 172.0;
 
 #[derive(Component)]
 struct InteractionHint;
@@ -64,7 +65,10 @@ fn spawn_hint(mut commands: Commands, assets: Res<UiAssets>) {
 }
 
 fn update_hint(
-    players: Query<(&Transform, &Camera, &GlobalTransform), With<PlayerController>>,
+    players: Query<
+        (&Transform, &Camera, &GlobalTransform, Option<&FuseInventory>),
+        With<PlayerController>,
+    >,
     targets: InteractTargets,
     mut hint: Query<(&mut Node, &mut Visibility), With<InteractionHint>>,
     mut label: Query<&mut Text, With<InteractionHintLabel>>,
@@ -73,19 +77,21 @@ fn update_hint(
         return;
     };
     *visibility = Visibility::Hidden;
-    let Some((player, camera, camera_transform)) = players.iter().next() else {
+    let Some((player, camera, camera_transform, inventory)) = players.iter().next() else {
         return;
     };
-    let Some(target) = targets.aimed(player) else {
+    let Some(target) = targets.aimed(player, inventory) else {
         return;
     };
     let (action, width) = match target {
+        InteractTarget::Door(entity) if targets.locked(entity) => ("LOCKED", DOOR_HINT_WIDTH),
         InteractTarget::Door(entity) => match targets.door(entity).map(|door| door.state) {
             Some(DoorState::Closed) => ("OPEN", DOOR_HINT_WIDTH),
             Some(DoorState::Open) => ("CLOSE", DOOR_HINT_WIDTH),
             None => return,
         },
         InteractTarget::Fuse(_) => ("PICK UP FUSE", FUSE_HINT_WIDTH),
+        InteractTarget::Panel(_) => ("INSTALL FUSES", PANEL_HINT_WIDTH),
     };
     let Some(anchor) = targets.anchor(target) else {
         return;

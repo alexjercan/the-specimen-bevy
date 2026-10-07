@@ -2,7 +2,10 @@ use std::f32::consts::{FRAC_PI_2, PI};
 
 use bevy::prelude::*;
 
-use crate::levels::builder::{door, passage, room, DoorOf, DoorRef};
+use crate::levels::{
+    builder::{door, passage, room, DoorOf, DoorRef},
+    doors::{DoorLock, ExitDoor},
+};
 
 pub(super) fn spawn(commands: &mut Commands) {
     const FRAME: &str = "wall_doorway";
@@ -14,12 +17,10 @@ pub(super) fn spawn(commands: &mut Commands) {
     const CEILING_TILE: &str = "ceiling_tile";
 
     let outside_exit = commands
-        .spawn(door(
-            "exit / outside",
-            Vec2::new(0.0, -31.25),
-            PI,
-            FRAME,
-            PANEL,
+        .spawn((
+            door("exit / outside", Vec2::new(0.0, -31.25), PI, FRAME, PANEL),
+            ExitDoor,
+            DoorLock,
         ))
         .id();
     let exit_service = commands

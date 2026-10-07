@@ -3,8 +3,10 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 use super::{
     animation::DoorSwing,
     builder::{Door, DoorRef, Doors, Passage, Room},
-    doors::{aimed_door, panel_center, panel_hinge, panel_rotation, PANEL_WIDTH},
-    fuses::{fuse_center, fuse_hit, FusePickup},
+    doors::{aimed_door, panel_center, panel_hinge, panel_rotation, DoorLock, PANEL_WIDTH},
+    fuses::{
+        fuse_center, fuse_hit, fuse_panel_hit, FuseInventory, FusePanel, FusePickup, FUSE_COUNT,
+    },
 };
 
 const TILE: f32 = 2.5;
@@ -13,39 +15,56 @@ const TILE: f32 = 2.5;
 pub enum InteractTarget {
     Door(Entity),
     Fuse(Entity),
+    Panel(Entity),
 }
 
 #[derive(SystemParam)]
 pub struct InteractTargets<'w, 's> {
     doors: Query<'w, 's, (Entity, &'static Door, &'static DoorSwing)>,
+    locks: Query<'w, 's, (), With<DoorLock>>,
     fuses: Query<'w, 's, (Entity, &'static Transform), With<FusePickup>>,
+    panels: Query<'w, 's, (Entity, &'static Transform, &'static FusePanel)>,
     rooms: Query<'w, 's, (&'static Room, Option<&'static Doors>)>,
     links: Query<'w, 's, &'static DoorRef>,
     passages: Query<'w, 's, &'static Passage>,
 }
 
 impl InteractTargets<'_, '_> {
-    pub fn aimed(&self, player: &Transform) -> Option<InteractTarget> {
+    pub fn aimed(
+        &self,
+        player: &Transform,
+        inventory: Option<&FuseInventory>,
+    ) -> Option<InteractTarget> {
         let origin = player.translation;
         let forward = player.rotation * -Vec3::Z;
         let door = aimed_door(player, &self.doors);
-        let mut fuses: Vec<_> = self
-            .fuses
+        let ready = inventory.is_some_and(|inventory| inventory.0 >= FUSE_COUNT);
+        let fuses = self.fuses.iter().filter_map(|(entity, transform)| {
+            let center = fuse_center(transform);
+            fuse_hit(origin, forward, center)
+                .map(|distance| (InteractTarget::Fuse(entity), center, distance))
+        });
+        let panels = self
+            .panels
             .iter()
-            .filter_map(|(entity, transform)| {
-                let center = fuse_center(transform);
-                fuse_hit(origin, forward, center).map(|distance| (entity, center, distance))
-            })
+            .filter(|(_, _, panel)| ready && panel.installed == 0)
+            .filter_map(|(entity, transform, _)| {
+                let center = transform.translation;
+                fuse_panel_hit(origin, forward, center)
+                    .map(|distance| (InteractTarget::Panel(entity), center, distance))
+            });
+        let mut candidates: Vec<_> = fuses
+            .chain(panels)
             .filter(|&(_, _, distance)| door.is_none_or(|(_, nearest)| distance <= nearest))
             .collect();
-        if !fuses.is_empty() {
-            fuses.sort_by(|a, b| a.2.total_cmp(&b.2));
+        if !candidates.is_empty() {
+            candidates.sort_by(|a, b| a.2.total_cmp(&b.2));
             let blockers = self.sight_blockers();
-            if let Some(&(entity, ..)) = fuses.iter().find(|(_, center, _)| {
+            if let Some(&(target, ..)) = candidates.iter().find(|(_, center, _)| {
                 let sight = (origin.xz(), center.xz());
                 !blockers.iter().any(|&blocker| crosses(sight, blocker))
             }) {
-                return Some(InteractTarget::Fuse(entity));
+                return Some(target);
             }
         }
         door.map(|(entity, _)| InteractTarget::Door(entity))
@@ -63,11 +82,20 @@ impl InteractTargets<'_, '_> {
                 .get(entity)
                 .ok()
                 .map(|(_, transform)| fuse_center(transform)),
+            InteractTarget::Panel(entity) => self
+                .panels
+                .get(entity)
+                .ok()
+                .map(|(_, transform, _)| transform.translation),
         }
     }
 
     pub fn door(&self, entity: Entity) -> Option<&Door> {
         self.doors.get(entity).ok().map(|(_, door, _)| door)
+    }
+
+    pub fn locked(&self, entity: Entity) -> bool {
+        self.locks.contains(entity)
     }
 
     fn opening(&self, link: Entity) -> Option<Vec2> {

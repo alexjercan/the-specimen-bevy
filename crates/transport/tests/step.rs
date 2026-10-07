@@ -38,7 +38,7 @@ fn steps_to_absolute_ticks_without_free_running() {
     assert_eq!(exit, AppExit::Success);
     assert_eq!(
         String::from_utf8(output).unwrap(),
-        "{\"tick\":1,\"player\":null}\n{\"tick\":4,\"player\":null}\n"
+        "{\"tick\":1,\"player\":null,\"won\":false}\n{\"tick\":4,\"player\":null,\"won\":false}\n"
     );
     assert_eq!(updates.load(Ordering::SeqCst), 5);
 }
