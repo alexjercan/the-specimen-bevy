@@ -41,6 +41,12 @@ gameplay = { path = "crates/gameplay" }
 debug = { path = "crates/debug" }
 probe = { path = "crates/probe" }
 
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
 [features]
 debug = ["game_core/debug"]
 

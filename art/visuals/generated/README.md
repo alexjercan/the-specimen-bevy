@@ -204,12 +204,17 @@ projection, modulo 1. Thus the UVs at the two sides of a joint agree.
 
 ## Bevy composition (`facility_layout`)
 
-`examples/facility_layout/` composes the kit in Bevy from the authored layout
-in `crates/gameplay/src/facility/layout.rs`, through the gameplay
-`FacilityPlugin` (logical entities) and `FacilityRenderPlugin` (scene
-children after the asset loader is ready). The layout gives areas as cell rectangles, openings (passage
-or door, closed or open by an angle), ceiling lights, wall mounts, and props.
-The example does not place walls by hand. `derive` makes:
+`examples/facility_layout/` composes the kit in Bevy from the authored first
+floor in `crates/gameplay/src/levels/first_floor.rs`. The level is a
+declaration made with the small builder in
+`crates/gameplay/src/facility/level.rs`: rooms as cell rectangles, openings
+(passage, open door with a swing angle, or the locked exit), ceiling lamps,
+wall fixtures, wall signs, exit hangers, props, lights, glow, objectives, and
+the player start. `FacilityPlugin` builds the level in one pass. Each logical
+entity is spawned together with its scene children and point lights. In a
+windowed app the pass runs when `GameAssetsState` is `Ready`. Without the
+asset state (headless), or when loading fails, the same declaration is built
+without visuals. From the rooms and openings, the build makes:
 
 - one floor and one ceiling tile per cell;
 - one wall on each cell edge between different areas, or between an area and
@@ -219,15 +224,13 @@ The example does not place walls by hand. `derive` makes:
   passage edge;
 - posts at corners, wall ends, T-joints, and changes of wall style or facing,
   and on every second vertex of a straight run. The other joints show a plain
-  wall-to-wall seam, to show the texture continuity;
-- point lights from the fixture states: cool, amber, flicker, dead (no light),
-  a pulsing red fault lamp, and a green exit sign.
+  wall-to-wall seam, to show the texture continuity.
 
-`derive` returns an error for overlapping areas, openings inside one area,
-passages to empty space, wall mounts on passages, door frames, trim bands or
-conduit, and props that are near a wall or block a door swing zone. The
-tests are in `crates/gameplay/tests/layout.rs`. Set `FACILITY_SHOT_DIR` to
-write the example captures to another directory.
+Facility point lights do not cast shadows. The production code does not
+validate or route. The tests in `crates/gameplay/tests/level.rs` check the
+authored level: clearances, door zones, wall slots, sign arrows against a
+test-only route search, and readability. Set `FACILITY_SHOT_DIR` to write the
+example captures to another directory.
 
 The current first floor uses sixteen areas on a 2.5 m grid:
 

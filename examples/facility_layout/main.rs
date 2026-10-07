@@ -5,7 +5,7 @@ use bevy::{
     camera::ScalingMode,
     pbr::{DistanceFog, FogFalloff},
 };
-use game::{gameplay::facility::render::Overhead, prelude::*};
+use game::{gameplay::facility::Overhead, prelude::*};
 
 const SHOT_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/art/visuals/screenshots");
 const SHOT_PREFIX: &str = "facility_floor1_v2";
@@ -163,8 +163,7 @@ fn main() {
     AppBuilder::new()
         .build()
         .add_plugins((
-            FacilityPlugin,
-            FacilityRenderPlugin,
+            FacilityPlugin::new(first_floor()),
             CapturePlugin::new(30),
             script,
         ))

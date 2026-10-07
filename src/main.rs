@@ -3,11 +3,7 @@ use bevy::{
     pbr::{DistanceFog, FogFalloff},
 };
 use clap::{error::ErrorKind, CommandFactory, Parser};
-use game::{
-    gameplay::facility::{render::Rendered, FacilityPart},
-    prelude::*,
-    probe::world_instances_ready,
-};
+use game::{prelude::*, probe::world_instances_ready};
 
 const EYE_HEIGHT: f32 = 1.6;
 
@@ -24,12 +20,12 @@ fn main() -> AppExit {
     if cli.norender {
         return AppBuilder::headless()
             .build()
-            .add_plugins(FacilityPlugin)
+            .add_plugins(FacilityPlugin::new(first_floor()))
             .add_systems(Update, stop_after_eight_frames)
             .run();
     }
     let mut app = AppBuilder::new().build();
-    app.add_plugins((FacilityPlugin, FacilityRenderPlugin, ControllerPlugin))
+    app.add_plugins((FacilityPlugin::new(first_floor()), ControllerPlugin))
         .add_observer(view_from_start);
     if let Some(config) = cli.probe.config() {
         match ProbePlugin::new(config, facility_ready) {
@@ -53,8 +49,7 @@ fn facility_ready(world: &World) -> Readiness {
         }
         _ => return Readiness::Waiting,
     }
-    let ready = count::<With<FacilityPart>>(world) > 0
-        && count::<(With<FacilityPart>, Without<Rendered>)>(world) == 0
+    let ready = count::<With<Facility>>(world) > 0
         && count::<With<Camera3d>>(world) > 0
         && world_instances_ready(world);
     if ready {
