@@ -11,6 +11,15 @@ attribution.
 | Quaternius Modular Sci-Fi MegaKit, Standard (free) edition | Visual reference only: module scale, panel rhythm, trim/emissive accents | None. No mesh, texture, or UV data was copied, imported, or traced. | CC0 1.0, from `License_Standard.txt` in the local download | This file |
 | `generated/facility.glb` | Original geometry, made by `scripts/generate_facility.py` from box and cylinder primitives | `generated/facility.glb`, `generated/facility.manifest.json` | Project-authored; embeds the CC0 Poly Haven maps above | `generated/README.md` |
 | `generated/modules/*.glb` | Original module kit and props, made by `scripts/generate_facility.py --target kit` from box and cylinder primitives | 51 GLB files, `generated/modules/modules.manifest.json`; shipped copies at `assets/facility/modules/`. Sign text is a 5x7 block font built from boxes in the generator; no font file is used. | Project-authored; `floor_tile`, `floor_tile_marked`, `wall`, `wall_conduit`, and `wall_doorway` embed the CC0 Poly Haven maps above | `generated/README.md`, `credits/ASSET-SOURCES.md` |
+| Sketchfab `The Human Deer` (ceeleste) | Review only, viewed by the `human_deer_viewer` example. Not shipped, not under `assets/`. | `sources/sketchfab/the_human_deer/*` (license.txt, scene.gltf, scene.bin, 12 PNG textures) | CC-BY-4.0, as stated in the bundled license.txt and glTF `asset.extras`; not independently verified | `sources/sketchfab/the_human_deer/SOURCE.md` |
+
+## Sketchfab: The Human Deer (review only)
+
+Required credit, quoted exactly from the bundled `license.txt`:
+
+> This work is based on "The Human Deer" (https://sketchfab.com/3d-models/the-human-deer-7644694337404bb18eb68e6b637740a1) by ceeleste (https://sketchfab.com/ceeleste) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+See `sources/sketchfab/the_human_deer/SOURCE.md` for the full record.
 
 ## Quaternius Modular Sci-Fi MegaKit (reference only)
 

@@ -92,3 +92,7 @@ path = "examples/facility_probe.rs"
 [[example]]
 name = "facility_overhead_probe"
 path = "examples/facility_overhead_probe.rs"
+
+[[example]]
+name = "human_deer_viewer"
+path = "examples/human_deer_viewer.rs"

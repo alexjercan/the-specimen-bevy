@@ -69,6 +69,13 @@ doorway itself.
 
 Do not adopt a model because its thumbnail looks good. Check its silhouette from the player's typical viewing distance, animation quality, polycount, materials, and author/license trail. Avoid relying on unclear license labels or AI-generated models without a separate provenance review.
 
+## Sketchfab model review
+
+The `human_deer_viewer` example loads the Sketchfab model "The Human Deer"
+for standalone review, moodily lit and on a dark ground plane. It is not
+part of the game. See `sources/sketchfab/the_human_deer/SOURCE.md` and
+`PROVENANCE.md` for the license and credit record.
+
 ## Lighting experiment
 
 1. Block out a T-junction, a room with two exits, and one long corridor in plain materials. Give the player a reliable way to see the next decision point (signage, floor marking, emergency lamp). Keep peripheral space uncertain.
