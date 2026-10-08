@@ -5,7 +5,7 @@ use game_audio::{
     PlaySound, Sound,
 };
 use gameplay::{
-    controller::{PlayerController, PlayerControlsEnabled, PlayerInput},
+    controller::{PlayerController, PlayerControlsEnabled, PlayerInput, SprintExhausted, Stamina},
     levels::{GameplaySound, GameplaySoundKind, Room, Walls},
 };
 use rand_core::Rng;
@@ -92,6 +92,7 @@ impl Plugin for SoundGluePlugin {
             Update,
             (
                 forward_gameplay_sounds,
+                forward_sprint_exhaustion,
                 footsteps,
                 sync_pause,
                 sync_ambience,
@@ -138,6 +139,18 @@ fn forward_gameplay_sounds(
     }
 }
 
+fn forward_sprint_exhaustion(
+    mut exhausted: MessageReader<SprintExhausted>,
+    mut sounds: MessageWriter<PlaySound>,
+) {
+    for _ in exhausted.read() {
+        sounds.write(PlaySound {
+            sound: Sound::SprintExhausted,
+            position: None,
+        });
+    }
+}
+
 #[derive(Default)]
 struct StepTracker {
     last: Option<Vec3>,
@@ -146,12 +159,12 @@ struct StepTracker {
 
 fn footsteps(
     enabled: Res<PlayerControlsEnabled>,
-    players: Query<(&Transform, &PlayerInput), With<PlayerController>>,
+    players: Query<(&Transform, &PlayerInput, &Stamina), With<PlayerController>>,
     mut tracker: Local<StepTracker>,
     mut rng: Single<&mut ChaCha8Rng, With<GlobalRng>>,
     mut sounds: MessageWriter<PlaySound>,
 ) {
-    let Ok((transform, input)) = players.single() else {
+    let Ok((transform, input, stamina)) = players.single() else {
         tracker.last = None;
         tracker.distance = 0.0;
         return;
@@ -163,7 +176,7 @@ fn footsteps(
     }
     let Some(previous) = previous else { return };
     tracker.distance += (position.xz() - previous.xz()).length().min(0.5);
-    let stride = if input.running { 1.8 } else { 1.25 };
+    let stride = if stamina.sprinting { 1.8 } else { 1.25 };
     if tracker.distance >= stride {
         tracker.distance -= stride;
         sounds.write(PlaySound {

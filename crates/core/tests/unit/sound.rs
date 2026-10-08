@@ -93,6 +93,29 @@ fn hiding_cues_keep_their_kind_and_world_position_in_audio_bridge() {
 }
 
 #[test]
+fn sprint_exhaustion_bridges_once_as_non_spatial_player_audio() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_message::<SprintExhausted>()
+        .add_message::<PlaySound>()
+        .add_systems(Update, forward_sprint_exhaustion);
+    app.world_mut().write_message(SprintExhausted {
+        position: Vec3::new(1.0, 1.6, -3.0),
+    });
+    app.update();
+    let played: Vec<_> = app
+        .world_mut()
+        .resource_mut::<Messages<PlaySound>>()
+        .drain()
+        .collect();
+    assert_eq!(played.len(), 1);
+    assert_eq!(played[0].sound, Sound::SprintExhausted);
+    assert_eq!(played[0].position, None);
+    app.update();
+    assert_eq!(app.world().resource::<Messages<PlaySound>>().len(), 0);
+}
+
+#[test]
 fn locked_door_rattle_keeps_its_world_position_in_audio_bridge() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)

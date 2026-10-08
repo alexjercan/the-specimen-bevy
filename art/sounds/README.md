@@ -65,6 +65,20 @@ Recharge has no continuous sound candidate: a constant recharge noise could
 mask footsteps and facility ambience. Playback volume and mix still need
 in-game listening review.
 
+## Sprint exhaustion breathing
+
+`art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav` is the
+original download of [Breathing Tired](https://opengameart.org/content/breathing-tired)
+by mikeask. The item describes a person breathing tired after running and
+labels the file CC0 1.0. SHA-256:
+`08d9c9e15426f0cd889b63867a3bc68bafd985e8d39fd57f805d4372b23aeeca`.
+It is a 3.17 s, stereo, 44.1 kHz PCM WAV. The user approved this recording for a one-shot on sprint exhaustion. A
+byte-identical copy is required at `assets/sounds/self/breathing-tired-mikeask.wav`
+for the runtime asset loader; the source remains in the approved catalog. The
+license is a page-displayed claim; uploader provenance and recording rights
+have not been independently verified. The in-game level and timing still need
+listening review.
+
 ## Recorded player steps
 
 GboxMikeFozzy's [Footsteps](https://opengameart.org/content/footsteps-0)

@@ -1,12 +1,17 @@
 mod collision;
 mod flashlight;
 pub mod player;
+mod stamina;
 pub mod wasd_camera;
 
 pub use flashlight::{Flashlight, FlashlightBeam, DRAIN_SECONDS, RECHARGE_SECONDS, RESTART_CHARGE};
 pub use player::{
     PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput, LOOK_SENSITIVITY,
     PITCH_LIMIT as PLAYER_PITCH_LIMIT, RUN_SPEED, WALK_SPEED,
+};
+pub use stamina::{
+    SprintExhausted, Stamina, DRAIN_SECONDS as SPRINT_DRAIN_SECONDS,
+    RECHARGE_SECONDS as SPRINT_RECHARGE_SECONDS, RESTART_CHARGE as SPRINT_RESTART_CHARGE,
 };
 
 pub use wasd_camera::{

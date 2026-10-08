@@ -56,7 +56,7 @@ impl Plugin for HidingPlugin {
         app.add_message::<UseHidingSpot>()
             .add_message::<GameplaySound>()
             .add_observer(use_hiding_spots)
-            .add_observer(attach_locker_hiding)
+            .add_observer(attach_prop_hiding)
             .add_systems(
                 Update,
                 (toggle_hiding, animate_hiding).chain().before(apply_input),
@@ -64,10 +64,13 @@ impl Plugin for HidingPlugin {
     }
 }
 
-fn attach_locker_hiding(added: On<Add, Prop>, props: Query<&Prop>, mut commands: Commands) {
-    if matches!(props.get(added.entity), Ok(prop) if prop.0 == "concept_locker") {
-        commands.entity(added.entity).insert(HidingSpot::Locker);
-    }
+fn attach_prop_hiding(added: On<Add, Prop>, props: Query<&Prop>, mut commands: Commands) {
+    let spot = match props.get(added.entity).map(|prop| prop.0.as_str()) {
+        Ok("concept_locker") => HidingSpot::Locker,
+        Ok("concept_table") => HidingSpot::Table,
+        _ => return,
+    };
+    commands.entity(added.entity).insert(spot);
 }
 
 impl Hidden {

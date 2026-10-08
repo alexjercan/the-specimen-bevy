@@ -63,9 +63,6 @@ fn spot(app: &mut App, kind: HidingSpot, position: Vec3, yaw: f32) -> Entity {
             Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw)),
         ))
         .id();
-    if kind == HidingSpot::Table {
-        app.world_mut().entity_mut(entity).insert(kind);
-    }
     app.update();
     entity
 }
@@ -157,6 +154,22 @@ fn inside_collider(
     let offset = local.xz() - collider.center;
     let outside = (offset.abs() - collider.half).max(Vec2::ZERO);
     outside.length() < margin
+}
+
+#[test]
+fn prop_observer_registers_tables_and_lockers_but_not_other_props() {
+    let (mut app, _) = app();
+    let table = spot(&mut app, HidingSpot::Table, Vec3::new(0.0, 0.0, -2.0), PI);
+    let locker = spot(&mut app, HidingSpot::Locker, Vec3::new(2.0, 0.0, -2.0), PI);
+    let shelf = app
+        .world_mut()
+        .spawn((Prop("shelf_unit".to_owned()), Transform::IDENTITY))
+        .id();
+    app.update();
+
+    assert_eq!(app.world().get::<HidingSpot>(table), Some(&HidingSpot::Table));
+    assert_eq!(app.world().get::<HidingSpot>(locker), Some(&HidingSpot::Locker));
+    assert!(app.world().get::<HidingSpot>(shelf).is_none());
 }
 
 #[test]
@@ -432,7 +445,7 @@ fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
         .iter(world)
         .map(|door| door.position)
         .collect();
-    assert_eq!(spots.len(), 9);
+    assert_eq!(spots.len(), 10);
     let lockers: Vec<_> = spots
         .iter()
         .filter(|(_, kind, ..)| *kind == HidingSpot::Locker)
@@ -456,6 +469,17 @@ fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
         .filter(|prop| prop.0 == "concept_locker")
         .count();
     assert_eq!(lockers.len(), concept_lockers);
+    let tables = spots
+        .iter()
+        .filter(|(_, kind, ..)| *kind == HidingSpot::Table)
+        .count();
+    let concept_tables = world
+        .query::<&Prop>()
+        .iter(world)
+        .filter(|prop| prop.0 == "concept_table")
+        .count();
+    assert_eq!(tables, concept_tables);
+    assert_eq!(tables, 4);
 
     for (entity, kind, spot_transform, module) in spots {
         let expected = match kind {

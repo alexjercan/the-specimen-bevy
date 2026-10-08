@@ -14,6 +14,7 @@ SOURCES = (ROOT / "art/sounds", ROOT / "assets/sounds")
 EXTENSIONS = {".wav", ".ogg", ".mp3", ".flac"}
 APPROVED_FILES = {
     "art/sounds/sources/freesound/flashlight/click-ralph0o7.ogg",
+    "art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav",
     *{f"art/sounds/sources/opengameart/step/subway/subway-step-{letter}.ogg" for letter in "abc"},
     *{f"art/sounds/generated/door/{name}.wav" for name in (
         "unlatch", "swing-open", "shut", "locked-rattle",
@@ -52,6 +53,7 @@ CATEGORIES = {
     "ui": "E. UI and front end (bus ui)",
     "hiding": "G. Hiding (bus world)",
     "flashlight": "A. Player self (bus self)",
+    "self": "A. Player self (bus self)",
 }
 STEP_CREDIT = ('GboxMikeFozzy, "Footsteps" (CC0 1.0)', "https://opengameart.org/content/footsteps-0")
 METAL_WOOD_CREDIT = ('rubberduck, "100 CC0 metal and wood SFX" (CC0 1.0)', "https://opengameart.org/content/100-cc0-metal-and-wood-sfx")
@@ -69,6 +71,10 @@ for creator, sound_id, edit in (
         f"{creator} (Freesound preview, page-labeled CC0 1.0; edited by this project)",
         f"https://freesound.org/people/{creator}/sounds/{sound_id}/",
     )
+RECORDED_PATHS["art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav"] = (
+    'mikeask, "Breathing Tired" (OpenGameArt page-labeled CC0 1.0; original download)',
+    "https://opengameart.org/content/breathing-tired",
+)
 RECORDED_PATHS["art/sounds/generated/door/locked-rattle.wav"] = (
     "DrFahrts (Freesound preview, page-labeled CC0 1.0; edited by this project)",
     "https://freesound.org/people/DrFahrts/sounds/727791/",

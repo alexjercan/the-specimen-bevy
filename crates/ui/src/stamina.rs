@@ -3,37 +3,37 @@ use bevy::prelude::*;
 use crate::theme;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
-pub struct FlashlightMeter {
+pub struct StaminaMeter {
     pub charge: f32,
-    pub on: bool,
+    pub sprinting: bool,
 }
 
-impl Default for FlashlightMeter {
+impl Default for StaminaMeter {
     fn default() -> Self {
         Self {
             charge: 1.0,
-            on: false,
+            sprinting: false,
         }
     }
 }
 
-impl FlashlightMeter {
+impl StaminaMeter {
     pub fn visible(self) -> bool {
-        self.on || self.charge < 1.0
+        self.sprinting || self.charge < 1.0
     }
 }
 
 #[derive(Component)]
-pub struct FlashlightFill;
+pub struct StaminaFill;
 
-pub fn flashlight_meter() -> impl Bundle {
+pub fn stamina_meter() -> impl Bundle {
     (
-        FlashlightMeter::default(),
-        Name::new("Flashlight charge"),
+        StaminaMeter::default(),
+        Name::new("Sprint charge"),
         Node {
             position_type: PositionType::Absolute,
             left: px(24),
-            bottom: px(80),
+            bottom: px(24),
             width: px(184),
             padding: UiRect::all(px(9)),
             border: UiRect::all(px(theme::BORDER)),
@@ -47,12 +47,12 @@ pub fn flashlight_meter() -> impl Bundle {
         BorderColor::all(theme::PANEL_BORDER),
         children![
             (
-                Text::new("LIGHT"),
+                Text::new("SPRINT"),
                 TextFont::from_font_size(12.0),
                 TextColor(theme::TEXT),
             ),
             (
-                Name::new("Flashlight charge track"),
+                Name::new("Sprint charge track"),
                 Node {
                     flex_grow: 1.0,
                     height: px(9),
@@ -61,8 +61,8 @@ pub fn flashlight_meter() -> impl Bundle {
                 },
                 BackgroundColor(theme::FUSE_EMPTY),
                 children![(
-                    FlashlightFill,
-                    Name::new("Flashlight fill"),
+                    StaminaFill,
+                    Name::new("Sprint fill"),
                     Node {
                         width: percent(100),
                         height: percent(100),
@@ -75,10 +75,10 @@ pub fn flashlight_meter() -> impl Bundle {
     )
 }
 
-pub(crate) fn paint_flashlight(
-    meters: Query<(&FlashlightMeter, &Children), Changed<FlashlightMeter>>,
+pub(crate) fn paint_stamina(
+    meters: Query<(&StaminaMeter, &Children), Changed<StaminaMeter>>,
     children: Query<&Children>,
-    mut fills: Query<&mut Node, With<FlashlightFill>>,
+    mut fills: Query<&mut Node, With<StaminaFill>>,
 ) {
     for (meter, roots) in &meters {
         for descendant in roots.iter().flat_map(|root| children.iter_descendants(root)) {

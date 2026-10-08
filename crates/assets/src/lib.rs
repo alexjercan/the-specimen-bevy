@@ -133,6 +133,8 @@ pub struct SoundAssets {
     pub fuse_complete: Handle<AudioSource>,
     #[asset(path = "sounds/flashlight/click-ralph0o7.ogg")]
     pub flashlight_click: Handle<AudioSource>,
+    #[asset(path = "sounds/self/breathing-tired-mikeask.wav")]
+    pub sprint_exhausted: Handle<AudioSource>,
     #[asset(path = "sounds/step/subway/subway-step-a.ogg")]
     pub step_01: Handle<AudioSource>,
     #[asset(path = "sounds/step/subway/subway-step-b.ogg")]

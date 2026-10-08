@@ -4,7 +4,6 @@ use bevy::prelude::*;
 
 use crate::levels::{
     builder::{light, prop, LightEffect},
-    hiding::HidingSpot,
 };
 
 use super::{FIRE, SPECIMEN};
@@ -213,13 +212,10 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         "concept_locker",
         Transform::from_xyz(13.35, 0.0, 2.2).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
-    commands.spawn((
-        prop(
-            "concept_table",
-            "concept_table",
-            Transform::from_xyz(9.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(PI)),
-        ),
-        HidingSpot::Table,
+    commands.spawn(prop(
+        "concept_table",
+        "concept_table",
+        Transform::from_xyz(9.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
         "concept_table",
@@ -296,26 +292,20 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         "concept_locker",
         Transform::from_xyz(-13.35, 0.0, -18.75).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
     ));
-    commands.spawn((
-        prop(
-            "concept_table",
-            "concept_table",
-            Transform::from_xyz(-7.5, 0.0, -22.9).with_rotation(Quat::from_rotation_y(PI)),
-        ),
-        HidingSpot::Table,
+    commands.spawn(prop(
+        "concept_table",
+        "concept_table",
+        Transform::from_xyz(-7.5, 0.0, -22.9).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
         "shelf_unit_low",
         "shelf_unit_low",
         Transform::from_xyz(-2.5, 0.0, -17.2).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
-    commands.spawn((
-        prop(
-            "concept_table",
-            "concept_table",
-            Transform::from_xyz(3.75, 0.0, -18.75).with_rotation(Quat::from_rotation_y(PI)),
-        ),
-        HidingSpot::Table,
+    commands.spawn(prop(
+        "concept_table",
+        "concept_table",
+        Transform::from_xyz(3.75, 0.0, -18.75).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
         "vent_grille",

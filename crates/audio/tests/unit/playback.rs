@@ -173,6 +173,23 @@ fn flashlight_click_uses_approved_clip_as_non_spatial_audio() {
 }
 
 #[test]
+fn sprint_exhaustion_is_non_spatial_player_audio_and_dropped_while_paused() {
+    let mut app = playback_app(None);
+    let cue = PlaySound {
+        sound: Sound::SprintExhausted,
+        position: None,
+    };
+    let played = play(&mut app, &[cue]);
+    assert_eq!(played.len(), 1);
+    assert_eq!(played[0].0, test_support::sound_assets().sprint_exhausted);
+    assert!(!played[0].1.spatial);
+    assert!(played[0].3);
+
+    app.world_mut().resource_mut::<AudioPaused>().0 = true;
+    assert!(play(&mut app, &[cue]).is_empty());
+}
+
+#[test]
 fn locked_door_rattle_is_spatial_and_dropped_while_paused() {
     let mut app = playback_app(Some(Vec3::ZERO));
     let cue = PlaySound {

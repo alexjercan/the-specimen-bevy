@@ -20,6 +20,7 @@ pub enum Sound {
     FuseSlot(usize),
     FuseComplete,
     FlashlightClick,
+    SprintExhausted,
     BoilerTick,
     FaucetBurst,
     LockerOpen,
@@ -124,6 +125,7 @@ fn play_sounds(
                 | Sound::TableEnter
                 | Sound::TableLeave
                 | Sound::Step(_)
+                | Sound::SprintExhausted
         );
         if paused.0 && world_sound {
             continue;
@@ -139,6 +141,7 @@ fn play_sounds(
             Sound::FuseSlot(_) => continue,
             Sound::FuseComplete => &assets.fuse_complete,
             Sound::FlashlightClick => &assets.flashlight_click,
+            Sound::SprintExhausted => &assets.sprint_exhausted,
             Sound::BoilerTick => &assets.boiler_tick,
             Sound::FaucetBurst => &assets.faucet,
             Sound::LockerOpen => &assets.locker_open,

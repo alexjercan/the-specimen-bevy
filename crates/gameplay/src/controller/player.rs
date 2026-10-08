@@ -8,7 +8,10 @@ use crate::levels::{
     Door, DoorOf, DoorRef, DoorSwing, Doors, GameplaySound, Hidden, Passage, PropCollider, Room,
 };
 
-use super::{collision, flashlight};
+use super::{
+    collision, flashlight,
+    stamina::{SprintExhausted, Stamina},
+};
 
 pub const WALK_SPEED: f32 = 3.0;
 pub const RUN_SPEED: f32 = 6.0;
@@ -16,7 +19,7 @@ pub const LOOK_SENSITIVITY: f32 = 0.002;
 pub const PITCH_LIMIT: f32 = 1.54;
 
 #[derive(Component, Default)]
-#[require(Transform, PlayerInput, Visibility)]
+#[require(Transform, PlayerInput, Stamina, Visibility)]
 pub struct PlayerController;
 
 #[derive(Resource)]
@@ -76,6 +79,7 @@ impl Plugin for PlayerControllerPlugin {
         );
         app.init_resource::<PlayerControlsEnabled>()
             .add_message::<GameplaySound>()
+            .add_message::<SprintExhausted>()
             .add_input_context::<PlayerController>()
             .add_observer(attach_input)
             .add_observer(flashlight::attach)
@@ -192,17 +196,23 @@ pub(crate) fn apply_input(
     doors: Query<(&Door, &DoorSwing)>,
     passages: Query<&Passage>,
     props: Query<(&PropCollider, &Transform), Without<PlayerController>>,
-    mut players: Query<(&mut Transform, &mut PlayerInput, Option<&Hidden>), With<PlayerController>>,
+    mut players: Query<
+        (&mut Transform, &mut PlayerInput, &mut Stamina, Option<&Hidden>),
+        With<PlayerController>,
+    >,
+    mut exhaustion: MessageWriter<SprintExhausted>,
 ) {
     if !enabled.0 {
-        for (_, mut input, _) in &mut players {
+        for (_, mut input, mut stamina, _) in &mut players {
             *input = PlayerInput::default();
+            stamina.sprinting = false;
         }
         return;
     }
-    for (mut transform, mut input, hidden) in &mut players {
+    for (mut transform, mut input, mut stamina, hidden) in &mut players {
         if hidden.is_some_and(|hidden| !hidden.settled()) {
             *input = PlayerInput::default();
+            stamina.advance(false, false, time.delta_secs());
             continue;
         }
         let (yaw, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
@@ -213,12 +223,18 @@ pub(crate) fn apply_input(
         if hidden.is_some() {
             input.movement = Vec2::ZERO;
             input.running = false;
+            stamina.advance(false, false, time.delta_secs());
             continue;
         }
 
         let movement = input.movement.clamp_length_max(1.0);
+        if stamina.advance(input.running, movement != Vec2::ZERO, time.delta_secs()) {
+            exhaustion.write(SprintExhausted {
+                position: transform.translation,
+            });
+        }
         let direction = Quat::from_rotation_y(yaw) * Vec3::new(movement.x, 0.0, -movement.y);
-        let speed = if input.running { RUN_SPEED } else { WALK_SPEED };
+        let speed = if stamina.sprinting { RUN_SPEED } else { WALK_SPEED };
         let delta = direction * speed * time.delta_secs();
         if delta != Vec3::ZERO {
             let obstacles = collision::colliders(&rooms, &links, &doors, &passages, &props);

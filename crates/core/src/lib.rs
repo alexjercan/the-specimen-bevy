@@ -135,6 +135,7 @@ impl AppBuilder {
                     glue::InteractionHintPlugin,
                     glue::FuseHudPlugin,
                     glue::FlashlightHudPlugin,
+                    glue::StaminaHudPlugin,
                 ))
                 .add_plugins((game_audio::GameAudioPlugin, glue::SoundGluePlugin));
             if self.transport {

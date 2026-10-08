@@ -29,6 +29,7 @@ fn charge_bar_tracks_meter() {
     app.update();
     let world = app.world_mut();
     let root = world.get::<Node>(meter).unwrap();
+    assert_eq!(root.bottom, px(80));
     assert_eq!(root.flex_direction, FlexDirection::Row);
     assert_eq!(root.align_items, AlignItems::Center);
     let mut nodes = world.query::<(&Name, &Node)>();

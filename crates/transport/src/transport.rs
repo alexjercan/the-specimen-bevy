@@ -10,7 +10,7 @@ use bevy::{
     time::TimeUpdateStrategy,
 };
 use gameplay::{
-    controller::{Flashlight, PlayerController, PlayerInput},
+    controller::{Flashlight, PlayerController, PlayerInput, Stamina},
     levels::Escaped,
 };
 use serde::{Deserialize, Serialize};
@@ -91,20 +91,27 @@ struct PlayerSnapshot {
     running: bool,
     flashlight_on: bool,
     flashlight_charge: f32,
+    stamina_charge: f32,
+    stamina_exhausted: bool,
 }
 
 pub(super) fn snapshot(world: &mut World, tick: u64) -> Snapshot {
-    let mut players = world.query_filtered::<(&Transform, &PlayerInput, &Flashlight), With<PlayerController>>();
-    let player = players.iter(world).next().map(|(pose, input, flashlight)| {
+    let mut players = world.query_filtered::<
+        (&Transform, &PlayerInput, &Flashlight, &Stamina),
+        With<PlayerController>,
+    >();
+    let player = players.iter(world).next().map(|(pose, input, flashlight, stamina)| {
         let (yaw, pitch, _) = pose.rotation.to_euler(EulerRot::YXZ);
         PlayerSnapshot {
             position: pose.translation.to_array(),
             yaw,
             pitch,
             movement: input.movement.to_array(),
-            running: input.running,
+            running: stamina.sprinting,
             flashlight_on: flashlight.on,
             flashlight_charge: flashlight.charge,
+            stamina_charge: stamina.charge,
+            stamina_exhausted: stamina.exhausted,
         }
     });
     let won = world

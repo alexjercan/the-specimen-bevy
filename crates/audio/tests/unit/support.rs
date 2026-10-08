@@ -32,6 +32,7 @@ pub(crate) fn sound_assets() -> SoundAssets {
         fuse_slot_3: handle(),
         fuse_complete: handle(),
         flashlight_click: handle(),
+        sprint_exhausted: handle(),
         step_01: handle(),
         step_02: handle(),
         step_04: handle(),

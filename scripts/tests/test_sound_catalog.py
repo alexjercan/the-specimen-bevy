@@ -85,7 +85,10 @@ class SoundCatalogTests(unittest.TestCase):
             {f"art/sounds/sources/opengameart/step/subway/subway-step-{letter}.ogg" for letter in "abc"},
         )
         self.assertEqual(len([path for path in selected if "/door/" in path]), 4)
+        breath = "art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav"
         self.assertFalse(catalog.REVIEW_FILES)
+        self.assertIn(breath, catalog.APPROVED_FILES)
+        self.assertIn("<svg", catalog.waveform(catalog.ROOT / breath))
         click = "art/sounds/sources/freesound/flashlight/click-ralph0o7.ogg"
         self.assertIn(click, catalog.APPROVED_FILES)
         self.assertIn("<svg", catalog.waveform(catalog.ROOT / click))
@@ -132,6 +135,10 @@ class SoundCatalogTests(unittest.TestCase):
                     self.assertIn("Ralph0o7", card)
                     self.assertIn("Freesound low-quality preview", card)
                     self.assertNotIn("For review - not in game", card)
+                elif path.endswith("/self/breathing-tired-mikeask.wav"):
+                    self.assertIn("mikeask", card)
+                    self.assertIn("opengameart.org/content/breathing-tired", card)
+                    self.assertNotIn("For review - not in game", card)
                 elif "/generated/door/" in path or "/generated/hiding/" in path:
                     self.assertIn("rubberduck", card)
                     self.assertNotIn("GboxMikeFozzy", card)
@@ -147,7 +154,12 @@ class SoundCatalogTests(unittest.TestCase):
                 self.assertEqual(len(matching), 1, path)
                 self.assertIn('class="review"', matching[0])
                 self.assertIn("For review - not in game", matching[0])
-                if "/sources/freesound/flashlight/" in path:
+                if "/sources/opengameart/self/" in path:
+                    self.assertIn("mikeask", matching[0])
+                    self.assertIn("opengameart.org/content/breathing-tired", matching[0])
+                    self.assertIn("page-labeled CC0 1.0", matching[0])
+                    self.assertNotIn("Original project-generated sound", matching[0])
+                elif "/sources/freesound/flashlight/" in path:
                     self.assertIn("Freesound low-quality preview", matching[0])
                     self.assertIn("freesound.org/people/", matching[0])
                     self.assertNotIn("Original project-generated sound", matching[0])

@@ -44,6 +44,15 @@ repeatedly. Only the preview was obtained; the page label does not
 independently verify uploader ownership or original-file terms. Source and
 edit hashes are recorded in `art/sounds/README.md`.
 
+## Recorded sprint-exhaustion breathing
+
+mikeask, [Breathing Tired](https://opengameart.org/content/breathing-tired),
+OpenGameArt item labeled [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+The recording at `assets/sounds/self/breathing-tired-mikeask.wav` is used as a
+one-shot when sprint stamina runs out. Its retained original and hash are in
+`art/sounds/README.md`. The source-page license and uploader ownership have
+not been independently verified.
+
 ## Recorded flashlight switch
 
 Ralph0o7, [Flashlight switch](https://freesound.org/people/Ralph0o7/sounds/690300/),
