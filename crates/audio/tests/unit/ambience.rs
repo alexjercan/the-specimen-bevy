@@ -126,6 +126,26 @@ fn ambient_loops_attach_to_their_sources_and_follow_lifecycle() {
 }
 
 #[test]
+fn removing_powered_sources_stops_their_voices_without_stopping_tank_audio() {
+    let mut app = ambience_app(&[
+        (AmbientSound::Vent, Some(Vec3::ZERO), 0.09),
+        (AmbientSound::CoolBuzz, Some(Vec3::ZERO), 0.045),
+        (AmbientSound::Boiler, Some(Vec3::ZERO), 0.17),
+        (AmbientSound::Tank, Some(Vec3::ZERO), 0.15),
+    ]);
+    app.update();
+    assert_eq!(voices(&mut app).len(), 4);
+    app.world_mut()
+        .resource_mut::<AmbientEmitters>()
+        .0
+        .retain(|source| !source.sound.requires_power());
+    app.update();
+    let remaining = voices(&mut app);
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].1, crate::test_support::sound_assets().tank_hum);
+}
+
+#[test]
 fn ambient_loops_follow_pause_activity_and_conduit_state() {
     let mut app = ambience_app(&[
         (AmbientSound::Roomtone, None, 0.12),

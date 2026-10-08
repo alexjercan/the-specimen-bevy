@@ -15,6 +15,7 @@ EXTENSIONS = {".wav", ".ogg", ".mp3", ".flac"}
 APPROVED_FILES = {
     "art/sounds/sources/freesound/flashlight/click-ralph0o7.ogg",
     "art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav",
+    "art/sounds/sources/opengameart/amb/boiler/switch-off-cleytonkauffman.wav",
     *{f"art/sounds/sources/opengameart/step/subway/subway-step-{letter}.ogg" for letter in "abc"},
     *{f"art/sounds/generated/door/{name}.wav" for name in (
         "unlatch", "swing-open", "shut", "locked-rattle",
@@ -25,7 +26,7 @@ APPROVED_FILES = {
     *{f"art/sounds/generated/amb/{name}.wav" for name in (
         "roomtone/plain", "boiler/rumble", "roomtone/conduit", "boiler/tick",
         "vent/hvac", "tank/hum", "light/cool-buzz", "pressure/low",
-        "boiler/power-down", "boiler/restart",
+        "boiler/power-down", "boiler/reset", "boiler/restart",
     )},
     *{f"art/sounds/generated/ui/fuse/{cue}.wav" for cue in (
         "slot-1", "slot-2", "slot-3", "complete",
@@ -37,11 +38,7 @@ APPROVED_FILES = {
         "furnace/burning", "water/faucet", "vent/wind",
     )},
 }
-REVIEW_FILES = {
-    f"art/sounds/generated/candidates/amb/boiler/{cue}.wav" for cue in (
-        "breaker-trip", "reset",
-    )
-}
+REVIEW_FILES = set()
 SOURCE_FILES = {
     *{f"art/sounds/sources/freesound/amb/{name}.ogg" for name in (
         "water/faucet-willstepp", "furnace/furnace-iankath", "vent/wind-dblover",
@@ -79,6 +76,10 @@ for creator, sound_id, edit in (
 RECORDED_PATHS["art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav"] = (
     'mikeask, "Breathing Tired" (OpenGameArt page-labeled CC0 1.0; original download)',
     "https://opengameart.org/content/breathing-tired",
+)
+RECORDED_PATHS["art/sounds/sources/opengameart/amb/boiler/switch-off-cleytonkauffman.wav"] = (
+    "CleytonKauffman, SFX - Circuit breaker (OpenGameArt page-labeled CC0; source ownership unverified)",
+    "https://opengameart.org/content/sfx-circuit-breaker",
 )
 RECORDED_PATHS["art/sounds/generated/door/locked-rattle.wav"] = (
     "DrFahrts (Freesound preview, page-labeled CC0 1.0; edited by this project)",

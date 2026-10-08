@@ -23,6 +23,8 @@ pub enum Sound {
     FlashlightClick,
     SprintExhausted,
     PowerDown,
+    BreakerTrip,
+    BoilerReset,
     BoilerRestart,
     BoilerTick,
     FaucetBurst,
@@ -71,6 +73,12 @@ mod test_support;
 #[path = "../tests/unit/playback.rs"]
 mod tests;
 
+impl Sound {
+    pub fn requires_power(self) -> bool {
+        matches!(self, Self::BoilerTick)
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct AudioPaused(pub bool);
 
@@ -90,6 +98,9 @@ fn volume(settings: Option<&GameSettings>, base: f32) -> Volume {
     Volume::Linear(base * settings.map_or(1.0, |settings| settings.master * settings.sfx))
 }
 
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct AmbientUpdate;
+
 pub struct GameAudioPlugin;
 
 impl Plugin for GameAudioPlugin {
@@ -108,7 +119,7 @@ impl Plugin for GameAudioPlugin {
                     play_sounds,
                     play_authored_sounds,
                     play_source_sounds,
-                    ambience::update_ambience,
+                    ambience::update_ambience.in_set(AmbientUpdate),
                 )
                     .chain(),
             );
@@ -172,6 +183,8 @@ fn sound_handle(sound: Sound, assets: &SoundAssets) -> Option<&Handle<AudioSourc
         Sound::FlashlightClick => &assets.flashlight_click,
         Sound::SprintExhausted => &assets.sprint_exhausted,
         Sound::PowerDown => &assets.power_down,
+        Sound::BreakerTrip => &assets.breaker_trip,
+        Sound::BoilerReset => &assets.boiler_reset,
         Sound::BoilerRestart => &assets.boiler_restart,
         Sound::BoilerTick => &assets.boiler_tick,
         Sound::FaucetBurst => &assets.faucet,
@@ -277,6 +290,8 @@ fn play_sounds(
                 | Sound::DoorLocked
                 | Sound::BoilerTick
                 | Sound::PowerDown
+                | Sound::BreakerTrip
+                | Sound::BoilerReset
                 | Sound::BoilerRestart
                 | Sound::FaucetBurst
                 | Sound::LockerOpen

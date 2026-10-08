@@ -106,11 +106,10 @@ class SoundCatalogTests(unittest.TestCase):
         )
         self.assertEqual(len([path for path in selected if "/door/" in path]), 4)
         breath = "art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav"
-        self.assertEqual(catalog.REVIEW_FILES, {
-            f"art/sounds/generated/candidates/amb/boiler/{cue}.wav" for cue in (
-                "breaker-trip", "reset",
-            )
-        })
+        self.assertEqual(catalog.REVIEW_FILES, set())
+        breaker = "art/sounds/sources/opengameart/amb/boiler/switch-off-cleytonkauffman.wav"
+        self.assertIn(breaker, catalog.APPROVED_FILES)
+        self.assertIn("art/sounds/generated/amb/boiler/reset.wav", catalog.APPROVED_FILES)
         self.assertIn(breath, catalog.APPROVED_FILES)
         self.assertIn("<svg", catalog.waveform(catalog.ROOT / breath))
         click = "art/sounds/sources/freesound/flashlight/click-ralph0o7.ogg"
@@ -136,7 +135,7 @@ class SoundCatalogTests(unittest.TestCase):
             )},
             *catalog.REVIEW_FILES,
             *{f"art/sounds/generated/candidates/amb/boiler/{cue}.wav" for cue in (
-                "power-down", "restart",
+                "breaker-trip", "power-down", "reset", "restart",
             )},
         })
 
@@ -166,6 +165,11 @@ class SoundCatalogTests(unittest.TestCase):
                     self.assertIn('class="approved"', card)
                     self.assertIn("mikeask", card)
                     self.assertIn("opengameart.org/content/breathing-tired", card)
+                    self.assertNotIn("For review - not in game", card)
+                elif path.endswith("switch-off-cleytonkauffman.wav"):
+                    self.assertIn('class="approved"', card)
+                    self.assertIn("CleytonKauffman", card)
+                    self.assertIn("opengameart.org/content/sfx-circuit-breaker", card)
                     self.assertNotIn("For review - not in game", card)
                 elif "/generated/door/" in path or "/generated/hiding/" in path:
                     self.assertIn("rubberduck", card)
@@ -204,6 +208,7 @@ class SoundCatalogTests(unittest.TestCase):
             self.assertEqual(page.count('Freesound low-quality preview'), 1)
             for filename in ("thumb-switch-lunardrive", "spring-switch-eskildnp", "switch-on.wav", "switch-off.wav", "battery-empty.wav"):
                 self.assertNotIn(f"<strong>{filename}</strong>", page)
+            self.assertNotIn("<strong>candidates/amb/boiler/breaker-trip</strong>", page)
             for name in ("furnace-iankath", "faucet-willstepp", "wind-dblover"):
                 self.assertNotIn(f"<strong>{name}</strong>", page)
 

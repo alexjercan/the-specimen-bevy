@@ -162,12 +162,18 @@ the boiler relighting). All four favor a recognizable mechanical character
 the task brief. They are deterministic synthesis with no recorded or
 third-party material, so no source, credit, or license caveat applies.
 
-All four WAVs have been generated and appear as yellow "for review" cards
-in `art/sounds/catalog.html`; nine catalog tests pass. None has been
-listened to, approved, or copied to `assets/sounds/`; none is wired into
-runtime audio or the boiler-outage gameplay prototype. Approved furnace/boiler ambience
-(`generated/amb/furnace/burning.wav`, `generated/amb/boiler/tick.wav`) is
-unchanged by this work.
+The generated `breaker-trip.wav` was rejected and is off-catalog. The
+OpenGameArt `switch off.wav` from CleytonKauffman's circuit-breaker pack is
+approved for the boiler's outage cue. The retained source is at
+`sources/opengameart/amb/boiler/switch-off-cleytonkauffman.wav`; an unchanged
+copy is at `assets/sounds/amb/boiler/switch-off-cleytonkauffman.wav` (both
+SHA-256 `42c6be41a0082d602b0af647bac7c2009b4ff2b6228d6a1ed3c21d76290bd1a8`).
+The item page labels it CC0 and asks for `SFX by Cleyton Kauffman -
+https://soundcloud.com/cleytonkauffman`. The ZIP has no bundled provenance or
+license; ownership and recording method are not independently verified. The
+breaker trip plays at the boiler alongside the approved global power-down cue.
+The generated `reset.wav` plays from the boiler on repair alongside the
+previously approved restart cue. Actual in-game playback and mix need review.
 
 ## Compose dread rather than continuous music
 

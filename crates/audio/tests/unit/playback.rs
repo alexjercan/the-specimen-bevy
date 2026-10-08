@@ -353,29 +353,41 @@ fn locked_door_rattle_is_spatial_and_dropped_while_paused() {
 }
 
 #[test]
-fn outage_is_global_and_repair_is_spatial_world_audio() {
+fn outage_has_global_power_down_and_spatial_breaker_trip_while_repair_is_spatial() {
     let mut app = playback_app(Some(Vec3::ZERO));
     let boiler = Vec3::new(-10.0, 1.2, 0.0);
     let outage = PlaySound {
         sound: Sound::PowerDown,
         position: None,
     };
+    let trip = PlaySound {
+        sound: Sound::BreakerTrip,
+        position: Some(boiler),
+    };
+    let reset = PlaySound {
+        sound: Sound::BoilerReset,
+        position: Some(boiler),
+    };
     let repair = PlaySound {
         sound: Sound::BoilerRestart,
         position: Some(boiler),
     };
-    let played = play(&mut app, &[outage, repair]);
-    assert_eq!(played.len(), 2);
+    let played = play(&mut app, &[outage, trip, reset, repair]);
+    assert_eq!(played.len(), 4);
     assert_eq!(played[0].0, test_support::sound_assets().power_down);
     assert!(!played[0].1.spatial);
     assert!(played[0].3);
-    assert_eq!(played[1].0, test_support::sound_assets().boiler_restart);
-    assert!(played[1].1.spatial);
-    assert_eq!(played[1].2, Some(boiler));
-    assert!(played[1].3);
+    assert_eq!(played[1].0, test_support::sound_assets().breaker_trip);
+    assert_eq!(played[2].0, test_support::sound_assets().boiler_reset);
+    assert_eq!(played[3].0, test_support::sound_assets().boiler_restart);
+    for cue in &played[1..] {
+        assert!(cue.1.spatial);
+        assert_eq!(cue.2, Some(boiler));
+        assert!(cue.3);
+    }
 
     app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    assert!(play(&mut app, &[outage, repair]).is_empty());
+    assert!(play(&mut app, &[outage, trip, reset, repair]).is_empty());
 }
 
 #[test]

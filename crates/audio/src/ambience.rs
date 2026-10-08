@@ -34,6 +34,13 @@ pub struct AmbientEmitters(pub Vec<AmbientEmitter>);
 pub(super) struct AmbientVoice(Entity);
 
 impl AmbientSound {
+    pub fn requires_power(self) -> bool {
+        matches!(
+            self,
+            Self::Boiler | Self::Vent | Self::VentWind | Self::CoolBuzz
+        )
+    }
+
     pub fn spatial(self) -> bool {
         !matches!(self, Self::Roomtone | Self::LowPressure | Self::Conduit)
     }

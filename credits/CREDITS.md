@@ -55,6 +55,18 @@ repeatedly. Only the preview was obtained; the page label does not
 independently verify uploader ownership or original-file terms. Source and
 edit hashes are recorded in `art/sounds/README.md`.
 
+## Boiler breaker switch-off
+
+CleytonKauffman, [SFX - Circuit breaker](https://opengameart.org/content/sfx-circuit-breaker),
+OpenGameArt item labeled [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+The `switch off.wav` from the linked archive is retained at
+`art/sounds/sources/opengameart/amb/boiler/switch-off-cleytonkauffman.wav` and
+copied unchanged to `assets/sounds/amb/boiler/switch-off-cleytonkauffman.wav`.
+The item page asks for `SFX by Cleyton Kauffman -
+https://soundcloud.com/cleytonkauffman`. The archive includes no bundled
+license or provenance; source-page licensing and authorship have not been
+independently verified. The file hash is in `art/sounds/README.md`.
+
 ## Recorded sprint-exhaustion breathing
 
 mikeask, [Breathing Tired](https://opengameart.org/content/breathing-tired),

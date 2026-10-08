@@ -6,8 +6,8 @@ use game_audio::{PlaySound, PlaySourceSound, Sound, SourceSounds};
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{
-        BOILER_UNIT, FacilityPower, FacilityPowerPlugin, FuseSeed, MAX_OUTAGE_DELAY_SECS,
-        MIN_OUTAGE_DELAY_SECS, Prop, PropSoundsPlugin, build_first_floor,
+        build_first_floor, FacilityPower, FacilityPowerPlugin, FuseSeed, Prop, PropSoundsPlugin,
+        BOILER_UNIT, MAX_OUTAGE_DELAY_SECS, MIN_OUTAGE_DELAY_SECS,
     },
 };
 
@@ -63,14 +63,21 @@ fn boiler_repairs_repeated_timed_outages_with_shared_f_interaction() {
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].sound, Sound::PowerDown);
     assert_eq!(events[0].position, None);
+    let trips: Vec<_> = app
+        .world_mut()
+        .resource_mut::<Messages<PlaySourceSound>>()
+        .drain()
+        .collect();
+    assert_eq!(trips.len(), 1);
+    assert_eq!(trips[0].source, boiler.0);
+    assert_eq!(trips[0].sound, Sound::BreakerTrip);
     app.update();
-    assert!(
-        app.world_mut()
-            .resource_mut::<Messages<PlaySound>>()
-            .drain()
-            .next()
-            .is_none()
-    );
+    assert!(app
+        .world_mut()
+        .resource_mut::<Messages<PlaySound>>()
+        .drain()
+        .next()
+        .is_none());
 
     app.world_mut()
         .resource_mut::<ButtonInput<KeyCode>>()
@@ -87,16 +94,16 @@ fn boiler_repairs_repeated_timed_outages_with_shared_f_interaction() {
         .resource_mut::<Messages<PlaySourceSound>>()
         .drain()
         .collect();
-    assert_eq!(events.len(), 1);
-    assert_eq!(events[0].source, boiler.0);
-    assert_eq!(events[0].sound, Sound::BoilerRestart);
-    assert!(
-        app.world()
-            .get::<SourceSounds>(boiler.0)
-            .unwrap()
-            .0
-            .contains(&(Sound::BoilerRestart, Vec3::Y * 1.2))
-    );
+    assert_eq!(events.len(), 2);
+    assert!(events.iter().all(|event| event.source == boiler.0));
+    assert_eq!(events[0].sound, Sound::BoilerReset);
+    assert_eq!(events[1].sound, Sound::BoilerRestart);
+    assert!(app
+        .world()
+        .get::<SourceSounds>(boiler.0)
+        .unwrap()
+        .0
+        .contains(&(Sound::BoilerReset, Vec3::Y * 1.2)));
     let next_delay = app.world().resource::<FacilityPower>().remaining_secs;
     assert!((MIN_OUTAGE_DELAY_SECS..MAX_OUTAGE_DELAY_SECS).contains(&next_delay));
     app.world_mut()
@@ -112,6 +119,14 @@ fn boiler_repairs_repeated_timed_outages_with_shared_f_interaction() {
         .collect();
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].sound, Sound::PowerDown);
+    let trips: Vec<_> = app
+        .world_mut()
+        .resource_mut::<Messages<PlaySourceSound>>()
+        .drain()
+        .collect();
+    assert_eq!(trips.len(), 1);
+    assert_eq!(trips[0].source, boiler.0);
+    assert_eq!(trips[0].sound, Sound::BreakerTrip);
     app.world_mut()
         .resource_mut::<ButtonInput<KeyCode>>()
         .press(KeyCode::KeyF);
@@ -126,8 +141,9 @@ fn boiler_repairs_repeated_timed_outages_with_shared_f_interaction() {
         .resource_mut::<Messages<PlaySourceSound>>()
         .drain()
         .collect();
-    assert_eq!(events.len(), 1);
-    assert_eq!(events[0].source, boiler.0);
-    assert_eq!(events[0].sound, Sound::BoilerRestart);
+    assert_eq!(events.len(), 2);
+    assert!(events.iter().all(|event| event.source == boiler.0));
+    assert_eq!(events[0].sound, Sound::BoilerReset);
+    assert_eq!(events[1].sound, Sound::BoilerRestart);
     assert!(app.world().get::<PlayerController>(player).is_some());
 }

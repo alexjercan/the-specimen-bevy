@@ -62,7 +62,11 @@ fn sound_sources_follow_prop_type_without_level_builder_setup() {
     );
     assert_eq!(
         app.world().get::<SourceSounds>(boiler).unwrap().0,
-        vec![(Sound::BoilerRestart, Vec3::Y * 1.2)]
+        vec![
+            (Sound::BreakerTrip, Vec3::Y * 1.2),
+            (Sound::BoilerReset, Vec3::Y * 1.2),
+            (Sound::BoilerRestart, Vec3::Y * 1.2),
+        ]
     );
     let tick = app.world().get::<IntermittentSound>(boiler).unwrap();
     assert!(matches!(tick.kind, Sound::BoilerTick));

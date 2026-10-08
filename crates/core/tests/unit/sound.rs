@@ -93,6 +93,28 @@ fn ambience_layout_has_one_bed_and_local_facility_sources() {
     assert!(sources
         .iter()
         .all(|emitter| emitter.volume > 0.0 && emitter.volume <= 0.2));
+
+    app.world_mut()
+        .resource_mut::<gameplay::levels::FacilityPower>()
+        .outage();
+    app.update();
+    let sources = &app.world().resource::<AmbientEmitters>().0;
+    assert_eq!(sources.len(), 4);
+    assert!(sources.iter().all(|emitter| matches!(
+        emitter.sound,
+        AmbientSound::Roomtone
+            | AmbientSound::LowPressure
+            | AmbientSound::Conduit
+            | AmbientSound::Tank
+    )));
+    assert!(sources
+        .iter()
+        .any(|emitter| emitter.sound == AmbientSound::Tank));
+    app.world_mut()
+        .resource_mut::<gameplay::levels::FacilityPower>()
+        .restore();
+    app.update();
+    assert_eq!(app.world().resource::<AmbientEmitters>().0.len(), 21);
 }
 
 const FAUCET: Vec3 = Vec3::new(-13.4, 1.5, 0.0);
@@ -211,6 +233,67 @@ fn intermittent_cue_follows_its_source_and_stops_when_removed() {
         .drain()
         .next()
         .is_none());
+}
+
+#[test]
+fn powered_intermittent_cues_stop_during_outage_but_faucet_keeps_running() {
+    let mut app = faucet_app();
+    app.world_mut()
+        .spawn((PlayerController, Transform::from_xyz(-11.0, 0.0, 0.0)));
+    let boiler = app
+        .world_mut()
+        .spawn((
+            IntermittentSound {
+                kind: IntermittentSoundKind::BoilerTick,
+                offset: Vec3::ZERO,
+                range: 18.0,
+                interval: 6.0,
+                variation: 0.0,
+                remaining: 0.1,
+            },
+            Transform::from_xyz(-10.0, 0.0, 0.0),
+        ))
+        .id();
+    app.world_mut()
+        .insert_resource(gameplay::levels::FacilityPower::new(42));
+    app.world_mut()
+        .resource_mut::<gameplay::levels::FacilityPower>()
+        .outage();
+    let source = {
+        let world = app.world_mut();
+        let mut query = world.query_filtered::<Entity, With<IntermittentSound>>();
+        query.iter(world).find(|entity| *entity != boiler).unwrap()
+    };
+    app.world_mut()
+        .entity_mut(source)
+        .get_mut::<IntermittentSound>()
+        .unwrap()
+        .remaining = 0.1;
+    app.update();
+    let events: Vec<_> = app
+        .world_mut()
+        .resource_mut::<Messages<PlaySoundFrom>>()
+        .drain()
+        .collect();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].sound, Sound::FaucetBurst);
+    assert_eq!(
+        app.world()
+            .get::<IntermittentSound>(boiler)
+            .unwrap()
+            .remaining,
+        0.1
+    );
+    app.world_mut()
+        .resource_mut::<gameplay::levels::FacilityPower>()
+        .restore();
+    app.update();
+    let events: Vec<_> = app
+        .world_mut()
+        .resource_mut::<Messages<PlaySoundFrom>>()
+        .drain()
+        .collect();
+    assert!(events.iter().any(|event| event.sound == Sound::BoilerTick));
 }
 
 #[test]

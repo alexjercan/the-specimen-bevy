@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use bevy_rand::prelude::ChaCha8Rng;
-use game_audio::{PlaySound, PlaySourceSound, Sound};
+use game_audio::{PlaySound, PlaySourceSound, Sound, SourceSounds};
 use rand_core::{Rng, SeedableRng};
 
 use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
@@ -94,8 +94,10 @@ fn advance_outage(
     time: Res<Time>,
     enabled: Res<PlayerControlsEnabled>,
     players: Query<(), With<PlayerController>>,
+    boilers: Query<(Entity, &SourceSounds)>,
     mut power: Option<ResMut<FacilityPower>>,
     mut sounds: MessageWriter<PlaySound>,
+    mut source_sounds: MessageWriter<PlaySourceSound>,
 ) {
     let Some(power) = power.as_deref_mut() else {
         return;
@@ -105,6 +107,17 @@ fn advance_outage(
     }
     power.tick(time.delta_secs());
     if !power.on {
+        if let Some((source, _)) = boilers.iter().find(|(_, bindings)| {
+            bindings
+                .0
+                .iter()
+                .any(|(sound, _)| *sound == Sound::BreakerTrip)
+        }) {
+            source_sounds.write(PlaySourceSound {
+                source,
+                sound: Sound::BreakerTrip,
+            });
+        }
         sounds.write(PlaySound {
             sound: Sound::PowerDown,
             position: None,
@@ -143,6 +156,10 @@ fn process_repairs(
         if let (Some(power), Ok(())) = (power.as_deref_mut(), boilers.get(repair.0)) {
             if !power.on {
                 power.restore();
+                sounds.write(PlaySourceSound {
+                    source: repair.0,
+                    sound: Sound::BoilerReset,
+                });
                 sounds.write(PlaySourceSound {
                     source: repair.0,
                     sound: Sound::BoilerRestart,

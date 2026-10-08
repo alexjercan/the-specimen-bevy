@@ -71,7 +71,11 @@ fn attach_prop_sounds(added: On<Add, Prop>, props: Query<&Prop>, mut commands: C
         }
         BOILER_UNIT => {
             entity.insert((
-                SourceSounds(vec![(Sound::BoilerRestart, Vec3::Y * 1.2)]),
+                SourceSounds(vec![
+                    (Sound::BreakerTrip, Vec3::Y * 1.2),
+                    (Sound::BoilerReset, Vec3::Y * 1.2),
+                    (Sound::BoilerRestart, Vec3::Y * 1.2),
+                ]),
                 IntermittentSound {
                     kind: IntermittentSoundKind::BoilerTick,
                     offset: Vec3::Y * 1.2,

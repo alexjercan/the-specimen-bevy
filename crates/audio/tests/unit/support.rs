@@ -17,6 +17,8 @@ pub(crate) fn sound_assets() -> SoundAssets {
         conduit_roomtone: handle(),
         boiler_tick: handle(),
         power_down: handle(),
+        breaker_trip: handle(),
+        boiler_reset: handle(),
         boiler_restart: handle(),
         vent_hvac: handle(),
         tank_hum: handle(),

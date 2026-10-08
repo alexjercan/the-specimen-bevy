@@ -277,6 +277,10 @@ pub struct SoundAssets {
     pub boiler_tick: Handle<AudioSource>,
     #[asset(path = "sounds/amb/boiler/power-down.wav")]
     pub power_down: Handle<AudioSource>,
+    #[asset(path = "sounds/amb/boiler/switch-off-cleytonkauffman.wav")]
+    pub breaker_trip: Handle<AudioSource>,
+    #[asset(path = "sounds/amb/boiler/reset.wav")]
+    pub boiler_reset: Handle<AudioSource>,
     #[asset(path = "sounds/amb/boiler/restart.wav")]
     pub boiler_restart: Handle<AudioSource>,
     #[asset(path = "sounds/amb/vent/hvac.wav")]

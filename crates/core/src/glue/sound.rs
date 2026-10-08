@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 use bevy_rand::prelude::{ChaCha8Rng, GlobalRng};
 use game_audio::{
-    AmbienceActive, AmbientEmitter, AmbientEmitters, AudioPaused, ConduitAmbience, PlaySound,
-    PlaySoundFrom, Sound,
+    AmbienceActive, AmbientEmitter, AmbientEmitters, AmbientUpdate, AudioPaused, ConduitAmbience,
+    PlaySound, PlaySoundFrom, Sound,
 };
 use gameplay::{
     controller::{PlayerController, PlayerControlsEnabled, PlayerInput, Stamina},
-    levels::{AmbientSource, IntermittentSound, Room, Walls},
+    levels::{AmbientSource, FacilityPower, IntermittentSound, Room, Walls},
 };
 use rand_core::Rng;
 
@@ -23,10 +23,10 @@ impl Plugin for SoundGluePlugin {
                 footsteps,
                 sync_pause,
                 sync_ambience,
-                sync_emitters,
                 play_intermittent_sounds,
             ),
-        );
+        )
+        .add_systems(Update, sync_emitters.before(AmbientUpdate));
     }
 }
 
@@ -81,9 +81,15 @@ fn sync_ambience(
     });
 }
 
-fn sync_emitters(sources: Query<(Entity, &AmbientSource)>, mut emitters: ResMut<AmbientEmitters>) {
+fn sync_emitters(
+    sources: Query<(Entity, &AmbientSource)>,
+    power: Option<Res<FacilityPower>>,
+    mut emitters: ResMut<AmbientEmitters>,
+) {
+    let powered = power.is_none_or(|power| power.on);
     let mut current: Vec<_> = sources
         .iter()
+        .filter(|(_, source)| powered || !source.kind.requires_power())
         .map(|(entity, source)| {
             (
                 entity,
@@ -103,6 +109,7 @@ fn sync_emitters(sources: Query<(Entity, &AmbientSource)>, mut emitters: ResMut<
 fn play_intermittent_sounds(
     time: Res<Time>,
     paused: Res<AudioPaused>,
+    power: Option<Res<FacilityPower>>,
     players: Query<&Transform, With<PlayerController>>,
     mut sources: Query<
         (Entity, &GlobalTransform, &mut IntermittentSound),
@@ -116,6 +123,9 @@ fn play_intermittent_sounds(
         return;
     }
     for (entity, transform, mut source) in &mut sources {
+        if power.as_ref().is_some_and(|power| !power.on) && source.kind.requires_power() {
+            continue;
+        }
         source.remaining -= time.delta_secs();
         if source.remaining > 0.0 {
             continue;
