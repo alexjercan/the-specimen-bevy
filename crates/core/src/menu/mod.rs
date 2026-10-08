@@ -2,6 +2,7 @@ mod complete;
 mod loading;
 mod main_menu;
 mod pause;
+mod settings;
 #[cfg(test)]
 mod tests;
 
@@ -47,7 +48,9 @@ impl Plugin for MenuPlugin {
         if !app.is_plugin_added::<game_ui::GameUiPlugin>() {
             app.add_plugins(game_ui::GameUiPlugin);
         }
-        app.add_message::<PlaySound>()
+        app.init_resource::<game_settings::GameSettings>()
+            .init_resource::<game_settings::SettingsDirty>()
+            .add_message::<PlaySound>()
             .add_sub_state::<GameState>()
             .add_sub_state::<PauseState>()
             .add_plugins((
@@ -55,6 +58,7 @@ impl Plugin for MenuPlugin {
                 main_menu::plugin,
                 pause::plugin,
                 complete::plugin,
+                settings::plugin,
             ))
             .add_systems(Update, (activate_buttons, hover_buttons));
     }
@@ -62,11 +66,15 @@ impl Plugin for MenuPlugin {
 
 fn activate_buttons(
     buttons: Query<(&Interaction, &MenuAction), Changed<Interaction>>,
+    overlay: Query<(), With<settings::SettingsOverlay>>,
     mut game: ResMut<NextState<GameState>>,
     mut pause: ResMut<NextState<PauseState>>,
     mut exit: MessageWriter<AppExit>,
     mut sounds: MessageWriter<PlaySound>,
 ) {
+    if !overlay.is_empty() {
+        return;
+    }
     for (interaction, action) in &buttons {
         if *interaction != Interaction::Pressed {
             continue;

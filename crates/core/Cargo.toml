@@ -17,6 +17,7 @@ bevy_rand.workspace = true
 rand_core.workspace = true
 gameplay.workspace = true
 game_ui.workspace = true
+game_settings.workspace = true
 transport.workspace = true
 debug = { workspace = true, optional = true }
 

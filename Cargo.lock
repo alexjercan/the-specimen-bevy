@@ -3074,6 +3074,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "game_assets",
+ "game_settings",
 ]
 
 [[package]]
@@ -3086,11 +3087,21 @@ dependencies = [
  "debug",
  "game_assets",
  "game_audio",
+ "game_settings",
  "game_ui",
  "gameplay",
  "rand_core",
  "serde_json",
  "transport",
+]
+
+[[package]]
+name = "game_settings"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3109,6 +3120,7 @@ dependencies = [
  "bevy_rand",
  "game_assets",
  "game_audio",
+ "game_settings",
  "rand_core",
 ]
 

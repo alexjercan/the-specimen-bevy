@@ -10,6 +10,7 @@ use crate::levels::{
     PropCollider, Room,
 };
 use game_audio::{PlaySound, Sound};
+use game_settings::{parse_key, GameSettings, MovementKeys};
 
 use super::{
     collision, flashlight,
@@ -40,6 +41,9 @@ pub struct PlayerInput {
     pub running: bool,
     pub look: Vec2,
 }
+
+#[derive(Resource, Default)]
+struct LastBindings(MovementKeys);
 
 #[derive(InputAction)]
 #[action_output(Vec2)]
@@ -81,10 +85,12 @@ impl Plugin for PlayerControllerPlugin {
             "PlayerControllerPlugin requires EnhancedInputPlugin"
         );
         app.init_resource::<PlayerControlsEnabled>()
+            .init_resource::<LastBindings>()
             .add_message::<PlaySound>()
             .add_message::<SprintExhausted>()
             .add_input_context::<PlayerController>()
             .add_observer(attach_input)
+            .add_systems(Update, refresh_input_bindings)
             .add_observer(flashlight::attach)
             .add_observer(flashlight::toggle)
             .add_observer(collision::attach_prop_collider)
@@ -112,31 +118,52 @@ impl Plugin for PlayerControllerPlugin {
     }
 }
 
-fn attach_input(added: On<Add, PlayerController>, mut commands: Commands) {
-    commands
-        .entity(added.entity)
-        .insert(actions!(PlayerController[
-            (
-                Action::<Move>::new(),
-                Bindings::spawn((Cardinal::wasd_keys(),)),
-            ),
-            (
-                Action::<Run>::new(),
-                bindings![KeyCode::ShiftLeft],
-            ),
-            (
-                Action::<Look>::new(),
-                bindings![Binding::mouse_motion()],
-            ),
-            (
-                Action::<Interact>::new(),
-                bindings![KeyCode::KeyF],
-            ),
-            (
-                Action::<flashlight::ToggleFlashlight>::new(),
-                bindings![MouseButton::Left],
-            ),
-        ]));
+fn input_actions(keys: &MovementKeys) -> impl Bundle {
+    actions!(PlayerController[
+        (
+            Action::<Move>::new(),
+            Bindings::spawn((Cardinal::new(
+                parse_key(&keys.forward).unwrap(),
+                parse_key(&keys.left).unwrap(),
+                parse_key(&keys.backward).unwrap(),
+                parse_key(&keys.right).unwrap(),
+            ),)),
+        ),
+        (Action::<Run>::new(), bindings![KeyCode::ShiftLeft]),
+        (Action::<Look>::new(), bindings![Binding::mouse_motion()]),
+        (Action::<Interact>::new(), bindings![parse_key(&keys.interact).unwrap()]),
+        (Action::<flashlight::ToggleFlashlight>::new(), bindings![MouseButton::Left]),
+    ])
+}
+
+fn attach_input(
+    added: On<Add, PlayerController>,
+    settings: Option<Res<GameSettings>>,
+    mut commands: Commands,
+) {
+    let keys = settings.map_or_else(MovementKeys::default, |settings| settings.keys.clone());
+    commands.entity(added.entity).insert(input_actions(&keys));
+}
+
+fn refresh_input_bindings(
+    settings: Option<Res<GameSettings>>,
+    players: Query<Entity, With<PlayerController>>,
+    mut previous: ResMut<LastBindings>,
+    mut commands: Commands,
+) {
+    let Some(settings) = settings else { return };
+    if previous.0 == settings.keys {
+        return;
+    }
+    previous.0 = settings.keys.clone();
+    for player in &players {
+        commands
+            .entity(player)
+            .despawn_related::<Actions<PlayerController>>();
+        commands
+            .entity(player)
+            .insert(input_actions(&settings.keys));
+    }
 }
 
 fn attach_audio(added: On<Add, PlayerController>, mut commands: Commands) {
@@ -233,6 +260,7 @@ fn update_cursor(
 pub(crate) fn apply_input(
     time: Res<Time>,
     enabled: Res<PlayerControlsEnabled>,
+    settings: Option<Res<GameSettings>>,
     rooms: Query<(&Room, Option<&Doors>)>,
     links: Query<(&DoorRef, &DoorOf)>,
     doors: Query<(&Door, &DoorSwing)>,
@@ -264,8 +292,11 @@ pub(crate) fn apply_input(
             continue;
         }
         let (yaw, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
-        let yaw = yaw - input.look.x * LOOK_SENSITIVITY;
-        let pitch = (pitch - input.look.y * LOOK_SENSITIVITY).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+        let sensitivity = settings
+            .as_ref()
+            .map_or(LOOK_SENSITIVITY, |settings| settings.mouse_sensitivity);
+        let yaw = yaw - input.look.x * sensitivity;
+        let pitch = (pitch - input.look.y * sensitivity).clamp(-PITCH_LIMIT, PITCH_LIMIT);
         transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
         input.look = Vec2::ZERO;
         if hidden.is_some() {

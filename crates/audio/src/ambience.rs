@@ -1,10 +1,11 @@
 use bevy::{
-    audio::{PlaybackSettings, SpatialScale, Volume},
+    audio::{PlaybackSettings, SpatialScale},
     prelude::*,
 };
 use game_assets::SoundAssets;
 
-use super::{AmbienceActive, AudioPaused, ConduitAmbience, WorldAudio};
+use super::{volume, AmbienceActive, AudioGain, AudioPaused, ConduitAmbience, WorldAudio};
+use game_settings::GameSettings;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AmbientSound {
@@ -60,6 +61,7 @@ pub(super) fn update_ambience(
     conduit: Res<ConduitAmbience>,
     paused: Res<AudioPaused>,
     assets: Option<Res<SoundAssets>>,
+    settings: Option<Res<GameSettings>>,
     emitters: Option<Res<AmbientEmitters>>,
     playing: Query<(Entity, &AmbientVoice)>,
     mut commands: Commands,
@@ -86,22 +88,24 @@ pub(super) fn update_ambience(
         if playing.iter().any(|(_, voice)| voice.0 == source.source) {
             continue;
         }
-        let mut settings = PlaybackSettings::LOOP.with_volume(Volume::Linear(source.volume));
+        let mut playback =
+            PlaybackSettings::LOOP.with_volume(volume(settings.as_deref(), source.volume));
         if source.spatial {
-            settings = settings
+            playback = playback
                 .with_spatial(true)
                 .with_spatial_scale(SpatialScale::new(0.3));
         }
         if paused.0 {
-            settings = settings.paused();
+            playback = playback.paused();
         }
         if let Ok(mut parent) = commands.get_entity(source.source) {
             parent.with_children(|children| {
                 children.spawn((
                     AmbientVoice(source.source),
                     WorldAudio,
+                    AudioGain(source.volume),
                     AudioPlayer::new(source.sound.handle(&assets)),
-                    settings,
+                    playback,
                     Transform::IDENTITY,
                 ));
             });

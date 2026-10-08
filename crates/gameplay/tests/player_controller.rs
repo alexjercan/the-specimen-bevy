@@ -7,6 +7,7 @@ use bevy::{
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
 use bevy_enhanced_input::EnhancedInputPlugin;
+use game_settings::GameSettings;
 use gameplay::controller::{
     PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput, RUN_SPEED,
     WALK_SPEED,
@@ -105,6 +106,28 @@ fn wasd_shift_and_release_move_at_fixed_height() {
             .abs()
             < 0.01
     );
+}
+
+#[test]
+fn changed_movement_binding_replaces_wasd_action() {
+    let (mut app, player) = app(false);
+    let mut settings = GameSettings::default();
+    settings.keys.forward = "ArrowUp".into();
+    app.insert_resource(settings);
+    app.update();
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::KeyW);
+    app.update();
+    assert_eq!(
+        app.world().get::<Transform>(player).unwrap().translation.z,
+        0.0
+    );
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::ArrowUp);
+    app.update();
+    assert!(app.world().get::<Transform>(player).unwrap().translation.z < 0.0);
 }
 
 #[test]

@@ -3,7 +3,7 @@ use game_assets::UiAssets;
 use game_ui::{menu_button, panel, text, theme};
 use gameplay::controller::PlayerControlsEnabled;
 
-use super::{release_cursor, GameState, MenuAction, PauseState};
+use super::{release_cursor, settings::SettingsOverlay, GameState, MenuAction, PauseState};
 
 #[derive(Component)]
 pub(super) struct PauseMenu;
@@ -26,9 +26,10 @@ pub(super) fn plugin(app: &mut App) {
 fn toggle_pause(
     keys: Res<ButtonInput<KeyCode>>,
     state: Res<State<PauseState>>,
+    overlay: Query<(), With<SettingsOverlay>>,
     mut next: ResMut<NextState<PauseState>>,
 ) {
-    if keys.just_pressed(KeyCode::Escape) {
+    if overlay.is_empty() && keys.just_pressed(KeyCode::Escape) {
         next.set(match state.get() {
             PauseState::Running => PauseState::Paused,
             PauseState::Paused => PauseState::Running,
@@ -91,6 +92,11 @@ fn spawn_pause_menu(mut commands: Commands, assets: Res<UiAssets>) {
                     Name::new("Resume button"),
                     MenuAction::Resume,
                     menu_button("Resume", font.clone()),
+                ),
+                (
+                    Name::new("Settings button"),
+                    super::settings::SettingsAction::Open,
+                    menu_button("Settings", font.clone()),
                 ),
                 (
                     Name::new("Main menu button"),

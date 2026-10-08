@@ -1,5 +1,6 @@
 use bevy::{prelude::*, transform::TransformSystems};
 use game_assets::{GameAssetsState, UiAssets};
+use game_settings::GameSettings;
 use gameplay::{
     controller::PlayerController,
     levels::{DoorState, FuseInventory, Hidden, InteractTarget, InteractTargets},
@@ -17,6 +18,9 @@ struct InteractionHint;
 
 #[derive(Component)]
 struct InteractionHintLabel;
+
+#[derive(Component)]
+struct HintKeyImage;
 
 pub struct InteractionHintPlugin;
 
@@ -50,6 +54,7 @@ fn spawn_hint(mut commands: Commands, assets: Res<UiAssets>) {
         ))
         .with_children(|hint| {
             hint.spawn((
+                HintKeyImage,
                 ImageNode::new(assets.interact_key.clone()),
                 Node {
                     width: px(28),
@@ -79,7 +84,9 @@ fn update_hint(
         With<PlayerController>,
     >,
     targets: InteractTargets,
-    mut hint: Query<(&mut Node, &mut Visibility), With<InteractionHint>>,
+    settings: Option<Res<GameSettings>>,
+    mut hint: Query<(&mut Node, &mut Visibility), (With<InteractionHint>, Without<HintKeyImage>)>,
+    mut key_image: Query<&mut Node, (With<HintKeyImage>, Without<InteractionHint>)>,
     mut label: Query<&mut Text, With<InteractionHintLabel>>,
 ) {
     let Ok((mut node, mut visibility)) = hint.single_mut() else {
@@ -126,11 +133,24 @@ fn update_hint(
     {
         return;
     }
+    let key = settings
+        .as_ref()
+        .map_or("KeyF", |settings| settings.keys.interact.as_str());
+    let custom = key != "KeyF";
+    if let Ok(mut image) = key_image.single_mut() {
+        image.display = if custom { Display::None } else { Display::Flex };
+    }
     if let Ok(mut text) = label.single_mut() {
-        if text.0 != action {
-            text.0 = action.to_owned();
+        let message = if custom {
+            format!("{}: {action}", key.strip_prefix("Key").unwrap_or(key))
+        } else {
+            action.to_owned()
+        };
+        if text.0 != message {
+            text.0 = message;
         }
     }
+    let width = if custom { width + 32.0 } else { width };
     node.width = px(width);
     node.left = px(point.x - width / 2.0);
     node.top = px(point.y - 19.0);

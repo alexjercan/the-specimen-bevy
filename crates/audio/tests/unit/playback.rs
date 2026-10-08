@@ -2,6 +2,34 @@ use bevy::audio::PlaybackMode;
 
 use super::*;
 
+#[test]
+fn settings_scale_new_ui_and_spatial_cues_without_changing_base_gain() {
+    let mut app = playback_app(Some(Vec3::ZERO));
+    app.insert_resource(GameSettings {
+        master: 0.5,
+        sfx: 0.4,
+        ..default()
+    });
+    app.world_mut().write_message(PlaySound {
+        sound: Sound::UiPress,
+        position: None,
+    });
+    app.world_mut().write_message(PlaySound {
+        sound: Sound::DoorShut,
+        position: Some(Vec3::ZERO),
+    });
+    app.update();
+    let mut voices = app.world_mut().query::<(&AudioGain, &PlaybackSettings)>();
+    let gains: Vec<_> = voices
+        .iter(app.world())
+        .map(|(gain, playback)| (gain.0, playback.volume.to_linear()))
+        .collect();
+    assert_eq!(gains.len(), 2);
+    for (base, output) in gains {
+        assert!((output - base * 0.2).abs() < 0.001);
+    }
+}
+
 fn playback_app(listener: Option<Vec3>) -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)

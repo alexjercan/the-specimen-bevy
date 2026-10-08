@@ -13,6 +13,7 @@ use bevy::{
 use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_rand::prelude::{ChaCha8Rng, EntropyPlugin};
 use game_assets::GameAssetsState;
+use game_settings::{GameSettings, GameSettingsPlugin, GraphicsQuality};
 use gameplay::{
     controller::PlayerController,
     levels::{build_first_floor, FacilityPower, FuseSeed, LightIntensity},
@@ -89,6 +90,7 @@ impl AppBuilder {
             filter: LOG_FILTER.into(),
             ..default()
         };
+        app.add_plugins(GameSettingsPlugin { persist: menu });
         if self.headless {
             app.add_plugins(
                 MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_millis(10))),
@@ -155,7 +157,10 @@ impl AppBuilder {
                     brightness: WINDOWED_AMBIENT_BRIGHTNESS,
                     ..default()
                 })
-                .add_systems(Update, (dim_new_lights, dim_ambient_on_outage));
+                .add_systems(
+                    Update,
+                    (dim_new_lights, dim_ambient_on_outage, apply_graphics),
+                );
             }
         }
         if self.transport {
@@ -183,6 +188,23 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_controller)
             .add_systems(OnEnter(CoreState::Ready), build_first_floor);
+    }
+}
+
+fn apply_graphics(
+    settings: Res<GameSettings>,
+    cameras: Query<(Entity, Option<&Msaa>), With<Camera3d>>,
+    mut commands: Commands,
+) {
+    let quality = match settings.graphics {
+        GraphicsQuality::Low => Msaa::Off,
+        GraphicsQuality::Medium => Msaa::Sample2,
+        GraphicsQuality::High => Msaa::Sample4,
+    };
+    for (entity, current) in &cameras {
+        if current != Some(&quality) {
+            commands.entity(entity).insert(quality);
+        }
     }
 }
 

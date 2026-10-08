@@ -10,6 +10,7 @@ use bevy::{
     prelude::*,
 };
 use game_assets::SoundAssets;
+use game_settings::GameSettings;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sound {
@@ -82,6 +83,13 @@ pub struct ConduitAmbience(pub bool);
 #[derive(Component)]
 struct WorldAudio;
 
+#[derive(Component, Clone, Copy)]
+struct AudioGain(f32);
+
+fn volume(settings: Option<&GameSettings>, base: f32) -> Volume {
+    Volume::Linear(base * settings.map_or(1.0, |settings| settings.master * settings.sfx))
+}
+
 pub struct GameAudioPlugin;
 
 impl Plugin for GameAudioPlugin {
@@ -96,6 +104,7 @@ impl Plugin for GameAudioPlugin {
                 Update,
                 (
                     update_pause,
+                    update_volume,
                     play_sounds,
                     play_authored_sounds,
                     play_source_sounds,
@@ -103,6 +112,25 @@ impl Plugin for GameAudioPlugin {
                 )
                     .chain(),
             );
+    }
+}
+
+fn update_volume(
+    settings: Option<Res<GameSettings>>,
+    mut regular: Query<(&AudioGain, &mut AudioSink)>,
+    mut spatial: Query<(&AudioGain, &mut SpatialAudioSink)>,
+) {
+    if !settings
+        .as_ref()
+        .is_some_and(|settings| settings.is_changed())
+    {
+        return;
+    }
+    for (gain, mut sink) in &mut regular {
+        sink.set_volume(volume(settings.as_deref(), gain.0));
+    }
+    for (gain, mut sink) in &mut spatial {
+        sink.set_volume(volume(settings.as_deref(), gain.0));
     }
 }
 
@@ -170,6 +198,7 @@ fn sound_handle(sound: Sound, assets: &SoundAssets) -> Option<&Handle<AudioSourc
 fn play_source_sounds(
     mut sounds: MessageReader<PlaySoundFrom>,
     assets: Option<Res<SoundAssets>>,
+    settings: Option<Res<GameSettings>>,
     paused: Res<AudioPaused>,
     sources: Query<&GlobalTransform>,
     listeners: Query<&GlobalTransform, With<SpatialListener>>,
@@ -197,9 +226,10 @@ fn play_source_sounds(
             parent.with_children(|children| {
                 children.spawn((
                     WorldAudio,
+                    AudioGain(gain),
                     AudioPlayer::new(handle.clone()),
                     PlaybackSettings::DESPAWN
-                        .with_volume(Volume::Linear(gain))
+                        .with_volume(volume(settings.as_deref(), gain))
                         .with_spatial(true)
                         .with_spatial_scale(SpatialScale::new(0.3)),
                     Transform::from_translation(cue.offset),
@@ -232,6 +262,7 @@ fn play_authored_sounds(
 fn play_sounds(
     mut sounds: MessageReader<PlaySound>,
     assets: Option<Res<SoundAssets>>,
+    settings: Option<Res<GameSettings>>,
     paused: Res<AudioPaused>,
     listeners: Query<&GlobalTransform, With<SpatialListener>>,
     mut commands: Commands,
@@ -272,9 +303,10 @@ fn play_sounds(
             let gain = 0.6 / (1.0 + 0.06 * distance * distance);
             commands.spawn((
                 WorldAudio,
+                AudioGain(gain),
                 AudioPlayer::new(handle.clone()),
                 PlaybackSettings::DESPAWN
-                    .with_volume(Volume::Linear(gain))
+                    .with_volume(volume(settings.as_deref(), gain))
                     .with_spatial(true)
                     .with_spatial_scale(SpatialScale::new(0.3)),
                 Transform::from_translation(position),
@@ -282,13 +314,15 @@ fn play_sounds(
         } else if world_sound {
             commands.spawn((
                 WorldAudio,
+                AudioGain(0.6),
                 AudioPlayer::new(handle.clone()),
-                PlaybackSettings::DESPAWN.with_volume(Volume::Linear(0.6)),
+                PlaybackSettings::DESPAWN.with_volume(volume(settings.as_deref(), 0.6)),
             ));
         } else {
             commands.spawn((
+                AudioGain(0.6),
                 AudioPlayer::new(handle.clone()),
-                PlaybackSettings::DESPAWN.with_volume(Volume::Linear(0.6)),
+                PlaybackSettings::DESPAWN.with_volume(volume(settings.as_deref(), 0.6)),
             ));
         }
     }

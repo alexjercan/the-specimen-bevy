@@ -9,13 +9,18 @@ use bevy::{
 };
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use game_assets::UiAssets;
+use game_settings::{GameSettings, SettingsDirty};
 use gameplay::{
     controller::{Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{Door, DoorPlugin, DoorRef, Escaped, FusePanel, LevelRoot, Room},
 };
 
 use super::{
-    complete::CompleteScreen, loading::LoadingScreen, main_menu::MainMenu, pause::PauseMenu,
+    complete::CompleteScreen,
+    loading::LoadingScreen,
+    main_menu::MainMenu,
+    pause::PauseMenu,
+    settings::{SettingsAction, SettingsOverlay, Step},
     GameState, MenuAction, MenuPlugin, PauseState,
 };
 use crate::{AppBuilder, CoreState};
@@ -109,6 +114,142 @@ fn cursor(app: &mut App) -> (CursorGrabMode, bool) {
         .single(app.world())
         .unwrap();
     (cursor.grab_mode, cursor.visible)
+}
+
+#[test]
+fn settings_wait_for_ui_assets_during_loading() {
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, InputPlugin, StatesPlugin))
+        .init_state::<CoreState>()
+        .add_plugins(MenuPlugin);
+    app.finish();
+    app.cleanup();
+    app.update();
+    assert_eq!(count::<With<LoadingScreen>>(&mut app), 1);
+    assert_eq!(count::<With<SettingsOverlay>>(&mut app), 0);
+
+    app.insert_resource(UiAssets {
+        interact_key: Handle::default(),
+        font: Handle::default(),
+    });
+    ready(&mut app);
+    let open = app
+        .world_mut()
+        .query::<(Entity, &SettingsAction)>()
+        .iter(app.world())
+        .find_map(|(entity, action)| (*action == SettingsAction::Open).then_some(entity))
+        .unwrap();
+    app.world_mut()
+        .entity_mut(open)
+        .insert(Interaction::Pressed);
+    app.update();
+    app.update();
+    assert_eq!(count::<With<SettingsOverlay>>(&mut app), 1);
+}
+
+#[test]
+fn settings_open_from_menu_and_pause_and_change_values() {
+    let mut app = app();
+    ready(&mut app);
+    app.world_mut().resource_mut::<GameSettings>().master = 0.0;
+    let open = app
+        .world_mut()
+        .query::<(Entity, &SettingsAction)>()
+        .iter(app.world())
+        .find_map(|(entity, action)| (*action == SettingsAction::Open).then_some(entity))
+        .unwrap();
+    app.world_mut()
+        .entity_mut(open)
+        .insert(Interaction::Pressed);
+    app.update();
+    app.update();
+    assert_eq!(count::<With<SettingsOverlay>>(&mut app), 1);
+    let change = app
+        .world_mut()
+        .query::<(Entity, &SettingsAction, &Step)>()
+        .iter(app.world())
+        .find_map(|(entity, action, step)| {
+            (*action == SettingsAction::Master && step.0 == 1).then_some(entity)
+        })
+        .unwrap();
+    app.world_mut()
+        .entity_mut(change)
+        .insert(Interaction::Pressed);
+    app.update();
+    assert!((app.world().resource::<GameSettings>().master - 0.1).abs() < 0.001);
+    assert!(app.world().resource::<SettingsDirty>().0);
+    let back = app
+        .world_mut()
+        .query::<(Entity, &SettingsAction)>()
+        .iter(app.world())
+        .find_map(|(entity, action)| (*action == SettingsAction::Back).then_some(entity))
+        .unwrap();
+    app.world_mut()
+        .entity_mut(back)
+        .insert(Interaction::Pressed);
+    app.update();
+    assert_eq!(count::<With<SettingsOverlay>>(&mut app), 0);
+    press(&mut app, MenuAction::Play);
+    escape(&mut app);
+    assert_eq!(
+        *app.world().resource::<State<PauseState>>().get(),
+        PauseState::Paused
+    );
+    let open = app
+        .world_mut()
+        .query::<(Entity, &SettingsAction)>()
+        .iter(app.world())
+        .find_map(|(entity, action)| (*action == SettingsAction::Open).then_some(entity))
+        .unwrap();
+    app.world_mut()
+        .entity_mut(open)
+        .insert(Interaction::Pressed);
+    app.update();
+    app.update();
+    assert_eq!(count::<With<SettingsOverlay>>(&mut app), 1);
+}
+
+#[test]
+fn settings_rebind_and_overlay_block_play() {
+    let mut app = app();
+    ready(&mut app);
+    let open = app
+        .world_mut()
+        .query::<(Entity, &SettingsAction)>()
+        .iter(app.world())
+        .find_map(|(entity, action)| (*action == SettingsAction::Open).then_some(entity))
+        .unwrap();
+    app.world_mut()
+        .entity_mut(open)
+        .insert(Interaction::Pressed);
+    app.update();
+    app.update();
+    press(&mut app, MenuAction::Play);
+    assert_eq!(game_state(&app), GameState::MainMenu);
+    let forward = app
+        .world_mut()
+        .query::<(Entity, &SettingsAction)>()
+        .iter(app.world())
+        .find_map(|(entity, action)| (*action == SettingsAction::Forward).then_some(entity))
+        .unwrap();
+    app.world_mut()
+        .entity_mut(forward)
+        .insert(Interaction::Pressed);
+    app.update();
+    app.world_mut().write_message(KeyboardInput {
+        key_code: KeyCode::ArrowUp,
+        logical_key: Key::ArrowUp,
+        state: ButtonState::Pressed,
+        text: None,
+        repeat: false,
+        window: Entity::PLACEHOLDER,
+    });
+    app.update();
+    assert_eq!(
+        app.world().resource::<GameSettings>().keys.forward,
+        "ArrowUp"
+    );
+    assert!(app.world().resource::<SettingsDirty>().0);
 }
 
 #[test]

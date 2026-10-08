@@ -57,6 +57,11 @@ fn spawn_main_menu(mut commands: Commands, assets: Res<UiAssets>) {
                         menu_button("Play", font.clone()),
                     ),
                     (
+                        Name::new("Settings button"),
+                        super::settings::SettingsAction::Open,
+                        menu_button("Settings", font.clone()),
+                    ),
+                    (
                         Name::new("Quit button"),
                         MenuAction::Quit,
                         menu_button("Quit", font.clone()),

@@ -20,6 +20,7 @@ members = [
     "crates/debug",
     "crates/gameplay",
     "crates/probe",
+    "crates/settings",
     "crates/transport",
     "crates/ui",
 ]
@@ -44,6 +45,7 @@ capture = { path = "crates/capture" }
 game_core = { path = "crates/core" }
 game_assets = { path = "crates/assets" }
 game_audio = { path = "crates/audio" }
+game_settings = { path = "crates/settings" }
 gameplay = { path = "crates/gameplay" }
 debug = { path = "crates/debug" }
 probe = { path = "crates/probe" }
