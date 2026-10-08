@@ -1,7 +1,9 @@
 mod collision;
+mod flashlight;
 pub mod player;
 pub mod wasd_camera;
 
+pub use flashlight::{Flashlight, FlashlightBeam, DRAIN_SECONDS, RECHARGE_SECONDS, RESTART_CHARGE};
 pub use player::{
     PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput, LOOK_SENSITIVITY,
     PITCH_LIMIT as PLAYER_PITCH_LIMIT, RUN_SPEED, WALK_SPEED,

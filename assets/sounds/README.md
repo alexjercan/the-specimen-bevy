@@ -13,6 +13,9 @@ by category and cue. See `art/sounds/README.md` for source hashes and
   attempt from a Freesound page labeled CC0 1.0. Its preview source remains
   under `art/sounds/sources/freesound/door/locked/`; see the source caveat
   and hashes in `art/sounds/README.md`.
+- `flashlight/click-ralph0o7.ogg`: unchanged low-quality Freesound preview
+  from Ralph0o7, used for both manual flashlight switch transitions. The
+  page displays CC0 1.0; see `credits/CREDITS.md` for the source caveat.
 - `amb/furnace/burning.wav`, `amb/water/faucet.wav`, and
   `amb/vent/wind.wav`: edited low-quality Freesound previews. Their item
   pages display CC0 1.0; see the individual iankath, willstepp and DBlover

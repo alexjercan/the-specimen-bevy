@@ -120,6 +120,7 @@ fn forward_gameplay_sounds(
             GameplaySoundKind::DoorLocked => Sound::DoorLocked,
             GameplaySoundKind::FuseSlot(slot) => Sound::FuseSlot(slot),
             GameplaySoundKind::FuseComplete => Sound::FuseComplete,
+            GameplaySoundKind::FlashlightClick => Sound::FlashlightClick,
             GameplaySoundKind::LockerOpen => Sound::LockerOpen,
             GameplaySoundKind::LockerClose => Sound::LockerClose,
             GameplaySoundKind::TableEnter => Sound::TableEnter,
@@ -128,7 +129,9 @@ fn forward_gameplay_sounds(
         sounds.write(PlaySound {
             sound,
             position: match event.kind {
-                GameplaySoundKind::FuseSlot(_) | GameplaySoundKind::FuseComplete => None,
+                GameplaySoundKind::FuseSlot(_)
+                | GameplaySoundKind::FuseComplete
+                | GameplaySoundKind::FlashlightClick => None,
                 _ => Some(event.position),
             },
         });

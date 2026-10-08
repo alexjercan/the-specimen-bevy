@@ -44,6 +44,15 @@ repeatedly. Only the preview was obtained; the page label does not
 independently verify uploader ownership or original-file terms. Source and
 edit hashes are recorded in `art/sounds/README.md`.
 
+## Recorded flashlight switch
+
+Ralph0o7, [Flashlight switch](https://freesound.org/people/Ralph0o7/sounds/690300/),
+Freesound item page labeled [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+The low-quality preview is used unchanged for manual flashlight on/off clicks
+at `assets/sounds/flashlight/click-ralph0o7.ogg`. The item page's license
+label does not independently verify uploader ownership or original-file terms.
+The retained source preview and hash are recorded in `art/sounds/README.md`.
+
 ## Edited Freesound ambience previews
 
 The following Freesound pages display [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).

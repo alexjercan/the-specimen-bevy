@@ -6,11 +6,11 @@ use std::{
 use bevy::{
     app::{App, AppExit, Plugin, PluginsState},
     input::mouse::MouseMotion,
-    prelude::{ButtonInput, EulerRot, KeyCode, Transform, With, World},
+    prelude::{ButtonInput, EulerRot, KeyCode, MouseButton, Transform, With, World},
     time::TimeUpdateStrategy,
 };
 use gameplay::{
-    controller::{PlayerController, PlayerInput},
+    controller::{Flashlight, PlayerController, PlayerInput},
     levels::Escaped,
 };
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,7 @@ pub(super) struct Controls {
     d: Option<bool>,
     shift: Option<bool>,
     f: Option<bool>,
+    flashlight: Option<bool>,
     look: [f32; 2],
 }
 
@@ -60,6 +61,14 @@ impl Controls {
                 None => continue,
             }
         }
+        if let Some(held) = self.flashlight {
+            let mut mouse = world.resource_mut::<ButtonInput<MouseButton>>();
+            if held {
+                mouse.press(MouseButton::Left);
+            } else {
+                mouse.release(MouseButton::Left);
+            }
+        }
         world.write_message(MouseMotion {
             delta: self.look.into(),
         });
@@ -80,11 +89,13 @@ struct PlayerSnapshot {
     pitch: f32,
     movement: [f32; 2],
     running: bool,
+    flashlight_on: bool,
+    flashlight_charge: f32,
 }
 
 pub(super) fn snapshot(world: &mut World, tick: u64) -> Snapshot {
-    let mut players = world.query_filtered::<(&Transform, &PlayerInput), With<PlayerController>>();
-    let player = players.iter(world).next().map(|(pose, input)| {
+    let mut players = world.query_filtered::<(&Transform, &PlayerInput, &Flashlight), With<PlayerController>>();
+    let player = players.iter(world).next().map(|(pose, input, flashlight)| {
         let (yaw, pitch, _) = pose.rotation.to_euler(EulerRot::YXZ);
         PlayerSnapshot {
             position: pose.translation.to_array(),
@@ -92,6 +103,8 @@ pub(super) fn snapshot(world: &mut World, tick: u64) -> Snapshot {
             pitch,
             movement: input.movement.to_array(),
             running: input.running,
+            flashlight_on: flashlight.on,
+            flashlight_charge: flashlight.charge,
         }
     });
     let won = world

@@ -13,6 +13,7 @@ OUTPUT = ROOT / "art/sounds/catalog.html"
 SOURCES = (ROOT / "art/sounds", ROOT / "assets/sounds")
 EXTENSIONS = {".wav", ".ogg", ".mp3", ".flac"}
 APPROVED_FILES = {
+    "art/sounds/sources/freesound/flashlight/click-ralph0o7.ogg",
     *{f"art/sounds/sources/opengameart/step/subway/subway-step-{letter}.ogg" for letter in "abc"},
     *{f"art/sounds/generated/door/{name}.wav" for name in (
         "unlatch", "swing-open", "shut", "locked-rattle",
@@ -50,6 +51,7 @@ CATEGORIES = {
     "amb": "D. Facility ambience (bus ambience)",
     "ui": "E. UI and front end (bus ui)",
     "hiding": "G. Hiding (bus world)",
+    "flashlight": "A. Player self (bus self)",
 }
 STEP_CREDIT = ('GboxMikeFozzy, "Footsteps" (CC0 1.0)', "https://opengameart.org/content/footsteps-0")
 METAL_WOOD_CREDIT = ('rubberduck, "100 CC0 metal and wood SFX" (CC0 1.0)', "https://opengameart.org/content/100-cc0-metal-and-wood-sfx")
@@ -71,6 +73,15 @@ RECORDED_PATHS["art/sounds/generated/door/locked-rattle.wav"] = (
     "DrFahrts (Freesound preview, page-labeled CC0 1.0; edited by this project)",
     "https://freesound.org/people/DrFahrts/sounds/727791/",
 )
+for filename, creator, sound_id in (
+    ("click-ralph0o7", "Ralph0o7", 690300),
+    ("thumb-switch-lunardrive", "Lunardrive", 48979),
+    ("spring-switch-eskildnp", "EskildNP", 855455),
+):
+    RECORDED_PATHS[f"art/sounds/sources/freesound/flashlight/{filename}.ogg"] = (
+        f"{creator} (Freesound low-quality preview, page-labeled CC0 1.0)",
+        f"https://freesound.org/people/{creator}/sounds/{sound_id}/",
+    )
 STYLE = """body{background:#101416;color:#e2e5df;font:16px system-ui,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem}h1,h2{color:#b0d9cf}section{margin:2rem 0}article{background:#1a2224;border:1px solid #354644;border-radius:8px;margin:.6rem 0;padding:.8rem 1rem}article.review{background:#302919;border-color:#c69a46}article.review small{color:#f2cf83}strong,small{display:block}small{color:#9aada9}audio{display:block;width:100%;margin:.5rem 0}svg{display:block;width:100%;height:72px;background:#111b1b;border-radius:4px}input{background:#1a2224;color:#fff;border:1px solid #6e8b84;border-radius:4px;padding:.5rem;width:min(25rem,95%)}.empty{color:#c1a886}"""
 
 

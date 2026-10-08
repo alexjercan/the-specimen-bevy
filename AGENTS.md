@@ -3,6 +3,10 @@
 Horror Game Bevy is a horror game written in Rust using the Bevy game engine.
 This is a `nix` based project.
 
+## Agent instructions
+
+- use `todos` create todos for user requests do not forget about work
+
 ## Repository layout
 
 - `crates` contains first party libraries for the game

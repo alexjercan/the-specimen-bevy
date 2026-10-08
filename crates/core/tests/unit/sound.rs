@@ -116,6 +116,28 @@ fn locked_door_rattle_keeps_its_world_position_in_audio_bridge() {
 }
 
 #[test]
+fn flashlight_click_bridges_as_non_spatial_player_audio() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_message::<GameplaySound>()
+        .add_message::<PlaySound>()
+        .add_systems(Update, forward_gameplay_sounds);
+    app.world_mut().write_message(GameplaySound {
+        kind: GameplaySoundKind::FlashlightClick,
+        position: Vec3::new(1.0, 1.6, -3.0),
+    });
+    app.update();
+    let played: Vec<_> = app
+        .world_mut()
+        .resource_mut::<Messages<PlaySound>>()
+        .drain()
+        .collect();
+    assert_eq!(played.len(), 1);
+    assert_eq!(played[0].sound, Sound::FlashlightClick);
+    assert_eq!(played[0].position, None);
+}
+
+#[test]
 fn fuse_cues_bridge_as_non_spatial_ui_sounds() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)

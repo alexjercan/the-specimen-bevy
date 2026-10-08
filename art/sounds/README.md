@@ -24,7 +24,7 @@ needed for rendering previews and drawing OGG waveforms.
 The rejected `_stubb` handle-rattle edit, synthetic locked-door rattle and
 open-door stop are not in the catalog or runtime assets. DrFahrts's selected
 locked-door take now plays on locked-door attempts; the shelbyshark alternative
-remains a catalog-only review candidate:
+is retained off-catalog:
 
 | Edited review WAV | Freesound source and creator | Retained preview SHA-256 | Edit SHA-256 |
 | --- | --- | --- | --- |
@@ -37,6 +37,33 @@ independently verified. The WAVs are mono 48 kHz PCM with short fades, cut
 from preview times 1.35-3.35 s and 1.65-3.65 s, respectively. The DrFahrts edit was approved by listening; its in-game mix has not been
 reviewed. The shelbyshark crop has not been auditioned or approved. Generation scripts no
 longer make rejected drafts.
+
+## Flashlight review sounds
+
+`python3 scripts/generate_flashlight_sounds.py` creates three original,
+reproducible mono 48 kHz PCM candidates under
+`generated/candidates/flashlight/`: `switch-on.wav`, `switch-off.wav`, and
+`battery-empty.wav`. They are dry, short mechanical-click sketches; the
+empty cue is two weak clicks. These drafts are retained off-catalog. Three
+recorded switch previews were inspected; the preferred Ralph0o7 click is
+selected for runtime playback on both manual switch-on and switch-off:
+
+| File under `sources/freesound/flashlight/` | Uploader / item | Page description | Preview SHA-256 |
+| --- | --- | --- | --- |
+| `click-ralph0o7.ogg` | [Ralph0o7, 690300](https://freesound.org/people/Ralph0o7/sounds/690300/) | Flashlight switch clicked into a microphone; 0.19 s | `7f861f08917776b8e3fbca833a72f9ca406855db617dd871e74d224e019908c0` |
+| `thumb-switch-lunardrive.ogg` | [Lunardrive, 48979](https://freesound.org/people/Lunardrive/sounds/48979/) | Rubber flashlight thumb switch on/off; 0.56 s | `f3a8728d745fa8eacbc809fb88a9c439d5d728148c9362a9052eebc762fc760d` |
+| `spring-switch-eskildnp.ogg` | [EskildNP, 855455](https://freesound.org/people/EskildNP/sounds/855455/) | One on and three off switch sounds from an old flashlight; 8.15 s | `41478c69a366f2dbe10b2ce57383149fb718bb7ee91671f9bf6c82c49f8e6ad8` |
+
+These are low-quality Freesound OGG previews. Each item page displayed a CC0
+1.0 link when checked; original downloads and uploader provenance were not
+verified. The user selected Ralph0o7's click and requested game integration. The same
+preview is copied unchanged to `assets/sounds/flashlight/click-ralph0o7.ogg`
+and wired to manual switch-on and switch-off, as the reversible Automode
+choice. Automatic shutdown on depletion does not produce a mechanical click;
+the empty-battery cue is undecided. Other recorded previews remain off-catalog.
+Recharge has no continuous sound candidate: a constant recharge noise could
+mask footsteps and facility ambience. Playback volume and mix still need
+in-game listening review.
 
 ## Recorded player steps
 

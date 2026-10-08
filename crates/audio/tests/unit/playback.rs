@@ -156,6 +156,23 @@ fn fuse_slots_and_completion_use_only_the_new_ui_cues() {
 }
 
 #[test]
+fn flashlight_click_uses_approved_clip_as_non_spatial_audio() {
+    let mut app = playback_app(None);
+    app.world_mut().resource_mut::<AudioPaused>().0 = true;
+    let played = play(
+        &mut app,
+        &[PlaySound {
+            sound: Sound::FlashlightClick,
+            position: None,
+        }],
+    );
+    assert_eq!(played.len(), 1);
+    assert_eq!(played[0].0, test_support::sound_assets().flashlight_click);
+    assert!(!played[0].1.spatial);
+    assert!(!played[0].3);
+}
+
+#[test]
 fn locked_door_rattle_is_spatial_and_dropped_while_paused() {
     let mut app = playback_app(Some(Vec3::ZERO));
     let cue = PlaySound {

@@ -4,9 +4,11 @@ use bevy::{
 };
 use bevy_enhanced_input::prelude::*;
 
-use crate::levels::{Door, DoorOf, DoorRef, DoorSwing, Doors, Hidden, Passage, PropCollider, Room};
+use crate::levels::{
+    Door, DoorOf, DoorRef, DoorSwing, Doors, GameplaySound, Hidden, Passage, PropCollider, Room,
+};
 
-use super::collision;
+use super::{collision, flashlight};
 
 pub const WALK_SPEED: f32 = 3.0;
 pub const RUN_SPEED: f32 = 6.0;
@@ -14,7 +16,7 @@ pub const LOOK_SENSITIVITY: f32 = 0.002;
 pub const PITCH_LIMIT: f32 = 1.54;
 
 #[derive(Component, Default)]
-#[require(Transform, PlayerInput)]
+#[require(Transform, PlayerInput, Visibility)]
 pub struct PlayerController;
 
 #[derive(Resource)]
@@ -73,17 +75,21 @@ impl Plugin for PlayerControllerPlugin {
             "PlayerControllerPlugin requires EnhancedInputPlugin"
         );
         app.init_resource::<PlayerControlsEnabled>()
+            .add_message::<GameplaySound>()
             .add_input_context::<PlayerController>()
             .add_observer(attach_input)
+            .add_observer(flashlight::attach)
+            .add_observer(flashlight::toggle)
             .add_observer(collision::attach_prop_collider)
             .add_observer(on_move)
             .add_observer(on_move_complete)
             .add_observer(on_run)
             .add_observer(on_run_complete)
             .add_observer(on_look)
-            .add_systems(Update, apply_input);
+            .add_systems(Update, (apply_input, flashlight::advance, flashlight::sync_beam).chain());
         if self.camera {
             app.add_observer(attach_camera)
+                .add_observer(flashlight::attach_beam)
                 .add_systems(Update, update_cursor);
         }
     }
@@ -108,6 +114,10 @@ fn attach_input(added: On<Add, PlayerController>, mut commands: Commands) {
             (
                 Action::<Interact>::new(),
                 bindings![KeyCode::KeyF],
+            ),
+            (
+                Action::<flashlight::ToggleFlashlight>::new(),
+                bindings![MouseButton::Left],
             ),
         ]));
 }

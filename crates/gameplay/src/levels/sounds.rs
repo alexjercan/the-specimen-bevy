@@ -8,6 +8,7 @@ pub enum GameplaySoundKind {
     DoorLocked,
     FuseSlot(usize),
     FuseComplete,
+    FlashlightClick,
     LockerOpen,
     LockerClose,
     TableEnter,

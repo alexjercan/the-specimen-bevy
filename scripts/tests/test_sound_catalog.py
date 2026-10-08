@@ -9,6 +9,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import build_sound_catalog as catalog
 import generate_sounds as synth
 import generate_ambience_review as ambience
+import generate_flashlight_sounds as flashlight
 
 
 class SoundCatalogTests(unittest.TestCase):
@@ -34,6 +35,21 @@ class SoundCatalogTests(unittest.TestCase):
                     self.assertEqual(original, path.read_bytes())
             finally:
                 synth.OUT = old_out
+
+    def test_flashlight_review_generation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            first = flashlight.generate(pathlib.Path(folder))
+            self.assertEqual(len(first), 3)
+            originals = {path.name: path.read_bytes() for path in first}
+            self.assertEqual(first, flashlight.generate(pathlib.Path(folder)))
+            for path in first:
+                self.assertEqual(path.read_bytes(), originals[path.name])
+                with wave.open(str(path)) as audio:
+                    self.assertEqual(audio.getframerate(), 48_000)
+                    self.assertEqual(audio.getnchannels(), 1)
+                    self.assertEqual(audio.getsampwidth(), 2)
+                    self.assertGreater(audio.getnframes(), 0)
+                self.assertIn("<svg", catalog.waveform(path))
 
     def test_approved_source_step_waveforms(self):
         for number in (1, 2, 4):
@@ -70,6 +86,9 @@ class SoundCatalogTests(unittest.TestCase):
         )
         self.assertEqual(len([path for path in selected if "/door/" in path]), 4)
         self.assertFalse(catalog.REVIEW_FILES)
+        click = "art/sounds/sources/freesound/flashlight/click-ralph0o7.ogg"
+        self.assertIn(click, catalog.APPROVED_FILES)
+        self.assertIn("<svg", catalog.waveform(catalog.ROOT / click))
         self.assertNotIn("art/sounds/generated/candidates/door/locked/rattling-locked-door-shelbyshark.wav", selected)
         self.assertEqual(len([path for path in selected if "Freesound preview" in catalog.RECORDED_PATHS.get(path, ("", ""))[0]]), 4)
         self.assertTrue(catalog.SOURCE_FILES.isdisjoint(selected))
@@ -82,6 +101,13 @@ class SoundCatalogTests(unittest.TestCase):
                      if path.is_file() and path.suffix.lower() in catalog.EXTENSIONS}
         self.assertEqual(all_audio, catalog.APPROVED_FILES | catalog.SOURCE_FILES | {
             "art/sounds/generated/candidates/door/locked/rattling-locked-door-shelbyshark.wav",
+            *{f"art/sounds/generated/candidates/flashlight/{name}.wav" for name in (
+                "switch-on", "switch-off", "battery-empty",
+            )},
+            *{f"art/sounds/sources/freesound/flashlight/{name}.ogg" for name in (
+                "thumb-switch-lunardrive", "spring-switch-eskildnp",
+            )},
+            *catalog.REVIEW_FILES,
         })
 
     def test_catalog_credits_each_file_separately(self):
@@ -102,6 +128,10 @@ class SoundCatalogTests(unittest.TestCase):
                     self.assertIn("DrFahrts", card)
                     self.assertIn("Freesound preview", card)
                     self.assertNotIn("rubberduck", card)
+                elif path.endswith("/flashlight/click-ralph0o7.ogg"):
+                    self.assertIn("Ralph0o7", card)
+                    self.assertIn("Freesound low-quality preview", card)
+                    self.assertNotIn("For review - not in game", card)
                 elif "/generated/door/" in path or "/generated/hiding/" in path:
                     self.assertIn("rubberduck", card)
                     self.assertNotIn("GboxMikeFozzy", card)
@@ -117,16 +147,23 @@ class SoundCatalogTests(unittest.TestCase):
                 self.assertEqual(len(matching), 1, path)
                 self.assertIn('class="review"', matching[0])
                 self.assertIn("For review - not in game", matching[0])
-                self.assertIn("Freesound preview", matching[0])
-                self.assertTrue(any(name in matching[0] for name in ("shelbyshark", "DrFahrts")))
-                self.assertNotIn("Original project-generated sound", matching[0])
-                self.assertNotIn("GboxMikeFozzy", matching[0])
+                if "/sources/freesound/flashlight/" in path:
+                    self.assertIn("Freesound low-quality preview", matching[0])
+                    self.assertIn("freesound.org/people/", matching[0])
+                    self.assertNotIn("Original project-generated sound", matching[0])
+                else:
+                    self.assertIn("Original project-generated sound", matching[0])
+                    self.assertNotIn("Freesound", matching[0])
             self.assertIn("<h2>D. Facility ambience (bus ambience)</h2>", page)
             self.assertIn("<h2>G. Hiding (bus world)</h2>", page)
+            self.assertIn("<h2>A. Player self (bus self)</h2>", page)
             self.assertIn("<h2>B. Doors (bus world)</h2>", page)
             self.assertIn("<h2>E. UI and front end (bus ui)</h2>", page)
             self.assertEqual(page.count('class="review"'), len(catalog.REVIEW_FILES))
             self.assertEqual(page.count('Freesound preview'), 4)
+            self.assertEqual(page.count('Freesound low-quality preview'), 1)
+            for filename in ("thumb-switch-lunardrive", "spring-switch-eskildnp", "switch-on.wav", "switch-off.wav", "battery-empty.wav"):
+                self.assertNotIn(f"<strong>{filename}</strong>", page)
             for name in ("furnace-iankath", "faucet-willstepp", "wind-dblover"):
                 self.assertNotIn(f"<strong>{name}</strong>", page)
 
@@ -142,6 +179,8 @@ class SoundCatalogTests(unittest.TestCase):
                 runtime = catalog.ROOT / path.replace("art/sounds/generated/", "assets/sounds/")
             elif "art/sounds/sources/opengameart/" in path:
                 runtime = catalog.ROOT / path.replace("art/sounds/sources/opengameart/", "assets/sounds/")
+            elif path.endswith("/flashlight/click-ralph0o7.ogg"):
+                runtime = catalog.ROOT / "assets/sounds/flashlight/click-ralph0o7.ogg"
             else:
                 self.fail(f"unhandled source origin: {path}")
             self.assertEqual(art.read_bytes(), runtime.read_bytes(), path)

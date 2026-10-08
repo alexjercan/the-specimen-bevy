@@ -131,7 +131,11 @@ impl AppBuilder {
                     gameplay::levels::HidingPlugin,
                     gameplay::levels::ObjectivePlugin,
                 ))
-                .add_plugins((glue::InteractionHintPlugin, glue::FuseHudPlugin))
+                .add_plugins((
+                    glue::InteractionHintPlugin,
+                    glue::FuseHudPlugin,
+                    glue::FlashlightHudPlugin,
+                ))
                 .add_plugins((game_audio::GameAudioPlugin, glue::SoundGluePlugin));
             if self.transport {
                 app.add_plugins(transport::RenderedTransportPlugin);
