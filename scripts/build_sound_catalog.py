@@ -23,6 +23,10 @@ APPROVED_FILES = {
     "art/sounds/generated/panel/install/01.wav",
     "art/sounds/generated/amb/boiler/rumble.wav",
     "art/sounds/generated/amb/roomtone.wav",
+    *{f"art/sounds/review/amb/{name}.wav" for name in (
+        "roomtone/conduit", "boiler/tick/01", "vent/hvac/01", "tank/hum",
+        "light/buzz/cool-low",
+    )},
     *{f"art/sounds/review/hiding/{name}.wav" for name in (
         "locker/open", "locker/close", "table/enter", "table/leave"
     )},
@@ -31,11 +35,18 @@ APPROVED_FILES = {
     )},
 }
 REVIEW_FILES = {
-    f"art/sounds/review/amb/{name}.wav" for name in (
-        "roomtone/conduit", "boiler/tick/01", "vent/hvac/01", "tank/hum",
-        "light/buzz/cool-low",
-    )
-} | {"art/sounds/review/amb/light/flicker/recorded-01.ogg"}
+    "art/sounds/review/amb/light/flicker/recorded-01.ogg",
+    *{f"art/sounds/review/amb/{name}.wav" for name in (
+        "drip/01", "drip/02", "drip/03", "drip/04",
+        "pipe/flow", "vent/rattle/01", "boiler/fire", "alarm/pulse",
+        "lab/console", "lab/console/beep-01", "outside/wind", "low/pressure",
+    )},
+    *{f"art/sounds/review/amb/web/{name}.ogg" for name in (
+        "drip/single-metaepitome", "drip/faucet-willstepp",
+        "drip/metal-wasabiwielder", "pipe/flow-pipelenisf",
+        "boiler/furnace-iankath", "outside/wind-dblover",
+    )},
+}
 DRAFT_FILES = {
     f"art/sounds/review/amb/{name}.wav" for name in (
         "light/buzz/cool", "light/flicker/01", "distant/settle/01",
@@ -61,6 +72,18 @@ RECORDED_PATHS["art/sounds/review/amb/light/flicker/recorded-01.ogg"] = (
     'mmaruska, "Lights Flicker On.wav" (page-labeled CC0 1.0, Freesound preview)',
     "https://freesound.org/people/mmaruska/sounds/232447/",
 )
+for name, creator, sound_id in (
+    ("drip/single-metaepitome", "metaepitome", 165206),
+    ("drip/faucet-willstepp", "willstepp", 188293),
+    ("drip/metal-wasabiwielder", "WasabiWielder", 360735),
+    ("pipe/flow-pipelenisf", "Pipelenisf", 620620),
+    ("boiler/furnace-iankath", "iankath", 173991),
+    ("outside/wind-dblover", "DBlover", 405601),
+):
+    RECORDED_PATHS[f"art/sounds/review/amb/web/{name}.ogg"] = (
+        f"{creator} (page-labeled CC0 1.0, Freesound preview)",
+        f"https://freesound.org/people/{creator}/sounds/{sound_id}/",
+    )
 STYLE = """body{background:#101416;color:#e2e5df;font:16px system-ui,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem}h1,h2{color:#b0d9cf}section{margin:2rem 0}article{background:#1a2224;border:1px solid #354644;border-radius:8px;margin:.6rem 0;padding:.8rem 1rem}article.review{background:#302919;border-color:#c69a46}article.review small{color:#f2cf83}strong,small{display:block}small{color:#9aada9}audio{display:block;width:100%;margin:.5rem 0}svg{display:block;width:100%;height:72px;background:#111b1b;border-radius:4px}input{background:#1a2224;color:#fff;border:1px solid #6e8b84;border-radius:4px;padding:.5rem;width:min(25rem,95%)}.empty{color:#c1a886}"""
 
 
@@ -159,7 +182,7 @@ def build(paths, output=OUTPUT):
         '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
         '<title>Facility sound catalog</title><style>' + STYLE + '</style><body>'
         '<h1>Facility sound catalog</h1><p>Selected sounds from art/sounds and assets/sounds. Waveforms show peak amplitude, not loudness. '
-        'Approved cues have runtime copies in assets/sounds. Yellow cards are review-only ambience sounds, not in the game. '
+        'Approved cues have runtime copies in assets/sounds. Yellow cards are review-only sounds, not in the game. '
         'Source-page CC0 labels are recorded as displayed, not independently verified authorship. In-game mix remains provisional.</p>'
         '<label for="filter">Filter sounds</label> <input id="filter" type="search" placeholder="Category or filename">'
         + content + '<script>document.addEventListener("play",e=>{if(e.target.tagName==="AUDIO")for(const a of document.querySelectorAll("audio"))if(a!==e.target)a.pause()},true);'

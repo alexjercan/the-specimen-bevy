@@ -1,9 +1,12 @@
 use bevy::{audio::SpatialListener, prelude::*};
 use bevy_rand::prelude::{ChaCha8Rng, GlobalRng};
-use game_audio::{AmbienceActive, AudioPaused, PlaySound, Sound};
+use game_audio::{
+    AmbienceActive, AmbientEmitter, AmbientEmitters, AmbientSound, AudioPaused, ConduitAmbience,
+    PlaySound, Sound,
+};
 use gameplay::{
     controller::{PlayerController, PlayerControlsEnabled, PlayerInput},
-    levels::{GameplaySound, GameplaySoundKind},
+    levels::{GameplaySound, GameplaySoundKind, Room, Walls},
 };
 use rand_core::Rng;
 
@@ -13,9 +16,67 @@ pub(crate) struct SoundGluePlugin;
 
 impl Plugin for SoundGluePlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(AmbientEmitters(vec![
+            AmbientEmitter {
+                sound: AmbientSound::Roomtone,
+                position: None,
+                volume: 0.12,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::Conduit,
+                position: None,
+                volume: 0.055,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::Boiler,
+                position: Some(Vec3::new(-10.0, 1.0, 0.0)),
+                volume: 0.17,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::Tank,
+                position: Some(Vec3::new(0.0, 1.3, 0.0)),
+                volume: 0.15,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::Vent,
+                position: Some(Vec3::new(-13.65, 0.45, -1.1)),
+                volume: 0.09,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::Vent,
+                position: Some(Vec3::new(-13.65, 1.9, -20.0)),
+                volume: 0.09,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::Vent,
+                position: Some(Vec3::new(13.65, 1.9, -21.25)),
+                volume: 0.09,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::CoolBuzz,
+                position: Some(Vec3::new(0.0, 2.7, -27.5)),
+                volume: 0.045,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::CoolBuzz,
+                position: Some(Vec3::new(10.0, 2.7, -27.5)),
+                volume: 0.045,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::CoolBuzz,
+                position: Some(Vec3::new(5.0, 2.7, -20.0)),
+                volume: 0.045,
+            },
+        ]));
         app.add_observer(attach_listener).add_systems(
             Update,
-            (forward_gameplay_sounds, footsteps, sync_pause, sync_ambience),
+            (
+                forward_gameplay_sounds,
+                footsteps,
+                sync_pause,
+                sync_ambience,
+                boiler_ticks,
+            ),
         );
     }
 }
@@ -84,10 +145,48 @@ fn footsteps(
     }
 }
 
-fn sync_ambience(players: Query<(), With<PlayerController>>, mut active: ResMut<AmbienceActive>) {
-    let value = !players.is_empty();
-    if active.0 != value {
-        active.0 = value;
+fn sync_ambience(
+    players: Query<&Transform, With<PlayerController>>,
+    rooms: Query<(&Room, &Walls)>,
+    mut active: ResMut<AmbienceActive>,
+    mut conduit: ResMut<ConduitAmbience>,
+) {
+    let player = players.iter().next();
+    active.0 = player.is_some();
+    conduit.0 = player.is_some_and(|player| {
+        let position = player.translation.xz();
+        rooms
+            .iter()
+            .any(|(room, walls)| walls.0 == "wall_conduit" && room.0.contains(position))
+    });
+}
+
+fn boiler_ticks(
+    time: Res<Time>,
+    paused: Res<AudioPaused>,
+    players: Query<&Transform, With<PlayerController>>,
+    mut remaining: Local<f32>,
+    mut rng: Single<&mut ChaCha8Rng, With<GlobalRng>>,
+    mut sounds: MessageWriter<PlaySound>,
+) {
+    let Ok(player) = players.single() else {
+        *remaining = 8.0;
+        return;
+    };
+    if paused.0 {
+        return;
+    }
+    *remaining -= time.delta_secs();
+    if *remaining > 0.0 {
+        return;
+    }
+    *remaining = 6.0 + 14.0 * (rng.next_u32() as f64 / (u32::MAX as f64 + 1.0)) as f32;
+    let position = Vec3::new(-10.0, 1.2, 0.0);
+    if player.translation.distance(position) <= 18.0 {
+        sounds.write(PlaySound {
+            sound: Sound::BoilerTick,
+            position: Some(position),
+        });
     }
 }
 

@@ -406,6 +406,24 @@ notes, crossfaded by mix state. One rare stinger for an earned reveal.
 
 ## Status
 
-Integration remains planned only. The selected review clips above have user
-audio approval, but no sound is wired into the game and no runtime mix review
-has occurred. Step 1 (sound inventory research) is written above.
+The inventory above is historical research: existing door, footstep,
+objective, UI, hiding and basic roomtone sounds have since been promoted and
+wired into the game. Four hiding transitions are drafted through gameplay
+messages, asset handles, and core glue, but their Rust checks and playback
+review remain outstanding. Five more user-selected synthesized ambience clips
+were copied into `assets/sounds/amb/`: conduit roomtone, boiler tick, vent
+HVAC, tank hum, and lower-pitched cool-light buzz. The game-audio draft now
+loads these handles; core supplies facility-specific loop anchors, room-zone
+state, and occasional boiler ticks. No Rust compile/test or runtime mix
+review was performed for this new wiring.
+
+The expanded `art/sounds/catalog.html` has 46 sounds: 27 approved sounds and
+19 yellow review-only candidates, including four synthesized drip variants,
+six downloaded Freesound low-quality previews, and the earlier recorded
+flicker preview. Six Python catalog tests passed. The web previews have
+source-page CC0 labels and file hashes documented in
+`art/sounds/review/amb/web/README.md`; original downloads, underlying rights,
+and perceptual quality are not independently verified. New review-only clips
+are not runtime assets. The automode decision for this slice deferred the
+recorded flicker preview from runtime. The rest of the audio feature inventory
+and proposed mixes remain open decisions, not implemented behavior.

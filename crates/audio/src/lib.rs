@@ -1,3 +1,7 @@
+mod ambience;
+
+pub use ambience::{AmbientEmitter, AmbientEmitters, AmbientSound};
+
 use bevy::{
     audio::{
         AudioSink, AudioSinkPlayback, PlaybackSettings, SpatialAudioSink, SpatialListener,
@@ -14,6 +18,7 @@ pub enum Sound {
     DoorShut,
     FusePickup,
     PanelInstall,
+    BoilerTick,
     LockerOpen,
     LockerClose,
     TableEnter,
@@ -41,11 +46,11 @@ pub struct AudioPaused(pub bool);
 #[derive(Resource, Default)]
 pub struct AmbienceActive(pub bool);
 
-#[derive(Component)]
-struct WorldAudio;
+#[derive(Resource, Default)]
+pub struct ConduitAmbience(pub bool);
 
 #[derive(Component)]
-struct Roomtone;
+struct WorldAudio;
 
 pub struct GameAudioPlugin;
 
@@ -54,7 +59,8 @@ impl Plugin for GameAudioPlugin {
         app.add_message::<PlaySound>()
             .init_resource::<AudioPaused>()
             .init_resource::<AmbienceActive>()
-            .add_systems(Update, (update_pause, play_sounds, update_ambience).chain());
+            .init_resource::<ConduitAmbience>()
+            .add_systems(Update, (update_pause, play_sounds, ambience::update_ambience).chain());
     }
 }
 
@@ -82,32 +88,6 @@ fn update_pause(
     }
 }
 
-fn update_ambience(
-    active: Res<AmbienceActive>,
-    paused: Res<AudioPaused>,
-    assets: Option<Res<SoundAssets>>,
-    players: Query<Entity, With<Roomtone>>,
-    mut commands: Commands,
-) {
-    let Some(assets) = assets else { return };
-    if active.0 && players.is_empty() {
-        let mut settings = PlaybackSettings::LOOP.with_volume(Volume::Linear(0.12));
-        if paused.0 {
-            settings = settings.paused();
-        }
-        commands.spawn((
-            Roomtone,
-            WorldAudio,
-            AudioPlayer::new(assets.roomtone.clone()),
-            settings,
-        ));
-    } else if !active.0 {
-        for entity in &players {
-            commands.entity(entity).despawn();
-        }
-    }
-}
-
 fn play_sounds(
     mut sounds: MessageReader<PlaySound>,
     assets: Option<Res<SoundAssets>>,
@@ -124,6 +104,7 @@ fn play_sounds(
                 | Sound::DoorShut
                 | Sound::FusePickup
                 | Sound::PanelInstall
+                | Sound::BoilerTick
                 | Sound::LockerOpen
                 | Sound::LockerClose
                 | Sound::TableEnter
@@ -139,6 +120,7 @@ fn play_sounds(
             Sound::DoorShut => &assets.door_shut,
             Sound::FusePickup => &assets.fuse_pickup,
             Sound::PanelInstall => &assets.panel_install,
+            Sound::BoilerTick => &assets.boiler_tick,
             Sound::LockerOpen => &assets.locker_open,
             Sound::LockerClose => &assets.locker_close,
             Sound::TableEnter => &assets.table_enter,

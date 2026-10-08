@@ -1,6 +1,6 @@
 # Shipped sound cues
 
-These 22 files are byte-identical copies of the approved clips in
+These 27 files are byte-identical copies of approved clips in
 `art/sounds/`. Recorded footstep and door creators are credited explicitly in
 `credits/CREDITS.md`. See `art/sounds/README.md` for source URLs, license
 claims, source hashes, and editing history.
@@ -15,7 +15,12 @@ claims, source hashes, and editing history.
 - `hiding/{locker,table}/`: edited recordings from rubberduck's CC0-labeled
   metal/wood pack. The four approved WAVs were copied from `art/sounds/review/hiding/`.
 - `amb/`, `fuse/`, `panel/`, and `ui/`: original synthesized project cues;
-  project MIT license. Rebuild with `scripts/generate_sounds.py`.
+  project MIT license. The five added ambience cues are `amb/roomtone/conduit.wav`,
+  `amb/boiler/tick/01.wav`, `amb/vent/hvac/01.wav`, `amb/tank/hum.wav`, and
+  `amb/light/buzz/cool-low.wav`. Rebuild these five with
+  `scripts/generate_ambience_review.py`; the earlier cues use
+  `scripts/generate_sounds.py`. The low-quality recorded flicker preview and
+  new drip candidates remain review-only and are not shipped.
 
 License claims for recordings are based on the source item pages, not
 independent authorship verification. Preserve this provenance with shipped

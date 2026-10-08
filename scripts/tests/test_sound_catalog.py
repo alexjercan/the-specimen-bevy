@@ -51,7 +51,8 @@ class SoundCatalogTests(unittest.TestCase):
                 makers = (ambience.roomtone_conduit, ambience.boiler_tick,
                           ambience.vent_hvac, ambience.light_buzz,
                           ambience.light_buzz_low, ambience.light_flicker,
-                          ambience.tank_hum, ambience.distant_settle)
+                          ambience.tank_hum, ambience.distant_settle,
+                          lambda: ambience.drip(1, 1820, 0.045, -900, 870, 0.09))
                 for make in makers:
                     path = make()
                     with wave.open(str(path)) as audio:
@@ -73,6 +74,8 @@ class SoundCatalogTests(unittest.TestCase):
             {f"art/sounds/source/step/subway/{n:02d}.ogg" for n in (1, 2, 4)},
         )
         self.assertEqual(len([path for path in selected if "/door/" in path]), 3)
+        self.assertEqual(len([path for path in selected if "/review/amb/drip/" in path]), 4)
+        self.assertEqual(len([path for path in selected if "/review/amb/web/drip/" in path]), 3)
         hiding = {path for path in selected if "/hiding/" in path}
         self.assertEqual(len(hiding), 4)
         for path in hiding:
@@ -112,14 +115,20 @@ class SoundCatalogTests(unittest.TestCase):
                 if path.endswith("light/flicker/recorded-01.ogg"):
                     self.assertIn("mmaruska", matching[0])
                     self.assertIn("Freesound preview", matching[0])
+                elif "/web/" in path:
+                    self.assertIn("Freesound preview", matching[0])
                     self.assertNotIn("Original project-generated sound", matching[0])
+                    self.assertIn("freesound.org/people/", matching[0])
                 else:
                     self.assertIn("Original project-generated sound", matching[0])
-                    self.assertNotIn("mmaruska", matching[0])
+                    self.assertNotIn("Freesound preview", matching[0])
+                if "Freesound preview" in matching[0]:
+                    self.assertNotIn("Original project-generated sound", matching[0])
                 self.assertNotIn("GboxMikeFozzy", matching[0])
             self.assertIn("<h2>D. Facility ambience (bus ambience)</h2>", page)
             self.assertIn("<h2>G. Hiding (bus world)</h2>", page)
             self.assertEqual(page.count('class="review"'), len(catalog.REVIEW_FILES))
+            self.assertEqual(page.count('Freesound preview'), len(catalog.REVIEW_FILES & set(catalog.RECORDED_PATHS)))
 
     def test_catalog_groups_and_escapes(self):
         with tempfile.TemporaryDirectory() as folder:

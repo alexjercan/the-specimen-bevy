@@ -91,6 +91,16 @@ pub struct SoundAssets {
     pub boiler: Handle<AudioSource>,
     #[asset(path = "sounds/amb/roomtone.wav")]
     pub roomtone: Handle<AudioSource>,
+    #[asset(path = "sounds/amb/roomtone/conduit.wav")]
+    pub conduit_roomtone: Handle<AudioSource>,
+    #[asset(path = "sounds/amb/boiler/tick/01.wav")]
+    pub boiler_tick: Handle<AudioSource>,
+    #[asset(path = "sounds/amb/vent/hvac/01.wav")]
+    pub vent_hvac: Handle<AudioSource>,
+    #[asset(path = "sounds/amb/tank/hum.wav")]
+    pub tank_hum: Handle<AudioSource>,
+    #[asset(path = "sounds/amb/light/buzz/cool-low.wav")]
+    pub cool_buzz: Handle<AudioSource>,
     #[asset(path = "sounds/door/unlatch/01.wav")]
     pub door_unlatch: Handle<AudioSource>,
     #[asset(path = "sounds/door/swing/open/01.wav")]
