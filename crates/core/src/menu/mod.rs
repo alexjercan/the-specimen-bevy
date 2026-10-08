@@ -1,4 +1,8 @@
+mod background;
 mod complete;
+#[cfg(test)]
+#[path = "../../tests/unit/menu_hover.rs"]
+mod hover_tests;
 mod loading;
 mod main_menu;
 mod pause;
@@ -105,7 +109,7 @@ fn activate_buttons(
 }
 
 fn hover_buttons(
-    buttons: Query<&Interaction, (With<MenuAction>, Changed<Interaction>)>,
+    buttons: Query<&Interaction, (With<game_ui::MenuButton>, Changed<Interaction>)>,
     mut sounds: MessageWriter<PlaySound>,
 ) {
     for interaction in &buttons {

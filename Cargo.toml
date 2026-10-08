@@ -54,9 +54,15 @@ game_ui = { path = "crates/ui" }
 
 [profile.dev]
 opt-level = 1
+split-debuginfo = "unpacked"
+debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 3
+debug = false
+
+[profile.test]
+debug = 0
 
 [features]
 debug = ["game_core/debug"]

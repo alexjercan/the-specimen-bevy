@@ -5,11 +5,13 @@ use bevy::{
         ButtonState, InputPlugin,
     },
     state::app::StatesPlugin,
+    ui_widgets::{SliderDragState, SliderValue, ValueChange},
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use game_assets::UiAssets;
-use game_settings::{GameSettings, SettingsDirty};
+use game_settings::{GameSettings, SettingsDirty, MAX_SENSITIVITY};
+use game_ui::SliderFill;
 use gameplay::{
     controller::{Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{Door, DoorPlugin, DoorRef, Escaped, FusePanel, LevelRoot, Room},
@@ -20,7 +22,7 @@ use super::{
     loading::LoadingScreen,
     main_menu::MainMenu,
     pause::PauseMenu,
-    settings::{SettingsAction, SettingsOverlay, Step},
+    settings::{SettingSlider, SettingsAction, SettingsOverlay, SliderReadout},
     GameState, MenuAction, MenuPlugin, PauseState,
 };
 use crate::{AppBuilder, CoreState};
@@ -44,10 +46,7 @@ fn app() -> App {
         EnhancedInputPlugin,
     ))
     .init_state::<CoreState>()
-    .insert_resource(UiAssets {
-        interact_key: Handle::default(),
-        font: Handle::default(),
-    })
+    .insert_resource(UiAssets::default())
     .add_plugins(PlayerControllerPlugin::default().without_camera())
     .add_plugins((DoorPlugin, MenuPlugin));
     app.world_mut()
@@ -128,10 +127,7 @@ fn settings_wait_for_ui_assets_during_loading() {
     assert_eq!(count::<With<LoadingScreen>>(&mut app), 1);
     assert_eq!(count::<With<SettingsOverlay>>(&mut app), 0);
 
-    app.insert_resource(UiAssets {
-        interact_key: Handle::default(),
-        font: Handle::default(),
-    });
+    app.insert_resource(UiAssets::default());
     ready(&mut app);
     let open = app
         .world_mut()
@@ -147,11 +143,7 @@ fn settings_wait_for_ui_assets_during_loading() {
     assert_eq!(count::<With<SettingsOverlay>>(&mut app), 1);
 }
 
-#[test]
-fn settings_open_from_menu_and_pause_and_change_values() {
-    let mut app = app();
-    ready(&mut app);
-    app.world_mut().resource_mut::<GameSettings>().master = 0.0;
+fn open_settings(app: &mut App) {
     let open = app
         .world_mut()
         .query::<(Entity, &SettingsAction)>()
@@ -163,21 +155,109 @@ fn settings_open_from_menu_and_pause_and_change_values() {
         .insert(Interaction::Pressed);
     app.update();
     app.update();
-    assert_eq!(count::<With<SettingsOverlay>>(&mut app), 1);
-    let change = app
-        .world_mut()
-        .query::<(Entity, &SettingsAction, &Step)>()
-        .iter(app.world())
-        .find_map(|(entity, action, step)| {
-            (*action == SettingsAction::Master && step.0 == 1).then_some(entity)
-        })
-        .unwrap();
+}
+
+fn slider(app: &mut App, field: SettingSlider) -> Entity {
     app.world_mut()
-        .entity_mut(change)
-        .insert(Interaction::Pressed);
+        .query::<(Entity, &SettingSlider)>()
+        .iter(app.world())
+        .find_map(|(entity, candidate)| (*candidate == field).then_some(entity))
+        .unwrap()
+}
+
+fn slide(app: &mut App, field: SettingSlider, value: f32) {
+    let source = slider(app, field);
+    app.world_mut().trigger(ValueChange {
+        source,
+        value,
+        is_final: false,
+    });
     app.update();
-    assert!((app.world().resource::<GameSettings>().master - 0.1).abs() < 0.001);
+}
+
+fn slider_value(app: &mut App, field: SettingSlider) -> f32 {
+    let entity = slider(app, field);
+    app.world().get::<SliderValue>(entity).unwrap().0
+}
+
+fn fill(app: &mut App, field: SettingSlider) -> f32 {
+    let entity = slider(app, field);
+    let child = app.world().get::<Children>(entity).unwrap()[0];
+    assert!(app.world().get::<SliderFill>(child).is_some());
+    match app.world().get::<Node>(child).unwrap().width {
+        Val::Percent(value) => value,
+        other => panic!("unexpected fill width {other:?}"),
+    }
+}
+
+fn readout(app: &mut App, field: SettingSlider) -> String {
+    app.world_mut()
+        .query::<(&SliderReadout, &Text)>()
+        .iter(app.world())
+        .find_map(|(readout, text)| (readout.0 == field).then(|| text.0.clone()))
+        .unwrap()
+}
+
+#[test]
+fn settings_sliders_change_persist_and_sync_in_menu_and_pause() {
+    let mut app = app();
+    ready(&mut app);
+    app.world_mut().resource_mut::<GameSettings>().master = 0.0;
+    open_settings(&mut app);
+    assert_eq!(count::<With<SettingsOverlay>>(&mut app), 1);
+    assert_eq!(count::<With<SettingSlider>>(&mut app), 4);
+    assert_eq!(slider_value(&mut app, SettingSlider::Master), 0.0);
+    assert_eq!(readout(&mut app, SettingSlider::Master), "0%");
+
+    slide(&mut app, SettingSlider::Master, 0.35);
+    assert!((app.world().resource::<GameSettings>().master - 0.35).abs() < 0.001);
     assert!(app.world().resource::<SettingsDirty>().0);
+    assert!((slider_value(&mut app, SettingSlider::Master) - 0.35).abs() < 0.001);
+    assert!((fill(&mut app, SettingSlider::Master) - 35.0).abs() < 0.01);
+    assert_eq!(readout(&mut app, SettingSlider::Master), "35%");
+
+    slide(&mut app, SettingSlider::Sfx, 1.7);
+    assert_eq!(app.world().resource::<GameSettings>().sfx, 1.0);
+    slide(&mut app, SettingSlider::Music, 0.5);
+    assert_eq!(app.world().resource::<GameSettings>().music, 0.5);
+    assert_eq!(readout(&mut app, SettingSlider::Music), "50%");
+    slide(&mut app, SettingSlider::Sensitivity, 1.0);
+    assert_eq!(
+        app.world().resource::<GameSettings>().mouse_sensitivity,
+        MAX_SENSITIVITY
+    );
+    assert_eq!(readout(&mut app, SettingSlider::Sensitivity), "5.0x");
+
+    app.world_mut().resource_mut::<SettingsDirty>().0 = false;
+    slide(&mut app, SettingSlider::Master, 0.35);
+    assert!(!app.world().resource::<SettingsDirty>().0);
+
+    let master = slider(&mut app, SettingSlider::Master);
+    app.world_mut()
+        .get_mut::<SliderDragState>(master)
+        .unwrap()
+        .dragging = true;
+    slide(&mut app, SettingSlider::Master, 0.4);
+    slide(&mut app, SettingSlider::Master, 0.45);
+    assert!((app.world().resource::<GameSettings>().master - 0.45).abs() < 0.001);
+    assert_eq!(readout(&mut app, SettingSlider::Master), "45%");
+    assert!(!app.world().resource::<SettingsDirty>().0);
+    app.world_mut()
+        .get_mut::<SliderDragState>(master)
+        .unwrap()
+        .dragging = false;
+    app.update();
+    assert!(app.world().resource::<SettingsDirty>().0);
+    slide(&mut app, SettingSlider::Master, 0.35);
+
+    app.world_mut().resource_mut::<GameSettings>().sfx = 0.2;
+    app.update();
+    app.update();
+    assert!((slider_value(&mut app, SettingSlider::Sfx) - 0.2).abs() < 0.001);
+    assert!((fill(&mut app, SettingSlider::Sfx) - 20.0).abs() < 0.01);
+    assert_eq!(readout(&mut app, SettingSlider::Sfx), "20%");
+    assert_eq!(app.world().resource::<GameSettings>().sfx, 0.2);
+
     let back = app
         .world_mut()
         .query::<(Entity, &SettingsAction)>()
@@ -189,24 +269,36 @@ fn settings_open_from_menu_and_pause_and_change_values() {
         .insert(Interaction::Pressed);
     app.update();
     assert_eq!(count::<With<SettingsOverlay>>(&mut app), 0);
+    assert_eq!(count::<With<SettingSlider>>(&mut app), 0);
+    assert_eq!(game_state(&app), GameState::MainMenu);
+
     press(&mut app, MenuAction::Play);
     escape(&mut app);
     assert_eq!(
         *app.world().resource::<State<PauseState>>().get(),
         PauseState::Paused
     );
-    let open = app
-        .world_mut()
-        .query::<(Entity, &SettingsAction)>()
-        .iter(app.world())
-        .find_map(|(entity, action)| (*action == SettingsAction::Open).then_some(entity))
-        .unwrap();
-    app.world_mut()
-        .entity_mut(open)
-        .insert(Interaction::Pressed);
-    app.update();
-    app.update();
+    open_settings(&mut app);
     assert_eq!(count::<With<SettingsOverlay>>(&mut app), 1);
+    assert!((slider_value(&mut app, SettingSlider::Master) - 0.35).abs() < 0.001);
+    assert_eq!(readout(&mut app, SettingSlider::Master), "35%");
+    assert!((slider_value(&mut app, SettingSlider::Sfx) - 0.2).abs() < 0.001);
+
+    slide(&mut app, SettingSlider::Master, 0.6);
+    assert!((app.world().resource::<GameSettings>().master - 0.6).abs() < 0.001);
+    assert!(app.world().resource::<SettingsDirty>().0);
+    assert_eq!(readout(&mut app, SettingSlider::Master), "60%");
+    assert_eq!(
+        *app.world().resource::<State<PauseState>>().get(),
+        PauseState::Paused
+    );
+
+    escape(&mut app);
+    assert_eq!(count::<With<SettingsOverlay>>(&mut app), 0);
+    assert_eq!(
+        *app.world().resource::<State<PauseState>>().get(),
+        PauseState::Paused
+    );
 }
 
 #[test]

@@ -1,12 +1,23 @@
 # Shipped asset sources
 
-## UI input prompt
+## UI input prompts
 
-`assets/ui/input-prompts/T_F_Key_Alt.png` is an unchanged copy of the Alt
-keyboard F key from JulioCacko's FREE Input Prompts Pack v1.4, sourced from
-the Nova Protocol asset bundle. Original source:
-https://juliocacko.itch.io/free-input-prompts . Licensed under CC0 1.0
-Universal (`credits/licenses/FREE-Input-Prompts_CC0-1.0.md`).
+The 97 PNGs in `assets/ui/input-prompts/` are unchanged copies of every
+individual keyboard and mouse glyph in the Alt style of JulioCacko's FREE Input
+Prompts Pack v1.4. They were copied on 2026-10-08 from the Nova Protocol
+checkout (`assets/input-prompts/keyboard/Alt/`, checkout commit `b0152d27`;
+Nova commit `0521b4af1` added the set). The pack's combined sprite sheet
+(`T_Keyboard_Mouse_Key_Alt_Sprite.png` and `.svg`), its other styles, and its
+gamepad sets were not copied. Copying the full keyboard and mouse Alt set was
+an Automode scope decision, not a direct personal selection.
+
+Original source: https://juliocacko.itch.io/free-input-prompts . Nova
+Protocol's `credits/CREDITS.md` records the pack as CC0 1.0 Universal; the
+license text is in `credits/licenses/FREE-Input-Prompts_CC0-1.0.md`. Source
+and license are taken from Nova's records and were not independently verified
+against the upstream page for this copy. `UiAssets::key_glyphs` in
+`crates/assets/src/lib.rs` preloads the 76 keyboard glyphs that its
+`KEY_GLYPHS` table maps. The mouse glyphs and spare alternates ship unused.
 
 The UI font source and its required license notice are recorded in
 `credits/CREDITS.md`. Recorded footstep and door source credits are there too;

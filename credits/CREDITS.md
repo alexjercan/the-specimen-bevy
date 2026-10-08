@@ -14,6 +14,17 @@ Nova Protocol asset bundle. Licensed under SIL Open Font License 1.1. The
 required copyright notice and license text are in
 `credits/licenses/Iosevka_OFL-1.1.md`. Distribute that file with the font.
 
+## FREE Input Prompts
+
+The keyboard and mouse key glyphs in `assets/ui/input-prompts/` are from the
+FREE Input Prompts Pack v1.4 by JulioCacko,
+https://juliocacko.itch.io/free-input-prompts , copied unchanged from the Nova
+Protocol asset bundle. Nova Protocol records the pack as CC0 1.0 Universal;
+this project has not independently verified that against the upstream page.
+CC0 does not require attribution; this is a courtesy credit. License text:
+`credits/licenses/FREE-Input-Prompts_CC0-1.0.md`. Copied files and source
+commits are in `credits/ASSET-SOURCES.md`.
+
 ## Recorded footsteps
 
 GboxMikeFozzy, [Footsteps](https://opengameart.org/content/footsteps-0),

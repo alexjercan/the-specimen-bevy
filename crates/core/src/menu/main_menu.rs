@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use game_assets::UiAssets;
+use game_assets::{FacilityAssets, UiAssets};
 use game_ui::{menu_button, text, theme};
 use gameplay::levels::{
     build_first_floor, Door, DoorRef, FusePanel, FusePickup, LevelRoot, Passage, Prop, Room,
 };
 
-use super::{release_cursor, screen_camera, GameState, MenuAction, TITLE};
+use super::{background, release_cursor, screen_camera, GameState, MenuAction, TITLE};
 
 #[derive(Component)]
 pub(super) struct MainMenu;
@@ -18,9 +18,17 @@ pub(super) fn plugin(app: &mut App) {
     .add_systems(OnEnter(GameState::Playing), enter_world);
 }
 
-fn spawn_main_menu(mut commands: Commands, assets: Res<UiAssets>) {
+fn spawn_main_menu(
+    mut commands: Commands,
+    assets: Res<UiAssets>,
+    facility: Option<Res<FacilityAssets>>,
+) {
     let font = assets.font.clone();
-    commands.spawn(screen_camera(GameState::MainMenu));
+    if facility.is_some() {
+        background::spawn(&mut commands);
+    } else {
+        commands.spawn(screen_camera(GameState::MainMenu));
+    }
     commands.spawn((
         MainMenu,
         Name::new("Main menu"),
@@ -34,7 +42,11 @@ fn spawn_main_menu(mut commands: Commands, assets: Res<UiAssets>) {
             row_gap: px(12),
             ..default()
         },
-        BackgroundColor(theme::BACKGROUND),
+        BackgroundColor(if facility.is_some() {
+            Color::srgba(0.002, 0.004, 0.008, 0.10)
+        } else {
+            theme::BACKGROUND
+        }),
         children![
             (
                 text(TITLE, 56.0, theme::TEXT, font.clone()),

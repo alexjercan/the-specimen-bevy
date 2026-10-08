@@ -30,3 +30,34 @@ fn declared_scenes_match_promoted_manifest() {
         assert!(modules.join(format!("{name}.glb")).is_file());
     }
 }
+
+#[test]
+fn declared_key_glyphs_match_mapping_and_exist() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
+    let declared: Vec<_> = include_str!("../src/lib.rs")
+        .lines()
+        .filter_map(|line| {
+            line.trim()
+                .trim_end_matches(',')
+                .strip_prefix("\"ui/input-prompts/")
+                .and_then(|path| path.strip_suffix(".png\""))
+        })
+        .collect();
+    let names: BTreeSet<_> = declared.iter().copied().collect();
+    let mapped: BTreeSet<_> = game_assets::KEY_GLYPHS
+        .iter()
+        .map(|(_, stem)| *stem)
+        .collect();
+    let keys: BTreeSet<_> = game_assets::KEY_GLYPHS
+        .iter()
+        .map(|(key, _)| *key)
+        .collect();
+    assert_eq!(declared.len(), names.len(), "duplicate key glyph path");
+    assert_eq!(keys.len(), game_assets::KEY_GLYPHS.len(), "duplicate key");
+    assert_eq!(names, mapped, "loader paths must match key glyph mapping");
+    for name in names {
+        assert!(root.join(format!("ui/input-prompts/{name}.png")).is_file());
+    }
+    assert_eq!(game_assets::key_glyph_stem("Digit4"), Some("T_3_Key_Alt-1"));
+    assert_eq!(game_assets::key_glyph_stem("Equal"), None);
+}

@@ -16,6 +16,7 @@ use super::{
     animation::DoorSwing,
     doors::{panel_transform, DoorPanel},
     fuses::{FusePickup, FUSE_LENGTH, FUSE_MODULE, FUSE_RADIUS},
+    menu_background::MenuBackground,
     module_names::{BOILER_UNIT, EXIT_SIGN, WALL_LAMP_RED},
     power::FacilityPower,
 };
@@ -207,7 +208,8 @@ fn render_props(
 fn attach_prop_glow(
     ready: On<WorldInstanceReady>,
     roots: Query<(Option<&LightEffect>, &ChildOf)>,
-    props: Query<&Prop>,
+    props: Query<(&Prop, Option<&ChildOf>)>,
+    menu_roots: Query<(), With<MenuBackground>>,
     children: Query<&Children>,
     surfaces: Query<(&GltfMaterialName, &MeshMaterial3d<StandardMaterial>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -216,10 +218,11 @@ fn attach_prop_glow(
     let Ok((effect, parent)) = roots.get(ready.entity) else {
         return;
     };
-    let Ok(prop) = props.get(parent.parent()) else {
+    let Ok((prop, root)) = props.get(parent.parent()) else {
         return;
     };
-    let needs_power = needs_mains_power(&prop.0);
+    let needs_power =
+        needs_mains_power(&prop.0) && !root.is_some_and(|root| menu_roots.contains(root.parent()));
     for entity in children.iter_descendants(ready.entity) {
         let Ok((name, material)) = surfaces.get(entity) else {
             continue;
@@ -245,7 +248,8 @@ fn attach_prop_glow(
 fn animate_lights(
     time: Res<Time>,
     power: Option<Res<FacilityPower>>,
-    props: Query<&Prop>,
+    props: Query<(&Prop, Option<&ChildOf>)>,
+    menu_roots: Query<(), With<MenuBackground>>,
     mut lights: Query<(
         Option<&LightEffect>,
         &LightIntensity,
@@ -255,9 +259,10 @@ fn animate_lights(
 ) {
     for (effect, base, parent, mut light) in &mut lights {
         let powered = power.as_ref().is_none_or(|power| power.on)
-            || props
-                .get(parent.parent())
-                .is_ok_and(|prop| !needs_mains_power(&prop.0));
+            || props.get(parent.parent()).is_ok_and(|(prop, root)| {
+                !needs_mains_power(&prop.0)
+                    || root.is_some_and(|root| menu_roots.contains(root.parent()))
+            });
         light.intensity = if powered {
             base.0 * effect.map_or(1.0, |effect| effect.factor(time.elapsed_secs()))
         } else {

@@ -3,6 +3,8 @@ mod menu;
 
 use std::time::Duration;
 
+#[cfg(feature = "debug")]
+use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 use bevy::{
     app::ScheduleRunnerPlugin,
     input::InputPlugin,
@@ -14,12 +16,18 @@ use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_rand::prelude::{ChaCha8Rng, EntropyPlugin};
 use game_assets::GameAssetsState;
 use game_settings::{GameSettings, GameSettingsPlugin, GraphicsQuality};
+#[cfg(feature = "debug")]
+use gameplay::controller::PlayerControlsEnabled;
 use gameplay::{
     controller::PlayerController,
     levels::{build_first_floor, FacilityPower, FuseSeed, LightIntensity},
 };
 
 pub use menu::{GameState, MenuPlugin, PauseState};
+
+#[cfg(all(test, feature = "debug"))]
+#[path = "../tests/unit/debug_controls.rs"]
+mod debug_controls_tests;
 
 const LOG_FILTER: &str = "wgpu=error,naga=warn,bevy_ecs=warn,bevy_time=warn";
 const EYE_HEIGHT: f32 = 1.6;
@@ -150,7 +158,8 @@ impl AppBuilder {
                 app.add_plugins(transport::RenderedTransportPlugin);
             }
             #[cfg(feature = "debug")]
-            app.add_plugins(debug::DebugPlugin);
+            app.add_plugins(debug::DebugPlugin)
+                .add_systems(PostUpdate, sync_debug_controls);
             if self.main_plugin.is_none() && !self.transport {
                 app.insert_resource(GlobalAmbientLight {
                     color: Color::WHITE,
@@ -188,6 +197,27 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_controller)
             .add_systems(OnEnter(CoreState::Ready), build_first_floor);
+    }
+}
+
+#[cfg(feature = "debug")]
+fn sync_debug_controls(
+    debug: Res<debug::DebugSettings>,
+    pause: Option<Res<State<PauseState>>>,
+    players: Query<(), With<PlayerController>>,
+    mut controls: ResMut<PlayerControlsEnabled>,
+    mut cursors: Query<&mut CursorOptions, With<PrimaryWindow>>,
+) {
+    let paused = pause.is_some_and(|state| *state.get() == PauseState::Paused);
+    controls.0 = !debug.inspector && !paused;
+    let capture = controls.0 && !players.is_empty();
+    for mut cursor in &mut cursors {
+        cursor.visible = !capture;
+        cursor.grab_mode = if capture {
+            CursorGrabMode::Locked
+        } else {
+            CursorGrabMode::None
+        };
     }
 }
 

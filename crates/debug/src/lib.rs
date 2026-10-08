@@ -1,11 +1,19 @@
+use bevy::camera::RenderTarget;
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::pbr::wireframe::{WireframeConfig, WireframePlugin};
 use bevy::pbr::PbrPlugin;
 use bevy::prelude::*;
 use bevy::winit::WinitPlugin;
-use bevy_egui::{egui, EguiContext, EguiPlugin, EguiPrimaryContextPass, PrimaryEguiContext};
+use bevy_egui::{
+    egui, EguiContext, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin,
+    EguiPrimaryContextPass, PrimaryEguiContext,
+};
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
+
+#[cfg(test)]
+#[path = "../tests/unit/context.rs"]
+mod context_tests;
 
 pub const INSPECTOR_TOGGLE_KEY: KeyCode = KeyCode::F12;
 
@@ -32,10 +40,15 @@ impl Plugin for DebugPlugin {
             if !app.is_plugin_added::<EguiPlugin>() {
                 app.add_plugins(EguiPlugin::default());
             }
-            app.add_plugins(DefaultInspectorConfigPlugin).add_systems(
-                EguiPrimaryContextPass,
-                inspector_ui.run_if(|settings: Res<DebugSettings>| settings.inspector),
-            );
+            app.world_mut()
+                .resource_mut::<EguiGlobalSettings>()
+                .auto_create_primary_context = false;
+            app.add_plugins(DefaultInspectorConfigPlugin)
+                .add_systems(Update, keep_inspector_on_window_camera)
+                .add_systems(
+                    EguiPrimaryContextPass,
+                    inspector_ui.run_if(|settings: Res<DebugSettings>| settings.inspector),
+                );
         }
         app.init_resource::<DebugSettings>()
             .add_systems(Startup, spawn_fps_text)
@@ -95,6 +108,34 @@ fn toggle_inspector(mut settings: ResMut<DebugSettings>) {
 fn sync_wireframe(settings: Res<DebugSettings>, mut config: ResMut<WireframeConfig>) {
     if config.global != settings.wireframe {
         config.global = settings.wireframe;
+    }
+}
+
+fn keep_inspector_on_window_camera(
+    mut commands: Commands,
+    cameras: Query<(Entity, &Camera, &RenderTarget, Has<PrimaryEguiContext>)>,
+) {
+    let primary = cameras
+        .iter()
+        .filter(|(_, camera, target, _)| {
+            camera.is_active && matches!(target, RenderTarget::Window(_))
+        })
+        .max_by_key(|(_, camera, _, _)| camera.order)
+        .map(|(entity, _, _, _)| entity);
+    for (entity, _, _, has_context) in &cameras {
+        if has_context && Some(entity) != primary {
+            commands
+                .entity(entity)
+                .remove::<(PrimaryEguiContext, EguiContext, EguiMultipassSchedule)>();
+        }
+    }
+    if let Some(primary) = primary {
+        if cameras
+            .get(primary)
+            .is_ok_and(|(_, _, _, has_context)| !has_context)
+        {
+            commands.entity(primary).insert(PrimaryEguiContext);
+        }
     }
 }
 

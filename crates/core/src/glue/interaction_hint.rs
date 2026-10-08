@@ -55,7 +55,7 @@ fn spawn_hint(mut commands: Commands, assets: Res<UiAssets>) {
         .with_children(|hint| {
             hint.spawn((
                 HintKeyImage,
-                ImageNode::new(assets.interact_key.clone()),
+                ImageNode::new(assets.key_glyph("KeyF").unwrap_or_default()),
                 Node {
                     width: px(28),
                     height: px(28),
@@ -166,10 +166,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
         app.init_state::<GameAssetsState>()
-            .insert_resource(UiAssets {
-                interact_key: Handle::default(),
-                font: Handle::default(),
-            })
+            .insert_resource(UiAssets::default())
             .add_plugins(InteractionHintPlugin);
         app.world_mut()
             .resource_mut::<NextState<GameAssetsState>>()

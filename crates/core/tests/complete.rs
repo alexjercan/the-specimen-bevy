@@ -24,10 +24,7 @@ fn app() -> App {
         EnhancedInputPlugin,
     ))
     .init_state::<CoreState>()
-    .insert_resource(UiAssets {
-        interact_key: Handle::default(),
-        font: Handle::default(),
-    })
+    .insert_resource(UiAssets::default())
     .add_plugins(PlayerControllerPlugin::default().without_camera())
     .add_plugins((
         DoorPlugin,

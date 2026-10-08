@@ -5,6 +5,7 @@ use super::{
     Prop, GLOWING_MATERIALS,
 };
 use crate::levels::{
+    menu_background::MenuBackground,
     module_names::{BOILER_UNIT, EXIT_SIGN, WALL_LAMP_RED},
     power::FacilityPower,
 };
@@ -84,6 +85,35 @@ fn amber_and_cool_ceiling_materials_are_power_controlled() {
             emissive
         );
     }
+}
+
+#[test]
+fn menu_lamp_flickers_even_when_previous_run_ended_in_blackout() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_systems(Update, animate_lights);
+    let root = app
+        .world_mut()
+        .spawn((MenuBackground, Transform::IDENTITY))
+        .id();
+    let lamp = app
+        .world_mut()
+        .spawn((Prop("ceiling_light_amber".into()), ChildOf(root)))
+        .id();
+    let bulb = app
+        .world_mut()
+        .spawn((
+            PointLight::default(),
+            LightIntensity(100.0),
+            LightEffect::Flicker(0.7),
+            ChildOf(lamp),
+        ))
+        .id();
+    let mut power = FacilityPower::new(3);
+    power.outage();
+    app.insert_resource(power);
+    app.update();
+    assert!(app.world().get::<PointLight>(bulb).unwrap().intensity > 0.0);
 }
 
 #[test]

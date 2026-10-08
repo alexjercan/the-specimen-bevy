@@ -98,6 +98,7 @@ pub struct PropCollider {
 #[derive(Component, Clone, Copy)]
 pub enum LightEffect {
     Flicker(f32),
+    FlickerStrong(f32),
     Pulse,
 }
 
@@ -122,6 +123,16 @@ impl LightEffect {
                     0.06
                 } else if s > 0.9 {
                     0.5
+                } else {
+                    1.0
+                }
+            }
+            Self::FlickerStrong(phase) => {
+                let s = (t * 2.3 + phase).sin() + 0.65 * (t * 7.7 + phase * 2.0).sin();
+                if s > 0.5 {
+                    0.03
+                } else if s > 0.1 {
+                    0.35
                 } else {
                     1.0
                 }

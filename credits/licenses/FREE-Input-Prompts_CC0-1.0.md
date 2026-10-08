@@ -1,16 +1,17 @@
 # FREE Input Prompts - CC0 1.0 Universal
 
-The key/mouse glyph images under `assets/input-prompts/keyboard/Alt/` are from
+The key/mouse glyph images under `assets/ui/input-prompts/` are from
 the "FREE Input Prompts Pack - Icons for PC and Consoles" v1.4 by JulioCacko
 ([itch.io](https://juliocacko.itch.io/free-input-prompts),
 [Fab](https://fab.com/s/c8a60c1330f4)), released into the public domain under
 the Creative Commons CC0 1.0 Universal Public Domain Dedication. CC0 imposes no
 attribution requirement; this entry is a courtesy credit kept for provenance.
 
-Only the Keyboard_Mouse `Alt` style ships with this project; the pack's other
-styles (Dark, White, Vintage, Retro, Blanks) and the gamepad sets were not
-imported. CC0 waives copyright, not trademark: the key/mouse glyphs carry no
-console-hardware trademarks (the not-imported gamepad face-button sets would).
+Only the individual Keyboard_Mouse `Alt` glyphs ship with this project; the
+pack's Alt sprite sheet, other styles (Dark, White, Vintage, Retro, Blanks)
+and the gamepad sets were not imported. CC0 waives copyright, not trademark:
+the key/mouse glyphs carry no console-hardware trademarks (the not-imported
+gamepad face-button sets would).
 
 ---
 
