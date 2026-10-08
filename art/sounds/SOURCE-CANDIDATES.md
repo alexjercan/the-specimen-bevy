@@ -47,6 +47,23 @@ without a separate listening decision.
 | `ui.hint.appear` | `Jummit`, [Soft UI Button Click](https://freesound.org/people/Jummit/sounds/528561/) | Page's download filename: `528561__jummit__soft-ui-button-click.ogg`; [preview](https://cdn.freesound.org/previews/528/528561_10360410-lq.ogg) | `Creative Commons 0`; CC0 1.0 deed/legal code linked from item page | Candidate faint non-spatial tick when the gameplay `OPEN` / `CLOSE` / `PICK UP FUSE` hint first appears or changes target. Page calls it a soft sci-fi button/hover sound; do not add it to menu hover/focus, which already has approved cues. |
 | `ui.fuse.complete` | `CogFireStudios`, [Positive Blip Effect](https://freesound.org/people/CogFireStudios/sounds/531512/) | Page's download filename: `531512__cogfirestudios__positive-blip-effect.wav`; [preview](https://cdn.freesound.org/previews/531/531512_7614679-lq.ogg) | `Creative Commons 0`; CC0 1.0 deed/legal code linked from item page | Optional candidate for a restrained all-fuses-ready confirmation, only if the event does not already use an approved UI cue. Page title is the only sound-content description; duration is 3.00 s. Do not assume it is a short blip or use it as a reward fanfare without audition. |
 
+## Boiler breaker and reset leads (task #181)
+
+OpenGameArt pages inspected on 2026-10-08. These are provisional mechanical-switch
+sources, not confirmed field recordings or approved replacements. Neither is in
+the sound catalog or runtime assets. Temporary files were inspected outside the
+repository; no source audio was added here.
+
+| Cue to review | Item and creator | Inspected contents | Displayed rights and limits |
+| --- | --- | --- | --- |
+| Breaker trip | [SFX - Circuit breaker](https://opengameart.org/content/sfx-circuit-breaker), CleytonKauffman | The linked [Circuit Breaker.zip](https://opengameart.org/sites/default/files/Circuit%20Breaker.zip) contains `switch off.wav` (44.1 kHz stereo PCM, 0.92 s) and `switch on.wav`. Page describes breaker ON/OFF, but does not state recording method. The page requests `SFX by Cleyton Kauffman - https://soundcloud.com/cleytonkauffman`. | Page displays CC0. Archive has no bundled license or source provenance; author ownership and whether this is a recording remain unverified. Audition `switch off.wav` for a weighty breaker trip. |
+| Boiler reset control | [Stove switch](https://opengameart.org/content/stove-switch), TinyWorlds | Page describes a stove switch and links `switch_strength_stove_01.ogg` (Vorbis, 44.1 kHz stereo, 0.51 s) and `turn_stove_on_01_0.ogg`. Only the first linked file was inspected technically. | Page displays CC0; no recording-method or upstream provenance statement was found. Audition as a possible physical control click, not a confirmed boiler reset. |
+
+Neither page's displayed license label establishes source rights. Inspect the
+remaining original files, confirm provenance, and get listening approval before
+adding any edit to the review catalog or runtime set. Existing approved
+`power-down` and `restart` cues remain unchanged.
+
 ## Next review
 
 Audition only candidates that still fill a cue gap. Confirm the full file,

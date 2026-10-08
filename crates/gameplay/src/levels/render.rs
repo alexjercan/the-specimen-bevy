@@ -21,7 +21,13 @@ use super::{
 };
 
 const TILE: f32 = 2.5;
-const GLOWING_MATERIALS: [&str; 4] = ["lamp_cool", "lamp_red", "lamp_fire", "specimen_fluid"];
+const GLOWING_MATERIALS: [&str; 5] = [
+    "lamp_cool",
+    "lamp_amber",
+    "lamp_red",
+    "lamp_fire",
+    "specimen_fluid",
+];
 const FUSE_OUTLINE_WIDTH: f32 = 0.008;
 const FUSE_OUTLINE: Color = Color::srgb(1.0, 0.72, 0.22);
 const FUSE_PLACEHOLDER: Color = Color::srgb(0.78, 0.74, 0.64);
@@ -124,8 +130,8 @@ fn render_fuses(
         return;
     }
     let module = assets.module(FUSE_MODULE);
-    let shape = Transform::from_xyz(0.0, FUSE_RADIUS, 0.0)
-        .with_rotation(Quat::from_rotation_z(FRAC_PI_2));
+    let shape =
+        Transform::from_xyz(0.0, FUSE_RADIUS, 0.0).with_rotation(Quat::from_rotation_z(FRAC_PI_2));
     let placeholder = match module {
         Some(_) => None,
         None => {
@@ -240,7 +246,12 @@ fn animate_lights(
     time: Res<Time>,
     power: Option<Res<FacilityPower>>,
     props: Query<&Prop>,
-    mut lights: Query<(Option<&LightEffect>, &LightIntensity, &ChildOf, &mut PointLight)>,
+    mut lights: Query<(
+        Option<&LightEffect>,
+        &LightIntensity,
+        &ChildOf,
+        &mut PointLight,
+    )>,
 ) {
     for (effect, base, parent, mut light) in &mut lights {
         let powered = power.as_ref().is_none_or(|power| power.on)
@@ -267,7 +278,9 @@ fn animate_surfaces(
                 * if surface.needs_power && power.as_ref().is_some_and(|power| !power.on) {
                     0.0
                 } else {
-                    surface.effect.map_or(1.0, |effect| effect.factor(time.elapsed_secs()))
+                    surface
+                        .effect
+                        .map_or(1.0, |effect| effect.factor(time.elapsed_secs()))
                 };
         }
     }

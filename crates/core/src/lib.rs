@@ -104,6 +104,8 @@ impl AppBuilder {
                 gameplay::levels::HidingPlugin,
                 gameplay::levels::ObjectivePlugin,
                 gameplay::levels::FacilityPowerPlugin,
+                gameplay::levels::PropSoundsPlugin,
+                gameplay::levels::PropLightsPlugin,
             ));
             if self.transport {
                 app.add_plugins(transport::TransportPlugin);
@@ -132,6 +134,8 @@ impl AppBuilder {
                     gameplay::levels::HidingPlugin,
                     gameplay::levels::ObjectivePlugin,
                     gameplay::levels::FacilityPowerPlugin,
+                    gameplay::levels::PropSoundsPlugin,
+                    gameplay::levels::PropLightsPlugin,
                 ))
                 .add_plugins((
                     glue::InteractionHintPlugin,

@@ -2,10 +2,12 @@ use std::time::Duration;
 
 use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
+use game_audio::{PlaySound, Sound};
 use gameplay::{
     controller::{
         PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, SprintExhausted, Stamina,
-        RUN_SPEED, SPRINT_DRAIN_SECONDS, SPRINT_RECHARGE_SECONDS, SPRINT_RESTART_CHARGE, WALK_SPEED,
+        RUN_SPEED, SPRINT_DRAIN_SECONDS, SPRINT_RECHARGE_SECONDS, SPRINT_RESTART_CHARGE,
+        WALK_SPEED,
     },
     levels::{Hidden, HidingMotion, HidingPhase},
 };
@@ -13,7 +15,9 @@ use gameplay::{
 fn app() -> (App, Entity) {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin))
-        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)))
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            100,
+        )))
         .add_plugins(PlayerControllerPlugin::default().without_camera());
     app.finish();
     app.cleanup();
@@ -92,7 +96,10 @@ fn hiding_recharges_stamina_even_when_movement_and_shift_are_held() {
     let stamina = app.world().get::<Stamina>(player).unwrap();
     assert!((stamina.charge - (0.25 + 0.1 / SPRINT_RECHARGE_SECONDS)).abs() < 0.001);
     assert!(!stamina.sprinting);
-    assert_eq!(app.world().get::<Transform>(player).unwrap().translation, before);
+    assert_eq!(
+        app.world().get::<Transform>(player).unwrap().translation,
+        before
+    );
 
     app.world_mut().get_mut::<Hidden>(player).unwrap().phase =
         HidingPhase::Entering(HidingMotion {
@@ -104,7 +111,10 @@ fn hiding_recharges_stamina_even_when_movement_and_shift_are_held() {
     let stamina = app.world().get::<Stamina>(player).unwrap();
     assert!((stamina.charge - (0.25 + 0.2 / SPRINT_RECHARGE_SECONDS)).abs() < 0.001);
     assert!(!stamina.sprinting);
-    assert_eq!(app.world().get::<Transform>(player).unwrap().translation, before);
+    assert_eq!(
+        app.world().get::<Transform>(player).unwrap().translation,
+        before
+    );
 }
 
 #[test]
@@ -135,11 +145,18 @@ fn shift_falls_back_to_walk_when_exhausted_and_emits_one_event() {
         .collect();
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].position.y, 1.6);
+    let cues: Vec<_> = app
+        .world_mut()
+        .resource_mut::<Messages<PlaySound>>()
+        .drain()
+        .collect();
+    assert_eq!(cues.len(), 1);
+    assert_eq!(cues[0].sound, Sound::SprintExhausted);
+    assert_eq!(cues[0].position, None);
     let z = app.world().get::<Transform>(player).unwrap().translation.z;
     app.update();
     assert!(
-        (app.world().get::<Transform>(player).unwrap().translation.z - z + WALK_SPEED * 0.1)
-            .abs()
+        (app.world().get::<Transform>(player).unwrap().translation.z - z + WALK_SPEED * 0.1).abs()
             < 0.01
     );
     assert!(app

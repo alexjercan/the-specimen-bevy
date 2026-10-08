@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
 use bevy::prelude::*;
-use gameplay::levels::{build_first_floor, LightEffect, LightIntensity, Prop, Room};
+use gameplay::levels::{
+    build_first_floor, LightEffect, LightIntensity, Prop, PropLightsPlugin, Room,
+};
 
 #[test]
 fn first_floor_props_and_lights_are_linked() {
     let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
+    app.add_plugins((MinimalPlugins, PropLightsPlugin))
         .add_systems(Startup, build_first_floor);
     app.update();
 

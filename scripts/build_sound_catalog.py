@@ -25,6 +25,7 @@ APPROVED_FILES = {
     *{f"art/sounds/generated/amb/{name}.wav" for name in (
         "roomtone/plain", "boiler/rumble", "roomtone/conduit", "boiler/tick",
         "vent/hvac", "tank/hum", "light/cool-buzz", "pressure/low",
+        "boiler/power-down", "boiler/restart",
     )},
     *{f"art/sounds/generated/ui/fuse/{cue}.wav" for cue in (
         "slot-1", "slot-2", "slot-3", "complete",
@@ -38,7 +39,7 @@ APPROVED_FILES = {
 }
 REVIEW_FILES = {
     f"art/sounds/generated/candidates/amb/boiler/{cue}.wav" for cue in (
-        "breaker-trip", "power-down", "reset", "restart",
+        "breaker-trip", "reset",
     )
 }
 SOURCE_FILES = {

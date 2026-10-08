@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use game_assets::UiAssets;
 use game_ui::{menu_button, text, theme};
-use gameplay::levels::{build_first_floor, Door, FusePickup, LevelRoot, Passage, Prop, Room};
+use gameplay::levels::{
+    build_first_floor, Door, DoorRef, FusePanel, FusePickup, LevelRoot, Passage, Prop, Room,
+};
 
 use super::{release_cursor, screen_camera, GameState, MenuAction, TITLE};
 
@@ -72,20 +74,19 @@ fn enter_world(world: &mut World) {
         return;
     }
     let roots: Vec<Entity> = world
-        .query_filtered::<
-            Entity,
-            (
-                Without<ChildOf>,
-                Or<(
-                    With<Room>,
-                    With<LevelRoot>,
-                    With<Door>,
-                    With<Passage>,
-                    With<Prop>,
-                    With<FusePickup>,
-                )>,
-            ),
-        >()
+        .query_filtered::<Entity, (
+            Without<ChildOf>,
+            Or<(
+                With<Room>,
+                With<LevelRoot>,
+                With<Door>,
+                With<DoorRef>,
+                With<Passage>,
+                With<Prop>,
+                With<FusePanel>,
+                With<FusePickup>,
+            )>,
+        )>()
         .iter(world)
         .collect();
     for entity in roots {

@@ -2,12 +2,12 @@ use std::{collections::HashSet, time::Duration};
 
 use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
+use game_audio::{PlaySound, Sound};
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{
         build_first_floor, select_fuse_slots, Door, DoorPlugin, DoorState, FuseInventory,
-        FusePickup, FusePlugin, FuseSeed, GameplaySound, GameplaySoundKind, Prop, Room, FUSE_COUNT,
-        FUSE_TABLES,
+        FusePickup, FusePlugin, FuseSeed, Prop, Room, FUSE_COUNT, FUSE_TABLES,
     },
 };
 
@@ -191,11 +191,12 @@ fn successive_pickups_emit_distinct_slot_cues() {
         press_f(&mut app);
         let cues: Vec<_> = app
             .world_mut()
-            .resource_mut::<Messages<GameplaySound>>()
+            .resource_mut::<Messages<PlaySound>>()
             .drain()
             .collect();
         assert_eq!(cues.len(), 1);
-        assert_eq!(cues[0].kind, GameplaySoundKind::FuseSlot(slot));
+        assert_eq!(cues[0].sound, Sound::FuseSlot(slot));
+        assert_eq!(cues[0].position, None);
         assert_eq!(inventory(&app, player), slot);
     }
 }

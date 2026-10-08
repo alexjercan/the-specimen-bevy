@@ -10,8 +10,8 @@ use game_core::{CoreState, GameState, MenuPlugin};
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin},
     levels::{
-        DoorLock, DoorPlugin, Escaped, ExitDoor, FuseInventory, FusePanel, FusePlugin,
-        InstallFuses, ObjectivePlugin, Room, FUSE_COUNT,
+        DoorLock, DoorPlugin, Escaped, ExitDoor, FUSE_COUNT, FacilityPower, FacilityPowerPlugin,
+        FuseInventory, FusePanel, FusePlugin, HidingPlugin, InstallFuses, ObjectivePlugin, Room,
     },
 };
 
@@ -29,7 +29,14 @@ fn app() -> App {
         font: Handle::default(),
     })
     .add_plugins(PlayerControllerPlugin::default().without_camera())
-    .add_plugins((DoorPlugin, FusePlugin, ObjectivePlugin, MenuPlugin));
+    .add_plugins((
+        DoorPlugin,
+        FusePlugin,
+        HidingPlugin,
+        ObjectivePlugin,
+        FacilityPowerPlugin,
+        MenuPlugin,
+    ));
     app.world_mut()
         .spawn((Window::default(), CursorOptions::default(), PrimaryWindow));
     app.finish();
@@ -96,6 +103,8 @@ fn escape(app: &mut App) {
 
 fn assert_fresh_run(app: &mut App) {
     assert_eq!(game_state(app), GameState::Playing);
+    let power = app.world().resource::<FacilityPower>();
+    assert!(power.on && power.outage_pending);
     assert_eq!(count::<With<Room>>(app), 18);
     let player = single::<With<PlayerController>>(app);
     assert_eq!(app.world().get::<FuseInventory>(player).unwrap().0, 0);
@@ -140,6 +149,13 @@ fn escaping_shows_the_completion_screen_and_replay_starts_a_fresh_run() {
     assert_eq!(game_state(&app), GameState::MainMenu);
     assert_eq!(count::<With<Camera2d>>(&mut app), 1);
 
+    press(&mut app, "Play button");
+    assert_fresh_run(&mut app);
+    escape(&mut app);
+    assert_eq!(game_state(&app), GameState::Complete);
+    assert_eq!(count::<With<Room>>(&mut app), 0);
+    assert_eq!(count::<With<PlayerController>>(&mut app), 0);
+    press(&mut app, "Main menu button");
     press(&mut app, "Play button");
     assert_fresh_run(&mut app);
     app.update();

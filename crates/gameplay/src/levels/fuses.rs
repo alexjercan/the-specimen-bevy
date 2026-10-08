@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use bevy_rand::prelude::ChaCha8Rng;
+use game_audio::{PlaySound, Sound};
 use rand_core::{Rng, SeedableRng};
 
 use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
@@ -9,7 +10,6 @@ use super::{
     doors::{DoorLock, ExitDoor, INTERACT_RANGE},
     hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
-    sounds::{GameplaySound, GameplaySoundKind},
 };
 
 pub const FUSE_COUNT: usize = 3;
@@ -48,7 +48,7 @@ pub struct FusePlugin;
 impl Plugin for FusePlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<InstallFuses>()
-            .add_message::<GameplaySound>()
+            .add_message::<PlaySound>()
             .add_observer(attach_inventory)
             .add_observer(use_fuses)
             .add_systems(Update, install_fuses);
@@ -70,7 +70,7 @@ fn use_fuses(
         With<PlayerController>,
     >,
     mut installs: MessageWriter<InstallFuses>,
-    mut sounds: MessageWriter<GameplaySound>,
+    mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
 ) {
     if !enabled.0 {
@@ -85,11 +85,9 @@ fn use_fuses(
                 }
                 taken.push(fuse);
                 inventory.0 += 1;
-                sounds.write(GameplaySound {
-                    kind: GameplaySoundKind::FuseSlot(inventory.0),
-                    position: targets
-                        .anchor(InteractTarget::Fuse(fuse))
-                        .unwrap_or(player.translation),
+                sounds.write(PlaySound {
+                    sound: Sound::FuseSlot(inventory.0),
+                    position: None,
                 });
                 commands.entity(fuse).despawn();
             }
@@ -99,7 +97,12 @@ fn use_fuses(
                     panel,
                 });
             }
-            Some(InteractTarget::Door(_) | InteractTarget::Boiler(_) | InteractTarget::Hide(_) | InteractTarget::Leave(_))
+            Some(
+                InteractTarget::Door(_)
+                | InteractTarget::Boiler(_)
+                | InteractTarget::Hide(_)
+                | InteractTarget::Leave(_),
+            )
             | None => {}
         }
     }
@@ -108,13 +111,13 @@ fn use_fuses(
 fn install_fuses(
     mut installs: MessageReader<InstallFuses>,
     mut players: Query<&mut FuseInventory>,
-    mut panels: Query<(&mut FusePanel, &Transform)>,
+    mut panels: Query<&mut FusePanel>,
     exits: Query<Entity, (With<ExitDoor>, With<DoorLock>)>,
-    mut sounds: MessageWriter<GameplaySound>,
+    mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
 ) {
     for install in installs.read() {
-        let (Ok(mut inventory), Ok((mut panel, position))) = (
+        let (Ok(mut inventory), Ok(mut panel)) = (
             players.get_mut(install.player),
             panels.get_mut(install.panel),
         ) else {
@@ -125,9 +128,9 @@ fn install_fuses(
         }
         inventory.0 -= FUSE_COUNT;
         panel.installed = FUSE_COUNT;
-        sounds.write(GameplaySound {
-            kind: GameplaySoundKind::FuseComplete,
-            position: position.translation,
+        sounds.write(PlaySound {
+            sound: Sound::FuseComplete,
+            position: None,
         });
         for door in &exits {
             commands.entity(door).remove::<DoorLock>();

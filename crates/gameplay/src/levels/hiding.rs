@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
+use game_audio::{PlaySourceSound, Sound, SourceSounds};
 
 use crate::controller::player::{
     apply_input, Interact, PlayerController, PlayerControlsEnabled, PlayerInput,
@@ -11,7 +12,6 @@ use super::{
     fuses::FuseInventory,
     interaction::{InteractTarget, InteractTargets},
     module_names::{CONCEPT_LOCKER, CONCEPT_TABLE},
-    sounds::{GameplaySound, GameplaySoundKind},
 };
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,9 +55,10 @@ pub struct HidingPlugin;
 impl Plugin for HidingPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<UseHidingSpot>()
-            .add_message::<GameplaySound>()
+            .add_message::<PlaySourceSound>()
             .add_observer(use_hiding_spots)
             .add_observer(attach_prop_hiding)
+            .add_observer(attach_hiding_sounds)
             .add_systems(
                 Update,
                 (toggle_hiding, animate_hiding).chain().before(apply_input),
@@ -72,6 +73,27 @@ fn attach_prop_hiding(added: On<Add, Prop>, props: Query<&Prop>, mut commands: C
         _ => return,
     };
     commands.entity(added.entity).insert(spot);
+}
+
+fn attach_hiding_sounds(
+    added: On<Add, HidingSpot>,
+    spots: Query<&HidingSpot>,
+    mut commands: Commands,
+) {
+    let Ok(spot) = spots.get(added.entity) else {
+        return;
+    };
+    let sounds = match spot {
+        HidingSpot::Locker => SourceSounds(vec![
+            (Sound::LockerOpen, Vec3::Y),
+            (Sound::LockerClose, Vec3::Y),
+        ]),
+        HidingSpot::Table => SourceSounds(vec![
+            (Sound::TableEnter, Vec3::Y * 0.4),
+            (Sound::TableLeave, Vec3::Y * 0.4),
+        ]),
+    };
+    commands.entity(added.entity).insert(sounds);
 }
 
 impl Hidden {
@@ -137,12 +159,12 @@ impl HidingSpot {
         Quat::from_rotation_y(yaw)
     }
 
-    fn sound(self, entering: bool) -> GameplaySoundKind {
+    fn sound(self, entering: bool) -> Sound {
         match (self, entering) {
-            (Self::Locker, true) => GameplaySoundKind::LockerOpen,
-            (Self::Locker, false) => GameplaySoundKind::LockerClose,
-            (Self::Table, true) => GameplaySoundKind::TableEnter,
-            (Self::Table, false) => GameplaySoundKind::TableLeave,
+            (Self::Locker, true) => Sound::LockerOpen,
+            (Self::Locker, false) => Sound::LockerClose,
+            (Self::Table, true) => Sound::TableEnter,
+            (Self::Table, false) => Sound::TableLeave,
         }
     }
 
@@ -187,9 +209,9 @@ fn use_hiding_spots(
 
 fn toggle_hiding(
     mut uses: MessageReader<UseHidingSpot>,
-    spots: Query<(&HidingSpot, &Transform), Without<PlayerController>>,
+    spots: Query<&HidingSpot, Without<PlayerController>>,
     mut players: Query<(&Transform, &mut PlayerInput, Option<&mut Hidden>), With<PlayerController>>,
-    mut sounds: MessageWriter<GameplaySound>,
+    mut sounds: MessageWriter<PlaySourceSound>,
     mut commands: Commands,
 ) {
     let mut occupied: Vec<Entity> = players
@@ -197,7 +219,7 @@ fn toggle_hiding(
         .filter_map(|(_, _, hidden)| hidden.map(|hidden| hidden.spot))
         .collect();
     for &UseHidingSpot { player, spot } in uses.read() {
-        let Ok((kind, place)) = spots.get(spot) else {
+        let Ok(kind) = spots.get(spot) else {
             continue;
         };
         let Ok((transform, mut input, hidden)) = players.get_mut(player) else {
@@ -213,9 +235,9 @@ fn toggle_hiding(
                     }
                 };
                 hidden.phase = phase;
-                sounds.write(GameplaySound {
-                    kind: kind.sound(entering),
-                    position: place.translation,
+                sounds.write(PlaySourceSound {
+                    source: spot,
+                    sound: kind.sound(entering),
                 });
             }
             None if !occupied.contains(&spot) => {
@@ -226,9 +248,9 @@ fn toggle_hiding(
                 });
                 *input = PlayerInput::default();
                 occupied.push(spot);
-                sounds.write(GameplaySound {
-                    kind: kind.sound(true),
-                    position: place.translation,
+                sounds.write(PlaySourceSound {
+                    source: spot,
+                    sound: kind.sound(true),
                 });
             }
             _ => {}

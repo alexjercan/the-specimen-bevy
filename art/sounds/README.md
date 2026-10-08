@@ -162,13 +162,10 @@ the boiler relighting). All four favor a recognizable mechanical character
 the task brief. They are deterministic synthesis with no recorded or
 third-party material, so no source, credit, or license caveat applies.
 
-These are candidate names only: `scripts/build_sound_catalog.py` lists them
-in `REVIEW_FILES` so they render as yellow "for review" cards once
-`art/sounds/catalog.html` is rebuilt, but no WAV exists on disk and no
-catalog page has been regenerated until someone runs the two commands
-above. None of the four has been listened to, approved, or copied to
-`assets/sounds/`; none is wired into runtime audio or the boiler-outage
-gameplay prototype. Approved furnace/boiler ambience
+All four WAVs have been generated and appear as yellow "for review" cards
+in `art/sounds/catalog.html`; nine catalog tests pass. None has been
+listened to, approved, or copied to `assets/sounds/`; none is wired into
+runtime audio or the boiler-outage gameplay prototype. Approved furnace/boiler ambience
 (`generated/amb/furnace/burning.wav`, `generated/amb/boiler/tick.wav`) is
 unchanged by this work.
 

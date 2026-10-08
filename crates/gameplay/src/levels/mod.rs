@@ -5,6 +5,7 @@ mod first_floor_builder;
 mod fuses;
 mod hiding;
 mod interaction;
+mod lights;
 pub(crate) mod module_names;
 mod objective;
 mod power;
@@ -13,8 +14,8 @@ mod sounds;
 
 pub use animation::DoorSwing;
 pub use builder::{
-    Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Floor, LevelRoot, LightEffect, LightIntensity,
-    Passage, Prop, PropCollider, Room, Walls,
+    Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Floor, LevelRoot, LightEffect,
+    LightIntensity, Passage, Prop, PropCollider, Room, Walls,
 };
 pub use doors::{panel_center, panel_top, DoorLock, DoorPanel, DoorPlugin, ExitDoor, ToggleDoor};
 pub(crate) use doors::{PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH};
@@ -27,10 +28,11 @@ pub use hiding::{
     Hidden, HidingMotion, HidingPhase, HidingPlugin, HidingSpot, UseHidingSpot, HIDING_TRANSITION,
 };
 pub use interaction::{InteractTarget, InteractTargets};
+pub use lights::{LightConfig, PropLightsPlugin};
 pub use module_names::BOILER_UNIT;
 pub use objective::{Escaped, ObjectivePlugin};
-pub use power::{
-    FacilityPower, FacilityPowerPlugin, MAX_OUTAGE_DELAY_SECS, MIN_OUTAGE_DELAY_SECS,
-};
+pub use power::{FacilityPower, FacilityPowerPlugin, MAX_OUTAGE_DELAY_SECS, MIN_OUTAGE_DELAY_SECS};
 pub use render::{LevelRenderPlugin, RenderCeilings};
-pub use sounds::{GameplaySound, GameplaySoundKind};
+pub use sounds::{
+    AmbientSource, AmbientSourceKind, IntermittentSound, IntermittentSoundKind, PropSoundsPlugin,
+};

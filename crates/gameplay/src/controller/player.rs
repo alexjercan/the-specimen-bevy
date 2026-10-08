@@ -1,12 +1,15 @@
 use bevy::{
+    audio::SpatialListener,
     prelude::*,
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
 use bevy_enhanced_input::prelude::*;
 
 use crate::levels::{
-    Door, DoorOf, DoorRef, DoorSwing, Doors, GameplaySound, Hidden, Passage, PropCollider, Room,
+    AmbientSource, AmbientSourceKind, Door, DoorOf, DoorRef, DoorSwing, Doors, Hidden, Passage,
+    PropCollider, Room,
 };
+use game_audio::{PlaySound, Sound};
 
 use super::{
     collision, flashlight,
@@ -78,7 +81,7 @@ impl Plugin for PlayerControllerPlugin {
             "PlayerControllerPlugin requires EnhancedInputPlugin"
         );
         app.init_resource::<PlayerControlsEnabled>()
-            .add_message::<GameplaySound>()
+            .add_message::<PlaySound>()
             .add_message::<SprintExhausted>()
             .add_input_context::<PlayerController>()
             .add_observer(attach_input)
@@ -101,7 +104,8 @@ impl Plugin for PlayerControllerPlugin {
                     .chain(),
             );
         if self.camera {
-            app.add_observer(attach_camera)
+            app.add_observer(attach_audio)
+                .add_observer(attach_camera)
                 .add_observer(flashlight::attach_beam)
                 .add_systems(Update, update_cursor);
         }
@@ -133,6 +137,35 @@ fn attach_input(added: On<Add, PlayerController>, mut commands: Commands) {
                 bindings![MouseButton::Left],
             ),
         ]));
+}
+
+fn attach_audio(added: On<Add, PlayerController>, mut commands: Commands) {
+    commands
+        .entity(added.entity)
+        .insert(SpatialListener::new(0.18))
+        .with_children(|children| {
+            children.spawn((
+                AmbientSource {
+                    kind: AmbientSourceKind::Roomtone,
+                    volume: 0.12,
+                },
+                Transform::IDENTITY,
+            ));
+            children.spawn((
+                AmbientSource {
+                    kind: AmbientSourceKind::LowPressure,
+                    volume: 0.04,
+                },
+                Transform::IDENTITY,
+            ));
+            children.spawn((
+                AmbientSource {
+                    kind: AmbientSourceKind::Conduit,
+                    volume: 0.055,
+                },
+                Transform::IDENTITY,
+            ));
+        });
 }
 
 fn attach_camera(added: On<Add, PlayerController>, mut commands: Commands) {
@@ -206,10 +239,16 @@ pub(crate) fn apply_input(
     passages: Query<&Passage>,
     props: Query<(&PropCollider, &Transform), Without<PlayerController>>,
     mut players: Query<
-        (&mut Transform, &mut PlayerInput, &mut Stamina, Option<&Hidden>),
+        (
+            &mut Transform,
+            &mut PlayerInput,
+            &mut Stamina,
+            Option<&Hidden>,
+        ),
         With<PlayerController>,
     >,
     mut exhaustion: MessageWriter<SprintExhausted>,
+    mut sounds: MessageWriter<PlaySound>,
 ) {
     if !enabled.0 {
         for (_, mut input, mut stamina, _) in &mut players {
@@ -241,9 +280,17 @@ pub(crate) fn apply_input(
             exhaustion.write(SprintExhausted {
                 position: transform.translation,
             });
+            sounds.write(PlaySound {
+                sound: Sound::SprintExhausted,
+                position: None,
+            });
         }
         let direction = Quat::from_rotation_y(yaw) * Vec3::new(movement.x, 0.0, -movement.y);
-        let speed = if stamina.sprinting { RUN_SPEED } else { WALK_SPEED };
+        let speed = if stamina.sprinting {
+            RUN_SPEED
+        } else {
+            WALK_SPEED
+        };
         let delta = direction * speed * time.delta_secs();
         if delta != Vec3::ZERO {
             let obstacles = collision::colliders(&rooms, &links, &doors, &passages, &props);

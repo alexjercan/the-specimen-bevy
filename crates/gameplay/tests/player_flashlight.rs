@@ -2,15 +2,13 @@ use std::time::Duration;
 
 use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
-use gameplay::{
-    controller::{
-        Flashlight, FlashlightBeam, PlayerController, PlayerControllerPlugin,
-        PlayerControlsEnabled, RESTART_CHARGE,
-    },
-    levels::{GameplaySound, GameplaySoundKind},
+use game_audio::{PlaySound, Sound};
+use gameplay::controller::{
+    Flashlight, FlashlightBeam, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled,
+    RESTART_CHARGE,
 };
 
-fn app(camera: bool) -> (App, Entity) {
+fn blank_app(camera: bool) -> App {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin));
     app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs(1)));
@@ -22,6 +20,11 @@ fn app(camera: bool) -> (App, Entity) {
     app.finish();
     app.cleanup();
     app.update();
+    app
+}
+
+fn app(camera: bool) -> (App, Entity) {
+    let mut app = blank_app(camera);
     let player = app
         .world_mut()
         .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, 0.0)))
@@ -66,7 +69,7 @@ fn beam_is_view_attached_only_in_rendered_mode() {
 
 #[test]
 fn click_held_while_player_spawns_does_not_toggle_until_released_and_pressed_again() {
-    let (mut app, _) = app(false);
+    let mut app = blank_app(false);
     app.world_mut()
         .resource_mut::<ButtonInput<MouseButton>>()
         .press(MouseButton::Left);
@@ -164,9 +167,9 @@ fn empty_charge_requires_recovery_before_restart() {
 #[test]
 fn manual_switches_emit_one_click_each_but_depletion_and_blocked_toggles_are_silent() {
     let (mut app, player) = app(false);
-    let clicks = |app: &mut App| -> Vec<GameplaySound> {
+    let clicks = |app: &mut App| -> Vec<PlaySound> {
         app.world_mut()
-            .resource_mut::<Messages<GameplaySound>>()
+            .resource_mut::<Messages<PlaySound>>()
             .drain()
             .collect()
     };
@@ -178,8 +181,8 @@ fn manual_switches_emit_one_click_each_but_depletion_and_blocked_toggles_are_sil
     app.update();
     let played = clicks(&mut app);
     assert_eq!(played.len(), 1);
-    assert_eq!(played[0].kind, GameplaySoundKind::FlashlightClick);
-    assert_eq!(played[0].position, Vec3::new(0.0, 1.6, 0.0));
+    assert_eq!(played[0].sound, Sound::FlashlightClick);
+    assert_eq!(played[0].position, None);
     app.update();
     assert!(clicks(&mut app).is_empty());
 

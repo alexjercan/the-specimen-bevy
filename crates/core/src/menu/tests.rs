@@ -11,13 +11,12 @@ use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use game_assets::UiAssets;
 use gameplay::{
     controller::{Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
-    levels::{Door, DoorPlugin, DoorRef, Escaped, LevelRoot, Room},
+    levels::{Door, DoorPlugin, DoorRef, Escaped, FusePanel, LevelRoot, Room},
 };
 
 use super::{
     complete::CompleteScreen, loading::LoadingScreen, main_menu::MainMenu, pause::PauseMenu,
-    GameState, MenuAction,
-    MenuPlugin, PauseState,
+    GameState, MenuAction, MenuPlugin, PauseState,
 };
 use crate::{AppBuilder, CoreState};
 use bevy::prelude::*;
@@ -198,6 +197,7 @@ fn play_pause_and_main_menu_cycle_without_duplicate_worlds() {
 
     assert_eq!(count::<With<Door>>(&mut app), 0);
     assert_eq!(count::<With<DoorRef>>(&mut app), 0);
+    assert_eq!(count::<With<FusePanel>>(&mut app), 0);
     assert_eq!(count::<With<PointLight>>(&mut app), 0);
 
     press(&mut app, MenuAction::Play);
@@ -216,6 +216,7 @@ fn escape_transitions_to_completion_and_returns_to_menu() {
     press(&mut app, MenuAction::Play);
     assert!(count::<With<NonLevelRoot>>(&mut app) > 0);
     assert_eq!(count::<With<LevelRoot>>(&mut app), 2);
+    let playing = count::<(Without<IsResource>, Without<NonLevelRoot>)>(&mut app);
     let player = app
         .world_mut()
         .query_filtered::<Entity, With<PlayerController>>()
@@ -229,7 +230,13 @@ fn escape_transitions_to_completion_and_returns_to_menu() {
     assert_eq!(count::<With<CompleteScreen>>(&mut app), 1);
     assert_eq!(count::<With<Room>>(&mut app), 0);
     assert_eq!(count::<With<LevelRoot>>(&mut app), 0);
+    assert_eq!(count::<With<FusePanel>>(&mut app), 0);
+    assert_eq!(count::<With<DoorRef>>(&mut app), 0);
     assert_eq!(count::<With<PlayerController>>(&mut app), 0);
+    assert_eq!(
+        count::<(With<IsResource>, With<DespawnOnExit<GameState>>)>(&mut app),
+        0
+    );
     assert!(count::<With<NonLevelRoot>>(&mut app) > 0);
     assert_eq!(count::<With<Camera2d>>(&mut app), 1);
     assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
@@ -243,6 +250,10 @@ fn escape_transitions_to_completion_and_returns_to_menu() {
     assert_eq!(count::<With<Room>>(&mut app), 18);
     assert_eq!(count::<With<LevelRoot>>(&mut app), 2);
     assert_eq!(count::<With<PlayerController>>(&mut app), 1);
+    assert_eq!(
+        count::<(Without<IsResource>, Without<NonLevelRoot>)>(&mut app),
+        playing
+    );
 }
 
 #[test]
@@ -265,12 +276,13 @@ fn play_click_does_not_switch_on_flashlight() {
         .resource_mut::<ButtonInput<MouseButton>>()
         .release(MouseButton::Left);
     app.update();
-    assert!(!app
-        .world_mut()
-        .query_filtered::<&Flashlight, With<PlayerController>>()
-        .single(app.world())
-        .unwrap()
-        .on);
+    assert!(
+        !app.world_mut()
+            .query_filtered::<&Flashlight, With<PlayerController>>()
+            .single(app.world())
+            .unwrap()
+            .on
+    );
 }
 
 #[test]

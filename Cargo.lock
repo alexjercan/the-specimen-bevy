@@ -3108,6 +3108,7 @@ dependencies = [
  "bevy_enhanced_input",
  "bevy_rand",
  "game_assets",
+ "game_audio",
  "rand_core",
 ]
 

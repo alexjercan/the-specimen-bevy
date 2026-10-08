@@ -1,28 +1,28 @@
 use std::f32::consts::{FRAC_PI_2, PI};
 
-use bevy::prelude::*;
-
 use crate::levels::{
-    builder::{light, prop, LightEffect},
-    module_names::{BOILER_UNIT, CONCEPT_LOCKER, CONCEPT_TABLE},
+    builder::prop,
+    module_names::{
+        BOILER_UNIT, CONCEPT_CONTAINMENT_TANK, CONCEPT_LOCKER, CONCEPT_TABLE, PIPE_MANIFOLD,
+        WALL_VENT,
+    },
 };
-
-use super::{FIRE, SPECIMEN};
+use bevy::prelude::*;
 
 pub(super) fn spawn_fixtures(commands: &mut Commands) {
     commands.spawn(prop(
-        "wall_vent",
-        "wall_vent",
+        WALL_VENT,
+        WALL_VENT,
         Transform::from_xyz(-13.65, 0.45, -1.1).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
     ));
     commands.spawn(prop(
-        "wall_vent",
-        "wall_vent",
+        WALL_VENT,
+        WALL_VENT,
         Transform::from_xyz(-13.65, 1.9, -20.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
     ));
     commands.spawn(prop(
-        "wall_vent",
-        "wall_vent",
+        WALL_VENT,
+        WALL_VENT,
         Transform::from_xyz(13.65, 1.9, -21.25).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
     commands.spawn(prop(
@@ -66,8 +66,8 @@ pub(super) fn spawn_fixtures(commands: &mut Commands) {
         Transform::from_xyz(6.15, 2.6, -5.0).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
     commands.spawn(prop(
-        "pipe_manifold",
-        "pipe_manifold",
+        PIPE_MANIFOLD,
+        PIPE_MANIFOLD,
         Transform::from_xyz(-13.65, 1.6, 0.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
     ));
     commands.spawn(prop(
@@ -221,7 +221,7 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
     commands.spawn(prop(
         CONCEPT_TABLE,
         CONCEPT_TABLE,
-        Transform::from_xyz(-2.5, 0.0, -10.0).with_rotation(Quat::from_rotation_y(PI)),
+        Transform::from_xyz(-2.5, 0.0, -10.0).with_rotation(Quat::from_rotation_y(0.0)),
     ));
     commands.spawn(prop(
         "clutter_papers",
@@ -378,46 +378,14 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         "storage_crate",
         Transform::from_xyz(-7.4, 0.0, 2.6).with_rotation(Quat::from_rotation_y(PI)),
     ));
-    commands
-        .spawn((
-            prop(
-                BOILER_UNIT,
-                BOILER_UNIT,
-                Transform::from_xyz(-10.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(0.0)),
-            ),
-            LightEffect::Flicker(-7.0),
-        ))
-        .with_children(|children| {
-            children.spawn((
-                light(
-                    "light",
-                    Transform::from_translation(Vec3::new(0.0, 0.5, -0.85)),
-                    FIRE,
-                    45_000.0,
-                    7.0,
-                ),
-                LightEffect::Flicker(-7.0),
-            ));
-        });
-    commands
-        .spawn((
-            prop(
-                "concept_containment_tank",
-                "concept_containment_tank",
-                Transform::from_xyz(0.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
-            ),
-            LightEffect::Flicker(0.0),
-        ))
-        .with_children(|children| {
-            children.spawn((
-                light(
-                    "light",
-                    Transform::from_translation(Vec3::new(0.0, 2.1, 0.0)),
-                    SPECIMEN,
-                    12_000.0,
-                    4.5,
-                ),
-                LightEffect::Flicker(0.0),
-            ));
-        });
+    commands.spawn(prop(
+        BOILER_UNIT,
+        BOILER_UNIT,
+        Transform::from_xyz(-10.0, 0.0, 0.0),
+    ));
+    commands.spawn(prop(
+        CONCEPT_CONTAINMENT_TANK,
+        CONCEPT_CONTAINMENT_TANK,
+        Transform::from_xyz(0.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
 }

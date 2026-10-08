@@ -9,7 +9,8 @@ impl Plugin for FlashlightHudPlugin {
         if !app.is_plugin_added::<GameUiPlugin>() {
             app.add_plugins(GameUiPlugin);
         }
-        app.add_systems(Startup, spawn_hud).add_systems(Update, sync_hud);
+        app.add_systems(Startup, spawn_hud)
+            .add_systems(Update, sync_hud);
     }
 }
 

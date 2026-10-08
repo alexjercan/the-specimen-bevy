@@ -6,12 +6,13 @@ use bevy::{
     time::TimeUpdateStrategy,
 };
 use bevy_enhanced_input::EnhancedInputPlugin;
+use game_audio::{PlaySourceSound, Sound, SourceSounds};
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput},
     levels::{
         build_first_floor, Door, DoorPlugin, DoorState, FuseInventory, FusePickup, FusePlugin,
-        FuseSeed, GameplaySound, GameplaySoundKind, Hidden, HidingPhase, HidingPlugin, HidingSpot,
-        Prop, PropCollider, Room, HIDING_TRANSITION,
+        FuseSeed, Hidden, HidingPhase, HidingPlugin, HidingSpot, Prop, PropCollider, Room,
+        HIDING_TRANSITION,
     },
 };
 
@@ -21,11 +22,11 @@ const PLAYER_RADIUS: f32 = 0.25;
 const WALL_HALF_DEPTH: f32 = 0.125;
 
 #[derive(Resource, Default)]
-struct SoundLog(Vec<(GameplaySoundKind, Vec3)>);
+struct SoundLog(Vec<(Sound, Entity)>);
 
-fn collect_sounds(mut events: MessageReader<GameplaySound>, mut log: ResMut<SoundLog>) {
+fn collect_sounds(mut events: MessageReader<PlaySourceSound>, mut log: ResMut<SoundLog>) {
     log.0
-        .extend(events.read().map(|sound| (sound.kind, sound.position)));
+        .extend(events.read().map(|sound| (sound.sound, sound.source)));
 }
 
 fn plugins(app: &mut App) {
@@ -167,8 +168,14 @@ fn prop_observer_registers_tables_and_lockers_but_not_other_props() {
         .id();
     app.update();
 
-    assert_eq!(app.world().get::<HidingSpot>(table), Some(&HidingSpot::Table));
-    assert_eq!(app.world().get::<HidingSpot>(locker), Some(&HidingSpot::Locker));
+    assert_eq!(
+        app.world().get::<HidingSpot>(table),
+        Some(&HidingSpot::Table)
+    );
+    assert_eq!(
+        app.world().get::<HidingSpot>(locker),
+        Some(&HidingSpot::Locker)
+    );
     assert!(app.world().get::<HidingSpot>(shelf).is_none());
 }
 
@@ -480,6 +487,16 @@ fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
         .count();
     assert_eq!(tables, concept_tables);
     assert_eq!(tables, 4);
+    let reception_table = spots
+        .iter()
+        .find(|(_, kind, transform, _)| {
+            *kind == HidingSpot::Table && transform.translation.xz() == Vec2::new(-2.5, -10.0)
+        })
+        .expect("reception table");
+    assert_eq!(
+        reception_table.1.exit(&reception_table.2),
+        Vec2::new(-2.5, -11.1)
+    );
 
     for (entity, kind, spot_transform, module) in spots {
         let expected = match kind {
@@ -556,14 +573,14 @@ fn hiding_actions_emit_one_kind_specific_cue_per_transition() {
         (
             HidingSpot::Locker,
             Vec3::new(0.0, 0.0, -2.0),
-            GameplaySoundKind::LockerOpen,
-            GameplaySoundKind::LockerClose,
+            Sound::LockerOpen,
+            Sound::LockerClose,
         ),
         (
             HidingSpot::Table,
             Vec3::new(2.0, 0.0, -2.0),
-            GameplaySoundKind::TableEnter,
-            GameplaySoundKind::TableLeave,
+            Sound::TableEnter,
+            Sound::TableLeave,
         ),
     ] {
         let entity = spot(&mut app, kind, position, PI);
@@ -575,11 +592,11 @@ fn hiding_actions_emit_one_kind_specific_cue_per_transition() {
         press_f(&mut app);
         settle(&mut app);
         assert_eq!(hidden(&app, player), None);
+        let emitted = app.world().get::<SourceSounds>(entity).unwrap();
+        assert!(emitted.0.iter().any(|(sound, _)| *sound == enter));
+        assert!(emitted.0.iter().any(|(sound, _)| *sound == leave));
         let cues = &app.world().resource::<SoundLog>().0;
-        assert_eq!(
-            &cues[cues.len() - 2..],
-            &[(enter, position), (leave, position)]
-        );
+        assert_eq!(&cues[cues.len() - 2..], &[(enter, entity), (leave, entity)]);
         app.world_mut().despawn(entity);
     }
     assert_eq!(app.world().resource::<SoundLog>().0.len(), 4);

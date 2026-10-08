@@ -3,7 +3,7 @@ use std::f32::consts::{FRAC_PI_2, PI};
 use bevy::prelude::*;
 
 use crate::levels::{
-    builder::{DoorOf, DoorRef, door, passage, room},
+    builder::{door, passage, room, DoorOf, DoorRef},
     doors::{DoorLock, ExitDoor},
     module_names::{DOOR_FRAME as FRAME, DOOR_PANEL as PANEL},
 };

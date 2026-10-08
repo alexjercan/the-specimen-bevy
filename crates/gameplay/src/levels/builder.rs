@@ -113,28 +113,6 @@ pub(crate) fn prop(name: &'static str, module: &str, transform: Transform) -> im
     )
 }
 
-pub(crate) fn light(
-    name: &'static str,
-    transform: Transform,
-    color: Color,
-    intensity: f32,
-    range: f32,
-) -> impl Bundle {
-    (
-        Name::new(name),
-        PointLight {
-            color,
-            intensity,
-            range,
-            radius: 0.08,
-            shadow_maps_enabled: false,
-            ..default()
-        },
-        LightIntensity(intensity),
-        transform,
-    )
-}
-
 impl LightEffect {
     pub(crate) fn factor(self, t: f32) -> f32 {
         match self {

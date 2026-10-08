@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
 use super::player::{PlayerController, PlayerControlsEnabled};
-use crate::levels::{GameplaySound, GameplaySoundKind};
+use game_audio::{PlaySound, Sound};
 
 pub const DRAIN_SECONDS: f32 = 15.0;
 pub const RECHARGE_SECONDS: f32 = 10.0;
@@ -103,21 +103,21 @@ pub(super) fn toggle(
     _: On<Start<ToggleFlashlight>>,
     enabled: Res<PlayerControlsEnabled>,
     mut players: Query<
-        (&mut Flashlight, &Transform),
+        &mut Flashlight,
         (With<PlayerController>, Without<WaitForFlashlightRelease>),
     >,
-    mut sounds: MessageWriter<GameplaySound>,
+    mut sounds: MessageWriter<PlaySound>,
 ) {
     if !enabled.0 {
         return;
     }
-    for (mut flashlight, transform) in &mut players {
+    for mut flashlight in &mut players {
         let was_on = flashlight.on;
         flashlight.toggle();
         if flashlight.on != was_on {
-            sounds.write(GameplaySound {
-                kind: GameplaySoundKind::FlashlightClick,
-                position: transform.translation,
+            sounds.write(PlaySound {
+                sound: Sound::FlashlightClick,
+                position: None,
             });
         }
     }

@@ -108,7 +108,7 @@ class SoundCatalogTests(unittest.TestCase):
         breath = "art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav"
         self.assertEqual(catalog.REVIEW_FILES, {
             f"art/sounds/generated/candidates/amb/boiler/{cue}.wav" for cue in (
-                "breaker-trip", "power-down", "reset", "restart",
+                "breaker-trip", "reset",
             )
         })
         self.assertIn(breath, catalog.APPROVED_FILES)
@@ -135,6 +135,9 @@ class SoundCatalogTests(unittest.TestCase):
                 "thumb-switch-lunardrive", "spring-switch-eskildnp",
             )},
             *catalog.REVIEW_FILES,
+            *{f"art/sounds/generated/candidates/amb/boiler/{cue}.wav" for cue in (
+                "power-down", "restart",
+            )},
         })
 
     def test_catalog_credits_each_file_separately(self):

@@ -2,12 +2,13 @@ use std::{f32::consts::PI, time::Duration};
 
 use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
+use game_audio::{PlaySound, PlaySourceSound, Sound, SourceSounds};
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin},
     levels::{
         build_first_floor, Door, DoorLock, DoorPlugin, DoorState, DoorSwing, Escaped, ExitDoor,
-        FuseInventory, FusePanel, FusePlugin, GameplaySound, GameplaySoundKind, InstallFuses,
-        ObjectivePlugin, Prop, Room, ToggleDoor, FUSE_COUNT,
+        FuseInventory, FusePanel, FusePlugin, InstallFuses, ObjectivePlugin, Prop, Room,
+        ToggleDoor, FUSE_COUNT,
     },
 };
 
@@ -159,21 +160,27 @@ fn locked_door_ignores_toggle_messages_and_f_until_unlocked() {
     app.update();
     let cues: Vec<_> = app
         .world_mut()
-        .resource_mut::<Messages<GameplaySound>>()
+        .resource_mut::<Messages<PlaySourceSound>>()
         .drain()
         .collect();
     assert_eq!(cues.len(), 1);
-    assert_eq!(cues[0].kind, GameplaySoundKind::DoorLocked);
-    assert_eq!(cues[0].position, Vec3::new(0.0, 1.0, -1.5));
+    assert_eq!(cues[0].sound, Sound::DoorLocked);
+    assert_eq!(cues[0].source, entity);
+    assert!(app
+        .world()
+        .get::<SourceSounds>(entity)
+        .unwrap()
+        .0
+        .contains(&(Sound::DoorLocked, Vec3::Y)));
 
     press_f(&mut app);
     let cues: Vec<_> = app
         .world_mut()
-        .resource_mut::<Messages<GameplaySound>>()
+        .resource_mut::<Messages<PlaySourceSound>>()
         .drain()
         .collect();
     assert_eq!(cues.len(), 1);
-    assert_eq!(cues[0].kind, GameplaySoundKind::DoorLocked);
+    assert_eq!(cues[0].sound, Sound::DoorLocked);
     settle(&mut app);
     assert_eq!(state(&app, entity), DoorState::Closed);
     assert_eq!(app.world().get::<DoorSwing>(entity).unwrap().0, 0.0);
@@ -185,12 +192,10 @@ fn locked_door_ignores_toggle_messages_and_f_until_unlocked() {
     assert!(app.world().get::<DoorSwing>(entity).unwrap().0 > 0.0);
     let cues: Vec<_> = app
         .world_mut()
-        .resource_mut::<Messages<GameplaySound>>()
+        .resource_mut::<Messages<PlaySourceSound>>()
         .drain()
         .collect();
-    assert!(cues
-        .iter()
-        .all(|cue| cue.kind != GameplaySoundKind::DoorLocked));
+    assert!(cues.iter().all(|cue| cue.sound != Sound::DoorLocked));
 }
 
 #[test]
@@ -233,11 +238,12 @@ fn panel_installs_all_fuses_once_and_unlocks_only_the_exit() {
     assert!(locked(&app, other));
     let cues: Vec<_> = app
         .world_mut()
-        .resource_mut::<Messages<GameplaySound>>()
+        .resource_mut::<Messages<PlaySound>>()
         .drain()
         .collect();
     assert_eq!(cues.len(), 1);
-    assert_eq!(cues[0].kind, GameplaySoundKind::FuseComplete);
+    assert_eq!(cues[0].sound, Sound::FuseComplete);
+    assert_eq!(cues[0].position, None);
 
     press_f(&mut app);
     assert_eq!(inventory(&app, player), 0);

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use bevy_rand::prelude::ChaCha8Rng;
+use game_audio::{PlaySound, PlaySourceSound, Sound};
 use rand_core::{Rng, SeedableRng};
 
 use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
@@ -9,6 +10,7 @@ use super::{
     fuses::FuseInventory,
     hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
+    sounds::IntermittentSound,
 };
 
 pub const MIN_OUTAGE_DELAY_SECS: f32 = 30.0;
@@ -74,13 +76,15 @@ impl FacilityPower {
 }
 
 #[derive(Message)]
-struct RepairBoiler;
+struct RepairBoiler(Entity);
 
 pub struct FacilityPowerPlugin;
 
 impl Plugin for FacilityPowerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<RepairBoiler>()
+        app.add_message::<PlaySound>()
+            .add_message::<PlaySourceSound>()
+            .add_message::<RepairBoiler>()
             .add_observer(repair_boiler)
             .add_systems(Update, (advance_outage, process_repairs).chain());
     }
@@ -91,12 +95,21 @@ fn advance_outage(
     enabled: Res<PlayerControlsEnabled>,
     players: Query<(), With<PlayerController>>,
     mut power: Option<ResMut<FacilityPower>>,
+    mut sounds: MessageWriter<PlaySound>,
 ) {
-    let Some(power) = power.as_deref_mut() else { return };
+    let Some(power) = power.as_deref_mut() else {
+        return;
+    };
     if !power.outage_pending || !enabled.0 || players.is_empty() {
         return;
     }
     power.tick(time.delta_secs());
+    if !power.on {
+        sounds.write(PlaySound {
+            sound: Sound::PowerDown,
+            position: None,
+        });
+    }
 }
 
 fn repair_boiler(
@@ -110,20 +123,31 @@ fn repair_boiler(
     if !enabled.0 || !power.is_some_and(|power| !power.on) {
         return;
     }
-    if players.iter().any(|(player, inventory, hidden)| {
-        matches!(targets.aimed(player, inventory, hidden), Some(InteractTarget::Boiler(_)))
+    if let Some(entity) = players.iter().find_map(|(player, inventory, hidden)| {
+        match targets.aimed(player, inventory, hidden)? {
+            InteractTarget::Boiler(entity) => Some(entity),
+            _ => None,
+        }
     }) {
-        repairs.write(RepairBoiler);
+        repairs.write(RepairBoiler(entity));
     }
 }
 
 fn process_repairs(
     mut repairs: MessageReader<RepairBoiler>,
     mut power: Option<ResMut<FacilityPower>>,
+    boilers: Query<(), With<IntermittentSound>>,
+    mut sounds: MessageWriter<PlaySourceSound>,
 ) {
-    for _ in repairs.read() {
-        if let Some(power) = power.as_deref_mut() {
-            power.restore();
+    for repair in repairs.read() {
+        if let (Some(power), Ok(())) = (power.as_deref_mut(), boilers.get(repair.0)) {
+            if !power.on {
+                power.restore();
+                sounds.write(PlaySourceSound {
+                    source: repair.0,
+                    sound: Sound::BoilerRestart,
+                });
+            }
         }
     }
 }

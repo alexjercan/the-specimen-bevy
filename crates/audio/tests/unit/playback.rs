@@ -55,6 +55,123 @@ fn play(
 }
 
 #[test]
+fn source_cue_is_a_child_of_the_boiler_and_follows_its_transform() {
+    let mut app = playback_app(Some(Vec3::ZERO));
+    app.add_plugins(TransformPlugin)
+        .add_message::<PlaySoundFrom>()
+        .add_systems(Update, play_source_sounds);
+    let boiler = app
+        .world_mut()
+        .spawn(Transform::from_xyz(1.0, 0.0, 0.0))
+        .id();
+    app.update();
+    app.world_mut().write_message(PlaySoundFrom {
+        sound: Sound::BoilerTick,
+        source: boiler,
+        offset: Vec3::Y * 1.2,
+    });
+    app.update();
+    let children = app.world().get::<Children>(boiler).unwrap();
+    assert_eq!(children.len(), 1);
+    let voice = children[0];
+    assert_eq!(
+        app.world().get::<AudioPlayer>(voice).unwrap().0,
+        test_support::sound_assets().boiler_tick
+    );
+    assert_eq!(
+        app.world().get::<Transform>(voice).unwrap().translation,
+        Vec3::Y * 1.2
+    );
+    assert!(app.world().get::<WorldAudio>(voice).is_some());
+    app.world_mut()
+        .entity_mut(boiler)
+        .get_mut::<Transform>()
+        .unwrap()
+        .translation
+        .x = 3.0;
+    app.update();
+    assert_eq!(
+        app.world()
+            .get::<GlobalTransform>(voice)
+            .unwrap()
+            .translation(),
+        Vec3::new(3.0, 1.2, 0.0)
+    );
+    app.world_mut().entity_mut(boiler).despawn();
+    assert!(app.world().get_entity(voice).is_err());
+}
+
+#[test]
+fn authored_source_cue_plays_only_its_own_sound() {
+    let mut app = playback_app(Some(Vec3::ZERO));
+    app.add_message::<PlaySourceSound>()
+        .add_message::<PlaySoundFrom>()
+        .add_systems(Update, (play_authored_sounds, play_source_sounds).chain());
+    let door = app
+        .world_mut()
+        .spawn((
+            Transform::from_xyz(2.0, 0.0, 0.0),
+            SourceSounds(vec![(Sound::DoorLocked, Vec3::Y)]),
+        ))
+        .id();
+    let other = app
+        .world_mut()
+        .spawn(Transform::from_xyz(3.0, 0.0, 0.0))
+        .id();
+    app.world_mut().write_message(PlaySourceSound {
+        source: other,
+        sound: Sound::DoorLocked,
+    });
+    app.world_mut().write_message(PlaySourceSound {
+        source: door,
+        sound: Sound::DoorSwing,
+    });
+    app.update();
+    assert!(app.world().get::<Children>(door).is_none());
+    app.world_mut().write_message(PlaySourceSound {
+        source: door,
+        sound: Sound::DoorLocked,
+    });
+    app.update();
+    let voice = app.world().get::<Children>(door).unwrap()[0];
+    assert_eq!(
+        app.world().get::<Transform>(voice).unwrap().translation,
+        Vec3::Y
+    );
+    assert_eq!(
+        app.world().get::<AudioPlayer>(voice).unwrap().0,
+        test_support::sound_assets().door_locked
+    );
+    assert_eq!(app.world().get::<ChildOf>(voice).unwrap().parent(), door);
+}
+
+#[test]
+fn source_cues_require_a_near_listener_and_unpaused_world() {
+    let mut app = playback_app(None);
+    app.add_message::<PlaySoundFrom>()
+        .add_systems(Update, play_source_sounds);
+    let boiler = app.world_mut().spawn(Transform::IDENTITY).id();
+    let cue = PlaySoundFrom {
+        sound: Sound::BoilerTick,
+        source: boiler,
+        offset: Vec3::Y,
+    };
+    app.world_mut().write_message(cue);
+    app.update();
+    assert!(app.world().get::<Children>(boiler).is_none());
+    app.world_mut()
+        .spawn((SpatialListener::new(0.18), GlobalTransform::IDENTITY));
+    app.world_mut().resource_mut::<AudioPaused>().0 = true;
+    app.world_mut().write_message(cue);
+    app.update();
+    assert!(app.world().get::<Children>(boiler).is_none());
+    app.world_mut().resource_mut::<AudioPaused>().0 = false;
+    app.world_mut().write_message(cue);
+    app.update();
+    assert_eq!(app.world().get::<Children>(boiler).unwrap().len(), 1);
+}
+
+#[test]
 fn faucet_burst_plays_once_as_positional_world_audio() {
     let mut app = playback_app(Some(Vec3::ZERO));
     let faucet = Vec3::new(-13.4, 1.5, 0.0);
@@ -205,6 +322,32 @@ fn locked_door_rattle_is_spatial_and_dropped_while_paused() {
 
     app.world_mut().resource_mut::<AudioPaused>().0 = true;
     assert!(play(&mut app, &[cue]).is_empty());
+}
+
+#[test]
+fn outage_is_global_and_repair_is_spatial_world_audio() {
+    let mut app = playback_app(Some(Vec3::ZERO));
+    let boiler = Vec3::new(-10.0, 1.2, 0.0);
+    let outage = PlaySound {
+        sound: Sound::PowerDown,
+        position: None,
+    };
+    let repair = PlaySound {
+        sound: Sound::BoilerRestart,
+        position: Some(boiler),
+    };
+    let played = play(&mut app, &[outage, repair]);
+    assert_eq!(played.len(), 2);
+    assert_eq!(played[0].0, test_support::sound_assets().power_down);
+    assert!(!played[0].1.spatial);
+    assert!(played[0].3);
+    assert_eq!(played[1].0, test_support::sound_assets().boiler_restart);
+    assert!(played[1].1.spatial);
+    assert_eq!(played[1].2, Some(boiler));
+    assert!(played[1].3);
+
+    app.world_mut().resource_mut::<AudioPaused>().0 = true;
+    assert!(play(&mut app, &[outage, repair]).is_empty());
 }
 
 #[test]

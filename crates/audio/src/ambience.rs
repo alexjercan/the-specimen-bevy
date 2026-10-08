@@ -6,7 +6,7 @@ use game_assets::SoundAssets;
 
 use super::{AmbienceActive, AudioPaused, ConduitAmbience, WorldAudio};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AmbientSound {
     Roomtone,
     LowPressure,
@@ -20,8 +20,9 @@ pub enum AmbientSound {
 
 #[derive(Clone, Copy)]
 pub struct AmbientEmitter {
+    pub source: Entity,
     pub sound: AmbientSound,
-    pub position: Option<Vec3>,
+    pub spatial: bool,
     pub volume: f32,
 }
 
@@ -29,9 +30,13 @@ pub struct AmbientEmitter {
 pub struct AmbientEmitters(pub Vec<AmbientEmitter>);
 
 #[derive(Component)]
-pub(super) struct AmbientVoice(usize);
+pub(super) struct AmbientVoice(Entity);
 
 impl AmbientSound {
+    pub fn spatial(self) -> bool {
+        !matches!(self, Self::Roomtone | Self::LowPressure | Self::Conduit)
+    }
+
     fn handle(self, assets: &SoundAssets) -> Handle<AudioSource> {
         match self {
             Self::Roomtone => assets.roomtone.clone(),
@@ -67,20 +72,22 @@ pub(super) fn update_ambience(
         return;
     }
     let Some(assets) = assets else { return };
-    for (index, source) in emitters.0.iter().enumerate() {
-        let enabled = source.sound != AmbientSound::Conduit || conduit.0;
-        let existing = playing.iter().find(|(_, voice)| voice.0 == index);
-        if !enabled {
-            if let Some((entity, _)) = existing {
-                commands.entity(entity).despawn();
-            }
+    for (entity, voice) in &playing {
+        if !emitters.0.iter().any(|source| {
+            source.source == voice.0 && (source.sound != AmbientSound::Conduit || conduit.0)
+        }) {
+            commands.entity(entity).despawn();
+        }
+    }
+    for source in &emitters.0 {
+        if source.sound == AmbientSound::Conduit && !conduit.0 {
             continue;
         }
-        if existing.is_some() {
+        if playing.iter().any(|(_, voice)| voice.0 == source.source) {
             continue;
         }
         let mut settings = PlaybackSettings::LOOP.with_volume(Volume::Linear(source.volume));
-        if source.position.is_some() {
+        if source.spatial {
             settings = settings
                 .with_spatial(true)
                 .with_spatial_scale(SpatialScale::new(0.3));
@@ -88,14 +95,16 @@ pub(super) fn update_ambience(
         if paused.0 {
             settings = settings.paused();
         }
-        let mut entity = commands.spawn((
-            AmbientVoice(index),
-            WorldAudio,
-            AudioPlayer::new(source.sound.handle(&assets)),
-            settings,
-        ));
-        if let Some(position) = source.position {
-            entity.insert(Transform::from_translation(position));
+        if let Ok(mut parent) = commands.get_entity(source.source) {
+            parent.with_children(|children| {
+                children.spawn((
+                    AmbientVoice(source.source),
+                    WorldAudio,
+                    AudioPlayer::new(source.sound.handle(&assets)),
+                    settings,
+                    Transform::IDENTITY,
+                ));
+            });
         }
     }
 }

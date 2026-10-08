@@ -1,23 +1,60 @@
 use std::time::Duration;
 
-use bevy::time::TimeUpdateStrategy;
+use bevy::{input::InputPlugin, time::TimeUpdateStrategy};
+use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_rand::prelude::EntropyPlugin;
+use game_audio::AmbientSound;
 
 use super::*;
+use gameplay::levels::IntermittentSoundKind;
 
 #[test]
 fn ambience_layout_has_one_bed_and_local_facility_sources() {
     let mut app = App::new();
-    app.add_plugins(MinimalPlugins).add_plugins(SoundGluePlugin);
+    app.add_plugins(MinimalPlugins)
+        .add_plugins((TransformPlugin, InputPlugin, EnhancedInputPlugin))
+        .add_plugins(EntropyPlugin::<ChaCha8Rng>::with_seed([7; 32]))
+        .add_plugins(gameplay::controller::PlayerControllerPlugin::default())
+        .add_message::<PlaySound>()
+        .add_message::<PlaySoundFrom>()
+        .init_resource::<PlayerControlsEnabled>()
+        .init_resource::<AudioPaused>()
+        .init_resource::<AmbienceActive>()
+        .init_resource::<ConduitAmbience>()
+        .add_plugins((gameplay::levels::PropSoundsPlugin, SoundGluePlugin));
+    app.finish();
+    app.cleanup();
+    app.world_mut()
+        .run_system_cached(gameplay::levels::build_first_floor)
+        .unwrap();
+    app.world_mut().spawn(PlayerController);
+    app.update();
+    app.update();
+    let listener_count = {
+        let world = app.world_mut();
+        let mut query = world.query::<&bevy::audio::SpatialListener>();
+        query.iter(world).count()
+    };
+    assert_eq!(listener_count, 1);
     let sources = &app.world().resource::<AmbientEmitters>().0;
-    assert_eq!(sources.len(), 14);
-    assert_eq!(
-        sources
-            .iter()
-            .filter(|emitter| emitter.position.is_none())
-            .count(),
-        3
-    );
+    assert_eq!(sources.len(), 21);
+    assert!(sources.iter().any(|emitter| {
+        emitter.sound == AmbientSound::Boiler
+            && app
+                .world()
+                .get::<GlobalTransform>(emitter.source)
+                .map(GlobalTransform::translation)
+                == Some(Vec3::new(-10.0, 1.0, 0.0))
+    }));
+    assert!(sources.iter().any(|emitter| {
+        emitter.sound == AmbientSound::Tank
+            && app
+                .world()
+                .get::<GlobalTransform>(emitter.source)
+                .map(GlobalTransform::translation)
+                == Some(Vec3::new(0.0, 1.3, 0.0))
+    }));
+    assert_eq!(sources.iter().filter(|emitter| !emitter.spatial).count(), 3);
     assert_eq!(
         sources
             .iter()
@@ -51,149 +88,11 @@ fn ambience_layout_has_one_bed_and_local_facility_sources() {
             .iter()
             .filter(|emitter| emitter.sound == AmbientSound::CoolBuzz)
             .count(),
-        3
+        10
     );
     assert!(sources
         .iter()
         .all(|emitter| emitter.volume > 0.0 && emitter.volume <= 0.2));
-}
-
-#[test]
-fn hiding_cues_keep_their_kind_and_world_position_in_audio_bridge() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_message::<GameplaySound>()
-        .add_message::<PlaySound>()
-        .add_systems(Update, forward_gameplay_sounds);
-
-    let cues = [
-        (GameplaySoundKind::LockerOpen, Sound::LockerOpen),
-        (GameplaySoundKind::LockerClose, Sound::LockerClose),
-        (GameplaySoundKind::TableEnter, Sound::TableEnter),
-        (GameplaySoundKind::TableLeave, Sound::TableLeave),
-    ];
-    for (index, &(kind, _)) in cues.iter().enumerate() {
-        app.world_mut().write_message(GameplaySound {
-            kind,
-            position: Vec3::new(index as f32, 0.0, -2.0),
-        });
-    }
-    app.update();
-
-    let played: Vec<_> = app
-        .world_mut()
-        .resource_mut::<Messages<PlaySound>>()
-        .drain()
-        .collect();
-    assert_eq!(played.len(), cues.len());
-    for (index, (play, &(_, sound))) in played.iter().zip(&cues).enumerate() {
-        assert_eq!(play.sound, sound);
-        assert_eq!(play.position, Some(Vec3::new(index as f32, 0.0, -2.0)));
-    }
-}
-
-#[test]
-fn sprint_exhaustion_bridges_once_as_non_spatial_player_audio() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_message::<SprintExhausted>()
-        .add_message::<PlaySound>()
-        .add_systems(Update, forward_sprint_exhaustion);
-    app.world_mut().write_message(SprintExhausted {
-        position: Vec3::new(1.0, 1.6, -3.0),
-    });
-    app.update();
-    let played: Vec<_> = app
-        .world_mut()
-        .resource_mut::<Messages<PlaySound>>()
-        .drain()
-        .collect();
-    assert_eq!(played.len(), 1);
-    assert_eq!(played[0].sound, Sound::SprintExhausted);
-    assert_eq!(played[0].position, None);
-    app.update();
-    assert_eq!(app.world().resource::<Messages<PlaySound>>().len(), 0);
-}
-
-#[test]
-fn locked_door_rattle_keeps_its_world_position_in_audio_bridge() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_message::<GameplaySound>()
-        .add_message::<PlaySound>()
-        .add_systems(Update, forward_gameplay_sounds);
-    let position = Vec3::new(0.0, 1.0, -31.25);
-    app.world_mut().write_message(GameplaySound {
-        kind: GameplaySoundKind::DoorLocked,
-        position,
-    });
-    app.update();
-    let played: Vec<_> = app
-        .world_mut()
-        .resource_mut::<Messages<PlaySound>>()
-        .drain()
-        .collect();
-    assert_eq!(played.len(), 1);
-    assert_eq!(played[0].sound, Sound::DoorLocked);
-    assert_eq!(played[0].position, Some(position));
-}
-
-#[test]
-fn flashlight_click_bridges_as_non_spatial_player_audio() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_message::<GameplaySound>()
-        .add_message::<PlaySound>()
-        .add_systems(Update, forward_gameplay_sounds);
-    app.world_mut().write_message(GameplaySound {
-        kind: GameplaySoundKind::FlashlightClick,
-        position: Vec3::new(1.0, 1.6, -3.0),
-    });
-    app.update();
-    let played: Vec<_> = app
-        .world_mut()
-        .resource_mut::<Messages<PlaySound>>()
-        .drain()
-        .collect();
-    assert_eq!(played.len(), 1);
-    assert_eq!(played[0].sound, Sound::FlashlightClick);
-    assert_eq!(played[0].position, None);
-}
-
-#[test]
-fn fuse_cues_bridge_as_non_spatial_ui_sounds() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_message::<GameplaySound>()
-        .add_message::<PlaySound>()
-        .add_systems(Update, forward_gameplay_sounds);
-    for kind in [
-        GameplaySoundKind::FuseSlot(1),
-        GameplaySoundKind::FuseSlot(2),
-        GameplaySoundKind::FuseSlot(3),
-        GameplaySoundKind::FuseComplete,
-    ] {
-        app.world_mut().write_message(GameplaySound {
-            kind,
-            position: Vec3::X,
-        });
-    }
-    app.update();
-    let played: Vec<_> = app
-        .world_mut()
-        .resource_mut::<Messages<PlaySound>>()
-        .drain()
-        .collect();
-    assert_eq!(played.len(), 4);
-    for (play, sound) in played.iter().zip([
-        Sound::FuseSlot(1),
-        Sound::FuseSlot(2),
-        Sound::FuseSlot(3),
-        Sound::FuseComplete,
-    ]) {
-        assert_eq!(play.sound, sound);
-        assert_eq!(play.position, None);
-    }
 }
 
 const FAUCET: Vec3 = Vec3::new(-13.4, 1.5, 0.0);
@@ -201,11 +100,24 @@ const FAUCET: Vec3 = Vec3::new(-13.4, 1.5, 0.0);
 fn faucet_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
+        .add_plugins(TransformPlugin)
         .add_plugins(EntropyPlugin::<ChaCha8Rng>::with_seed([7; 32]))
         .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs(1)))
         .init_resource::<AudioPaused>()
-        .add_message::<PlaySound>()
-        .add_systems(Update, faucet_bursts);
+        .add_message::<PlaySoundFrom>()
+        .add_systems(Update, play_intermittent_sounds);
+    app.world_mut().spawn((
+        IntermittentSound {
+            kind: IntermittentSoundKind::FaucetBurst,
+            offset: Vec3::new(0.0, -0.1, -0.25),
+            range: 12.0,
+            interval: 10.0,
+            variation: 8.0,
+            remaining: 10.0,
+        },
+        Transform::from_xyz(-13.65, 1.6, 0.0)
+            .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
+    ));
     app.world_mut()
         .resource_mut::<Time<Virtual>>()
         .set_max_delta(Duration::from_secs(2));
@@ -217,13 +129,15 @@ fn faucet_seconds(app: &mut App, seconds: usize) -> Vec<usize> {
     let mut bursts = Vec::new();
     for second in 0..seconds {
         app.update();
-        for play in app
+        let events: Vec<_> = app
             .world_mut()
-            .resource_mut::<Messages<PlaySound>>()
+            .resource_mut::<Messages<PlaySoundFrom>>()
             .drain()
-        {
+            .collect();
+        for play in events {
             assert_eq!(play.sound, Sound::FaucetBurst);
-            assert_eq!(play.position, Some(FAUCET));
+            let transform = app.world().get::<GlobalTransform>(play.source).unwrap();
+            assert!(transform.transform_point(play.offset).distance(FAUCET) < 0.0001);
             bursts.push(second);
         }
     }
@@ -248,6 +162,55 @@ fn faucet_bursts_are_intermittent_near_the_sink_and_hold_while_paused() {
 
     app.world_mut().resource_mut::<AudioPaused>().0 = true;
     assert!(faucet_seconds(&mut app, 40).is_empty());
+}
+
+#[test]
+fn intermittent_cue_follows_its_source_and_stops_when_removed() {
+    let mut app = faucet_app();
+    let source = {
+        let world = app.world_mut();
+        let mut query = world.query_filtered::<Entity, With<IntermittentSound>>();
+        query.single(world).unwrap()
+    };
+    app.world_mut()
+        .entity_mut(source)
+        .get_mut::<Transform>()
+        .unwrap()
+        .translation
+        .x += 2.0;
+    app.world_mut()
+        .entity_mut(source)
+        .get_mut::<IntermittentSound>()
+        .unwrap()
+        .remaining = 0.1;
+    app.world_mut()
+        .spawn((PlayerController, Transform::from_xyz(-11.0, 0.0, 0.0)));
+    app.update();
+    let events: Vec<_> = app
+        .world_mut()
+        .resource_mut::<Messages<PlaySoundFrom>>()
+        .drain()
+        .collect();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].source, source);
+    assert!(
+        app.world()
+            .get::<GlobalTransform>(source)
+            .unwrap()
+            .transform_point(events[0].offset)
+            .distance(FAUCET + Vec3::X * 2.0)
+            < 0.0001
+    );
+    app.world_mut().entity_mut(source).despawn();
+    for _ in 0..30 {
+        app.update();
+    }
+    assert!(app
+        .world_mut()
+        .resource_mut::<Messages<PlaySoundFrom>>()
+        .drain()
+        .next()
+        .is_none());
 }
 
 #[test]

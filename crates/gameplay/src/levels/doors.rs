@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
+use game_audio::{PlaySourceSound, Sound, SourceSounds};
 
 use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
 
@@ -9,7 +10,6 @@ use super::{
     fuses::FuseInventory,
     hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
-    sounds::{GameplaySound, GameplaySoundKind},
 };
 
 pub(crate) const INTERACT_RANGE: f32 = 2.5;
@@ -35,7 +35,8 @@ pub struct DoorPlugin;
 impl Plugin for DoorPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<ToggleDoor>()
-            .add_message::<GameplaySound>()
+            .add_message::<PlaySourceSound>()
+            .add_observer(attach_door_sounds)
             .add_observer(interact)
             .add_systems(Update, (toggle_doors, animate_doors).chain())
             .add_systems(PostUpdate, update_panels);
@@ -129,17 +130,32 @@ pub(crate) fn box_hit(origin: Vec3, direction: Vec3, min: Vec3, max: Vec3) -> Op
     (exit > 0.0).then_some(entry)
 }
 
+fn attach_door_sounds(added: On<Add, Door>, doors: Query<&Door>, mut commands: Commands) {
+    let Ok(door) = doors.get(added.entity) else {
+        return;
+    };
+    commands.entity(added.entity).insert((
+        Transform::from_xyz(door.position.x, 0.0, door.position.y).with_rotation(door.rotation),
+        SourceSounds(vec![
+            (Sound::DoorLocked, Vec3::Y),
+            (Sound::DoorUnlatch, Vec3::Y),
+            (Sound::DoorSwing, Vec3::Y),
+            (Sound::DoorShut, Vec3::Y),
+        ]),
+    ));
+}
+
 fn toggle_doors(
     mut toggles: MessageReader<ToggleDoor>,
     mut doors: Query<&mut Door, Without<DoorLock>>,
     locked: Query<&Door, With<DoorLock>>,
-    mut sounds: MessageWriter<GameplaySound>,
+    mut sounds: MessageWriter<PlaySourceSound>,
 ) {
     for ToggleDoor(entity) in toggles.read() {
-        if let Ok(door) = locked.get(*entity) {
-            sounds.write(GameplaySound {
-                kind: GameplaySoundKind::DoorLocked,
-                position: Vec3::new(door.position.x, 1.0, door.position.y),
+        if locked.get(*entity).is_ok() {
+            sounds.write(PlaySourceSound {
+                source: *entity,
+                sound: Sound::DoorLocked,
             });
             continue;
         }
@@ -148,16 +164,15 @@ fn toggle_doors(
                 DoorState::Closed => DoorState::Open,
                 DoorState::Open => DoorState::Closed,
             };
-            let position = Vec3::new(door.position.x, 1.0, door.position.y);
             if door.state == DoorState::Open {
-                sounds.write(GameplaySound {
-                    kind: GameplaySoundKind::DoorUnlatch,
-                    position,
+                sounds.write(PlaySourceSound {
+                    source: *entity,
+                    sound: Sound::DoorUnlatch,
                 });
             }
-            sounds.write(GameplaySound {
-                kind: GameplaySoundKind::DoorSwing,
-                position,
+            sounds.write(PlaySourceSound {
+                source: *entity,
+                sound: Sound::DoorSwing,
             });
         }
     }

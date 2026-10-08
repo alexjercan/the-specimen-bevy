@@ -1,6 +1,6 @@
 # Prototype a boiler-room power outage event
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 55
 - TAGS: backlog, gameplay
 
@@ -10,4 +10,6 @@ Research pacing/trigger conditions and an understandable route to boiler recover
 
 ## Status
 
-Implementation draft: a seeded 75-120 second delay triggers an outage during active play; F at the boiler restores power and starts the next seeded delay. Normal point lights and their glow are disabled during outage; the red wall lamp, EXIT sign, boiler fire, and flashlight remain independent. The shared interaction target handles boiler line of sight and prompt arbitration. Generated outage/repair sounds are review candidates only and are not in the game. A user-reported B0002 startup panic from conflicting FacilityPower system parameters led to a message-based repair path; this fix and the repeat-cycle tests have not been run. No runtime lighting or audio review is established.
+Implemented: a seeded 30-90 second delay triggers an outage during active play. F at the boiler restores power and starts another seeded delay. Normal point lights and their emissive materials switch off during an outage; red emergency fixtures, EXIT signs, boiler fire, and the player flashlight remain independent. Boiler repair uses shared interaction targeting and a message-based processing system to avoid the prior observer query conflict. The approved power-down and restart cues are wired; restart playback is attached to the boiler source entity.
+
+Focused repeat-cycle, light/material, audio, and menu-rebuild tests passed. Menu rebuild constructs a fresh level and power state. No persistence/save system exists, so save/restart behavior cannot be tested yet. No in-game lighting or audio listening review has been performed. Breaker-trip/reset candidates are separate review-only research.
