@@ -45,6 +45,14 @@ fn custom_plugin_replaces_default_game_plugin() {
     assert_eq!(rooms.iter(app.world()).count(), 0);
 }
 
+fn snapshots(output: &[u8]) -> Vec<serde_json::Value> {
+    String::from_utf8(output.to_vec())
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect()
+}
+
 #[test]
 fn headless_without_transport_does_not_install_transport() {
     let app = AppBuilder::headless().build();
@@ -62,7 +70,11 @@ fn headless_transport_reports_the_spawned_player() {
         &mut output,
     );
     assert_eq!(exit, AppExit::Success);
-    let snapshot: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    let lines = snapshots(&output);
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0]["tick"], 0);
+    assert_eq!(lines[0]["map"]["rooms"].as_array().unwrap().len(), 18);
+    let snapshot = &lines[1];
     assert_eq!(snapshot["tick"], 2);
     assert_eq!(snapshot["player"]["position"][1], 1.6);
     assert!(snapshot["player"]["position"][2].as_f64().unwrap() < -5.0);
@@ -85,7 +97,10 @@ fn headless_transport_ignores_menu_and_reports_the_spawned_player() {
     let app = AppBuilder::headless().with_menu().with_transport().build();
     let exit = run(app, Cursor::new("{\"tick\":1,\"input\":{}}\n"), &mut output);
     assert_eq!(exit, AppExit::Success);
-    let snapshot: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    let lines = snapshots(&output);
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0]["tick"], 0);
+    let snapshot = &lines[1];
     assert_eq!(snapshot["tick"], 1);
     assert_eq!(snapshot["player"]["position"][1], 1.6);
 }
@@ -139,6 +154,36 @@ fn builder_without_seed_leaves_fuse_seed_unset() {
     app.cleanup();
     app.update();
     assert_eq!(fuse_slots(&mut app).len(), FUSE_COUNT);
+}
+
+#[test]
+fn headless_transport_snapshots_do_not_depend_on_the_fuse_seed() {
+    let other = (0..)
+        .find(|&seed| {
+            select_fuse_slots(seed, FUSE_TABLES.len()) != select_fuse_slots(0, FUSE_TABLES.len())
+        })
+        .unwrap();
+    let outputs: Vec<Vec<u8>> = [0, other]
+        .into_iter()
+        .map(|seed| {
+            let mut output = Vec::new();
+            let app = AppBuilder::headless()
+                .with_transport()
+                .with_seed(seed)
+                .build();
+            let input = Cursor::new("{\"tick\":1}\n{\"tick\":30,\"input\":{\"look\":[200,0]}}\n");
+            assert_eq!(run(app, input, &mut output), AppExit::Success);
+            output
+        })
+        .collect();
+    assert_eq!(outputs[0], outputs[1]);
+    let lines = snapshots(&outputs[0]);
+    assert_eq!(lines.len(), 3);
+    assert_eq!(
+        lines[0]["map"]["fuse_candidates"].as_array().unwrap().len(),
+        FUSE_TABLES.len()
+    );
+    assert!(!lines[0]["map"].to_string().contains("has_fuse"));
 }
 
 #[test]

@@ -15,7 +15,10 @@ use gameplay::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::TransportTimeline;
+use crate::{
+    perception::{self, Heard, Map, Seen},
+    TransportTimeline,
+};
 
 pub(super) const FRAME_TIME: Duration = Duration::from_micros(16_667);
 
@@ -76,10 +79,15 @@ impl Controls {
 }
 
 #[derive(Serialize)]
-pub(super) struct Snapshot {
+struct Snapshot {
     tick: u64,
     player: Option<PlayerSnapshot>,
     won: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    map: Option<Map>,
+    power_on: Option<bool>,
+    visible: Vec<Seen>,
+    heard: Vec<Heard>,
 }
 
 #[derive(Serialize)]
@@ -95,31 +103,44 @@ struct PlayerSnapshot {
     stamina_exhausted: bool,
 }
 
-pub(super) fn snapshot(world: &mut World, tick: u64) -> Snapshot {
+pub fn snapshot(world: &mut World, tick: u64) -> String {
     let mut players = world.query_filtered::<
         (&Transform, &PlayerInput, &Flashlight, &Stamina),
         With<PlayerController>,
     >();
-    let player = players.iter(world).next().map(|(pose, input, flashlight, stamina)| {
-        let (yaw, pitch, _) = pose.rotation.to_euler(EulerRot::YXZ);
-        PlayerSnapshot {
-            position: pose.translation.to_array(),
-            yaw,
-            pitch,
-            movement: input.movement.to_array(),
-            running: stamina.sprinting,
-            flashlight_on: flashlight.on,
-            flashlight_charge: flashlight.charge,
-            stamina_charge: stamina.charge,
-            stamina_exhausted: stamina.exhausted,
-        }
-    });
+    let player = players
+        .iter(world)
+        .next()
+        .map(|(pose, input, flashlight, stamina)| {
+            let (yaw, pitch, _) = pose.rotation.to_euler(EulerRot::YXZ);
+            PlayerSnapshot {
+                position: pose.translation.to_array(),
+                yaw,
+                pitch,
+                movement: input.movement.to_array(),
+                running: stamina.sprinting,
+                flashlight_on: flashlight.on,
+                flashlight_charge: flashlight.charge,
+                stamina_charge: stamina.charge,
+                stamina_exhausted: stamina.exhausted,
+            }
+        });
     let won = world
         .query_filtered::<(), (With<PlayerController>, With<Escaped>)>()
         .iter(world)
         .next()
         .is_some();
-    Snapshot { tick, player, won }
+    let view = perception::view(world);
+    serde_json::to_string(&Snapshot {
+        tick,
+        player,
+        won,
+        map: view.map,
+        power_on: view.power_on,
+        visible: view.visible,
+        heard: view.heard,
+    })
+    .expect("snapshot serializes")
 }
 
 #[derive(Serialize)]
@@ -133,6 +154,7 @@ impl Plugin for TransportPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(TimeUpdateStrategy::ManualDuration(FRAME_TIME))
             .init_resource::<TransportTimeline>();
+        perception::build(app);
         app.set_runner(|app| run(app, io::stdin().lock(), io::stdout().lock()));
     }
 }
@@ -161,6 +183,12 @@ pub fn run<R: BufRead, W: Write>(mut app: App, input: R, mut output: W) -> AppEx
     }
 
     let mut tick = app.world().resource::<TransportTimeline>().tick().unwrap();
+    if writeln!(output, "{}", snapshot(app.world_mut(), tick))
+        .and_then(|()| output.flush())
+        .is_err()
+    {
+        return AppExit::error();
+    }
     for line in input.lines() {
         let line = match line {
             Ok(line) => line,
@@ -193,8 +221,7 @@ pub fn run<R: BufRead, W: Write>(mut app: App, input: R, mut output: W) -> AppEx
                         return exit;
                     }
                 }
-                serde_json::to_string(&snapshot(app.world_mut(), tick))
-                    .expect("snapshot serializes")
+                snapshot(app.world_mut(), tick)
             }
             Err(_) => serde_json::to_string(&Error {
                 error: "expected a JSON object with tick and optional input controls",

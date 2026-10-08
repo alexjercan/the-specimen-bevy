@@ -3085,6 +3085,7 @@ dependencies = [
  "bevy_asset_loader",
  "bevy_enhanced_input",
  "bevy_rand",
+ "capture",
  "debug",
  "game_assets",
  "game_audio",
@@ -5758,6 +5759,8 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_enhanced_input",
+ "capture",
+ "game_audio",
  "gameplay",
  "serde",
  "serde_json",

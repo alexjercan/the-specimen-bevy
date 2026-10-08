@@ -1,0 +1,19 @@
+# Pi playtest runner
+
+`playtest_agent.py` starts a game transport process and a tool-disabled Pi RPC session. It reads the ready tick-0 snapshot before sending commands. The initial map is sent to Pi once; later prompts contain dynamic snapshots. The game receives absolute tick targets with persistent held controls. Pi chooses each bounded step as JSON with `frames` and optional `input`. Crossing the outside EXIT after installing the fuses sets `won: true` in the next snapshot. Transport intentionally does not show the normal completion menu or exit at that point: the game stays alive until stdin closes so the harness can read the win snapshot and finalize recording. If `won` stays false after crossing the outside door, check that the panel shows three installed fuses and the outside door is unlocked; preserve the last snapshots and `game.log` for diagnosis. Rendered transport paces requested frames at up to 60 per wall-clock second, and each tick advances one 1/60-second simulation frame. Asset-backed meshes may still appear several ticks after logical ready; a very short recording can start blank.
+
+```sh
+python3 scripts/playtest_agent.py --provider openai-codex --model gpt-6-luna --thinking low --ticks 3600 --seconds 600 --seed 42
+```
+
+The provider defaults to `openai-codex`; pass `--provider NAME` to select another provider when a model name exists under multiple providers. Use `--prompt 'Find the fuses and escape'` for inline instructions or `--prompt-file PATH` for longer instructions (not both), `--max-step N` to cap frames per decision, `--step-timeout SECONDS`, `--boot-timeout SECONDS`, and `--encode-timeout SECONDS` for deadlines, and `--output DIR` for `trace.jsonl`, `progress.log`, `game.log`, and `pi.log`. Progress appears live on stderr and in `progress.log`: startup, each Pi decision, target tick/input, and a short observation with player position and win state. `trace.jsonl` retains full snapshots and actions. `game.log` contains only game stderr; `pi.log` contains only Pi stderr. Press Ctrl+C to stop both children; the trace is kept and the runner waits for recording finalization. Killing the game process separately closes its transport stream and is reported as a stopped child, not a gameplay failure. `--game PATH` runs a previously built game binary instead of `cargo run`. Do not use this script with a Pi instance that needs repository tools: Pi is launched with tools, extensions, and project context disabled. The game itself retains its normal settings and assets. The runner sets `BEVY_ASSET_ROOT` to the repository unless it is already set.
+
+Rendered capture is opt-in:
+
+```sh
+python3 scripts/playtest_agent.py --provider openai-codex --model gpt-6-luna --thinking low --render --record target/playtest/run.webm --ticks 600
+```
+
+`--record` requires `--render` or `--noscreen`. `--noscreen` implies rendered mode, wraps the game with `xvfb-run -a`, and passes `--mute` to silence game playback without disabling audio asset loading or sound perception. It requires Xvfb and xvfb-run in the environment (available in the Nix shell). The game installs the existing capture loop and begins at ready tick 0. It closes and encodes the video after the harness closes stdin. Video uses 60 game frames per second; it is silent unless the capture loop receives staged PCM audio. A real two-tick Xvfb/Pi smoke run produced initial and dynamic snapshots and a two-frame VP9 WebM. Longer playtests, audio muting by listening, and frame-perfect playback have not been reviewed.
+
+The harness does not run automatically. It has no network or model calls during its unit tests. Run `python3 -m unittest scripts.tests.test_playtest_agent` for a fake-game/fake-agent protocol test.

@@ -5,8 +5,8 @@ use super::player::PlayerController;
 use crate::levels::{
     module_names::{
         BOILER_UNIT, CHAIR_TIPPED, CONCEPT_CONTAINMENT_TANK, CONCEPT_LOCKER, CONCEPT_TABLE,
-        DRUM_SPILLED, LAB_CONSOLE, SHELF_UNIT, SHELF_UNIT_BINS, SHELF_UNIT_LOW,
-        STEEL_DRUM, STORAGE_CRATE, WORK_ISLAND, WORKBENCH,
+        DRUM_SPILLED, LAB_CONSOLE, SHELF_UNIT, SHELF_UNIT_BINS, SHELF_UNIT_LOW, STEEL_DRUM,
+        STORAGE_CRATE, WORKBENCH, WORK_ISLAND,
     },
     Door, DoorOf, DoorRef, DoorSwing, Doors, Passage, Prop, PropCollider, Room,
     PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH,
@@ -208,6 +208,26 @@ pub(crate) fn colliders(
     passages: &Query<&Passage>,
     props: &Query<(&PropCollider, &Transform), Without<PlayerController>>,
 ) -> Vec<(Vec2, Vec2, f32)> {
+    let mut obstacles = wall_obstacles(rooms, links, doors, passages);
+    for (door, swing) in doors {
+        obstacles.extend(door_frames(door));
+        obstacles.push(door_panel(door, swing));
+    }
+    for (collider, transform) in props {
+        let (yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
+        let scale = transform.scale.xz();
+        let center = transform.translation.xz() + rotate(collider.center * scale, yaw);
+        obstacles.push((center, collider.half * scale.abs(), yaw));
+    }
+    obstacles
+}
+
+pub fn wall_obstacles(
+    rooms: &Query<(&Room, Option<&Doors>)>,
+    links: &Query<(&DoorRef, &DoorOf)>,
+    doors: &Query<(&Door, &DoorSwing)>,
+    passages: &Query<&Passage>,
+) -> Vec<(Vec2, Vec2, f32)> {
     let mut walls = Vec::new();
     for (room, room_doors) in rooms {
         let bounds = room.0;
@@ -240,34 +260,31 @@ pub(crate) fn colliders(
             }
         }
     }
-    let mut obstacles = merge_walls(walls);
-    for (door, swing) in doors {
-        let (yaw, _, _) = door.rotation.to_euler(EulerRot::YXZ);
-        let position = door.position;
-        for side in [-1.0, 1.0] {
-            let distance = (TILE / 2.0 + FRAME_HALF_WIDTH) / 2.0;
-            let local = Vec2::new(side * distance, 0.0);
-            obstacles.push((
-                position + rotate(local, yaw),
-                Vec2::new((TILE / 2.0 - FRAME_HALF_WIDTH) / 2.0, FRAME_DEPTH),
-                yaw,
-            ));
-        }
-        let angle = yaw + swing.0;
-        let hinge = position + rotate(PANEL_OFFSET.xz(), yaw);
-        obstacles.push((
-            hinge + rotate(Vec2::new(PANEL_WIDTH / 2.0, 0.0), angle),
-            Vec2::new(PANEL_WIDTH / 2.0, PANEL_HALF_THICKNESS),
-            angle,
-        ));
-    }
-    for (collider, transform) in props {
-        let (yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
-        let scale = transform.scale.xz();
-        let center = transform.translation.xz() + rotate(collider.center * scale, yaw);
-        obstacles.push((center, collider.half * scale.abs(), yaw));
-    }
-    obstacles
+    merge_walls(walls)
+}
+
+pub fn door_frames(door: &Door) -> [(Vec2, Vec2, f32); 2] {
+    let (yaw, _, _) = door.rotation.to_euler(EulerRot::YXZ);
+    [-1.0, 1.0].map(|side| {
+        let distance = (TILE / 2.0 + FRAME_HALF_WIDTH) / 2.0;
+        let local = Vec2::new(side * distance, 0.0);
+        (
+            door.position + rotate(local, yaw),
+            Vec2::new((TILE / 2.0 - FRAME_HALF_WIDTH) / 2.0, FRAME_DEPTH),
+            yaw,
+        )
+    })
+}
+
+pub fn door_panel(door: &Door, swing: &DoorSwing) -> (Vec2, Vec2, f32) {
+    let (yaw, _, _) = door.rotation.to_euler(EulerRot::YXZ);
+    let angle = yaw + swing.0;
+    let hinge = door.position + rotate(PANEL_OFFSET.xz(), yaw);
+    (
+        hinge + rotate(Vec2::new(PANEL_WIDTH / 2.0, 0.0), angle),
+        Vec2::new(PANEL_WIDTH / 2.0, PANEL_HALF_THICKNESS),
+        angle,
+    )
 }
 
 fn merge_walls(mut walls: Vec<(bool, f32, f32, f32)>) -> Vec<(Vec2, Vec2, f32)> {

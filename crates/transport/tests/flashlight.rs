@@ -26,11 +26,12 @@ fn headless_transport_click_persists_until_explicit_release_and_reports_charge()
     let mut output = Vec::new();
     let result = run(app, input, &mut output);
     assert!(matches!(result, AppExit::Success));
-    let replies: Vec<Value> = String::from_utf8(output)
+    let mut replies: Vec<Value> = String::from_utf8(output)
         .unwrap()
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
+    assert_eq!(replies.remove(0)["tick"], 0);
     assert_eq!(replies.len(), 4);
     assert_eq!(replies[0]["player"]["flashlight_on"], true);
     assert_eq!(replies[1]["player"]["flashlight_on"], true);

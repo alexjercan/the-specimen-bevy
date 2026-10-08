@@ -1,6 +1,20 @@
 use super::*;
 
 #[test]
+fn facility_lighting_is_shared_by_normal_and_rendered_transport() {
+    assert!(AppBuilder::new().facility_lighting_enabled());
+    assert!(AppBuilder::new()
+        .with_transport()
+        .facility_lighting_enabled());
+    assert!(!AppBuilder::headless()
+        .with_transport()
+        .facility_lighting_enabled());
+    assert!(!AppBuilder::new()
+        .with_main_plugin(GamePlugin)
+        .facility_lighting_enabled());
+}
+
+#[test]
 fn graphics_preset_applies_to_existing_and_new_cameras() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)

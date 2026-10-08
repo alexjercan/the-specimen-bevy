@@ -63,11 +63,12 @@ fn headless_snapshot_reports_the_win_after_install_and_exit_without_exiting_earl
         ),
         AppExit::Success,
     );
-    let lines: Vec<serde_json::Value> = String::from_utf8(output)
+    let mut lines: Vec<serde_json::Value> = String::from_utf8(output)
         .unwrap()
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
+    assert_eq!(lines.remove(0)["tick"], 0);
     assert_eq!(lines.len(), 7);
     let z = |index: usize| lines[index]["player"]["position"][2].as_f64().unwrap();
     for line in &lines[..5] {

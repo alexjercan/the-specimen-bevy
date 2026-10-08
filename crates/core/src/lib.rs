@@ -1,12 +1,13 @@
 mod glue;
 mod menu;
 
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 
 #[cfg(feature = "debug")]
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 use bevy::{
     app::ScheduleRunnerPlugin,
+    audio::{GlobalVolume, Volume},
     input::InputPlugin,
     log::{Level, LogPlugin},
     prelude::*,
@@ -49,6 +50,8 @@ pub struct AppBuilder {
     transport: bool,
     menu: bool,
     seed: Option<u64>,
+    recording: Option<PathBuf>,
+    muted_audio: bool,
     main_plugin: Option<MainPlugin>,
 }
 
@@ -74,8 +77,18 @@ impl AppBuilder {
         self
     }
 
+    pub fn with_recording(mut self, path: PathBuf) -> Self {
+        self.recording = Some(path);
+        self
+    }
+
     pub fn with_seed(mut self, seed: u64) -> Self {
         self.seed = Some(seed);
+        self
+    }
+
+    pub fn with_muted_audio(mut self) -> Self {
+        self.muted_audio = true;
         self
     }
 
@@ -90,8 +103,14 @@ impl AppBuilder {
         self.menu && !self.headless && !self.transport && self.main_plugin.is_none()
     }
 
+    fn facility_lighting_enabled(&self) -> bool {
+        !self.headless && self.main_plugin.is_none()
+    }
+
     pub fn build(self) -> App {
+        assert!(self.recording.is_none() || (!self.headless && self.transport));
         let menu = self.menu_enabled();
+        let facility_lighting = self.facility_lighting_enabled();
         let mut app = App::new();
         let logging = LogPlugin {
             level: Level::INFO,
@@ -122,6 +141,9 @@ impl AppBuilder {
             }
         } else {
             app.add_plugins(DefaultPlugins.set(logging));
+            if self.muted_audio {
+                app.insert_resource(GlobalVolume::new(Volume::Linear(0.0)));
+            }
             if let Some(seed) = self.seed {
                 let mut bytes = [0; 32];
                 bytes[..8].copy_from_slice(&seed.to_le_bytes());
@@ -154,13 +176,17 @@ impl AppBuilder {
                     glue::StaminaHudPlugin,
                 ))
                 .add_plugins((game_audio::GameAudioPlugin, glue::SoundGluePlugin));
+            if let Some(path) = self.recording {
+                app.insert_resource(transport::RecordTransport(path))
+                    .add_plugins(capture::CapturePlugin::new(60));
+            }
             if self.transport {
                 app.add_plugins(transport::RenderedTransportPlugin);
             }
             #[cfg(feature = "debug")]
             app.add_plugins(debug::DebugPlugin)
                 .add_systems(PostUpdate, sync_debug_controls);
-            if self.main_plugin.is_none() && !self.transport {
+            if facility_lighting {
                 app.insert_resource(GlobalAmbientLight {
                     color: Color::WHITE,
                     brightness: WINDOWED_AMBIENT_BRIGHTNESS,

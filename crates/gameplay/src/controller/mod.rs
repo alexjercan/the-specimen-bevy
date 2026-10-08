@@ -4,6 +4,7 @@ pub mod player;
 mod stamina;
 pub mod wasd_camera;
 
+pub use collision::{door_frames, door_panel, wall_obstacles};
 pub use flashlight::{Flashlight, FlashlightBeam, DRAIN_SECONDS, RECHARGE_SECONDS, RESTART_CHARGE};
 pub use player::{
     PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput, LOOK_SENSITIVITY,

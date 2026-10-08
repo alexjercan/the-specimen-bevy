@@ -28,11 +28,12 @@ fn headless_sprint_depletes_then_recovers_without_autorestarting_while_shift_is_
     );
     let mut output = Vec::new();
     assert!(matches!(run(app, input, &mut output), AppExit::Success));
-    let replies: Vec<Value> = String::from_utf8(output)
+    let mut replies: Vec<Value> = String::from_utf8(output)
         .unwrap()
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
+    assert_eq!(replies.remove(0)["tick"], 0);
     assert_eq!(replies[0]["player"]["running"], true);
     assert_eq!(replies[1]["player"]["stamina_exhausted"], true);
     assert_eq!(replies[1]["player"]["running"], false);

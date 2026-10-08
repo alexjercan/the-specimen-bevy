@@ -32,11 +32,13 @@ fn step(commands: &str) -> Vec<serde_json::Value> {
         run(app, Cursor::new(commands), &mut output),
         AppExit::Success
     );
-    String::from_utf8(output)
+    let mut lines: Vec<serde_json::Value> = String::from_utf8(output)
         .unwrap()
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
-        .collect()
+        .collect();
+    assert_eq!(lines.remove(0)["tick"], 0);
+    lines
 }
 
 #[test]
@@ -116,7 +118,7 @@ fn f_toggles_an_aimed_door_once_per_press() {
             DoorState::Closed,
         ]
     );
-    assert_eq!(String::from_utf8(output).unwrap().lines().count(), 4);
+    assert_eq!(String::from_utf8(output).unwrap().lines().count(), 5);
 }
 
 #[test]

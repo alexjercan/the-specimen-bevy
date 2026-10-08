@@ -10,6 +10,7 @@ debug = ["dep:debug"]
 
 [dependencies]
 bevy.workspace = true
+capture.workspace = true
 bevy_enhanced_input.workspace = true
 game_assets.workspace = true
 game_audio.workspace = true
