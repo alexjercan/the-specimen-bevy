@@ -3,7 +3,7 @@ use std::f32::consts::{FRAC_PI_2, PI};
 use bevy::prelude::*;
 
 use crate::levels::{
-    builder::{door, passage, room, DoorOf, DoorRef},
+    builder::{DoorOf, DoorRef, door, passage, room},
     doors::{DoorLock, ExitDoor},
 };
 
@@ -400,7 +400,7 @@ pub(super) fn spawn(commands: &mut Commands) {
     commands
         .spawn(room(
             "boiler",
-            Rect::new(-13.75, -3.75, -6.25, 3.75),
+            Rect::new(-13.75, -6.25, -6.25, 3.75),
             FLOOR_TILE,
             WALL_CONDUIT,
             CEILING_TILE,

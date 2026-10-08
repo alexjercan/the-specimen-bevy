@@ -136,6 +136,7 @@ class SoundCatalogTests(unittest.TestCase):
                     self.assertIn("Freesound low-quality preview", card)
                     self.assertNotIn("For review - not in game", card)
                 elif path.endswith("/self/breathing-tired-mikeask.wav"):
+                    self.assertIn('class="approved"', card)
                     self.assertIn("mikeask", card)
                     self.assertIn("opengameart.org/content/breathing-tired", card)
                     self.assertNotIn("For review - not in game", card)

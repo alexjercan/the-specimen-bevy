@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use bevy::prelude::*;
 use gameplay::levels::{
-    build_first_floor, Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Passage, Room,
+    Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Passage, Room, build_first_floor,
 };
 
 #[test]
@@ -105,6 +105,22 @@ fn first_floor_openings_link_rooms_and_align_with_walls() {
     assert_eq!(prep.intersection(&hiding).count(), 1);
     assert_eq!(prep.intersection(&east_hall).count(), 1);
     assert_eq!(hiding.intersection(&east_hall).count(), 1);
+
+    let boiler = rooms
+        .iter()
+        .find(|(_, name, ..)| name == "boiler")
+        .unwrap()
+        .2;
+    let utility = rooms
+        .iter()
+        .find(|(_, name, ..)| name == "utility")
+        .unwrap()
+        .2;
+    assert_eq!(boiler.min, Vec2::new(-13.75, -6.25));
+    assert_eq!(boiler.max, Vec2::new(-6.25, 3.75));
+    assert_eq!(boiler.min.y, utility.max.y);
+    assert_eq!(boiler.min.x, utility.min.x);
+    assert_eq!(boiler.max.x, utility.max.x);
 
     for (entity, name, bounds, references) in &rooms {
         for &link in references {

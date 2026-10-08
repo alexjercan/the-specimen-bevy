@@ -4,8 +4,8 @@ use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use gameplay::{
     controller::{
-        Flashlight, FlashlightBeam, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled,
-        RESTART_CHARGE,
+        Flashlight, FlashlightBeam, PlayerController, PlayerControllerPlugin,
+        PlayerControlsEnabled, RESTART_CHARGE,
     },
     levels::{GameplaySound, GameplaySoundKind},
 };
@@ -41,10 +41,26 @@ fn beam_is_view_attached_only_in_rendered_mode() {
     let pose = rendered.world().get::<Transform>(beam).unwrap();
     assert!(pose.translation.z < 0.0);
     assert_eq!(pose.rotation * -Vec3::Z, -Vec3::Z);
-    assert_eq!(rendered.world().get::<Visibility>(beam), Some(&Visibility::Hidden));
+    assert_eq!(
+        rendered.world().get::<Visibility>(beam),
+        Some(&Visibility::Hidden)
+    );
+    assert_eq!(
+        rendered.world().get::<Flashlight>(player),
+        Some(&Flashlight {
+            charge: 1.0,
+            on: false
+        })
+    );
 
     let (headless, player) = app(false);
-    assert!(headless.world().get::<Flashlight>(player).is_some());
+    assert_eq!(
+        headless.world().get::<Flashlight>(player),
+        Some(&Flashlight {
+            charge: 1.0,
+            on: false
+        })
+    );
     assert!(headless.world().get::<Children>(player).is_none());
 }
 
@@ -58,13 +74,20 @@ fn click_toggles_and_charge_drains_then_recharges() {
     let active = *app.world().get::<Flashlight>(player).unwrap();
     assert!(active.on);
     assert!(active.charge < 1.0);
-    app.world_mut().get_mut::<Flashlight>(player).unwrap().charge = 0.01;
+    app.world_mut()
+        .get_mut::<Flashlight>(player)
+        .unwrap()
+        .charge = 0.001;
     app.update();
     let empty = *app.world().get::<Flashlight>(player).unwrap();
     assert!(!empty.on);
     assert_eq!(empty.charge, 0.0);
     app.update();
     assert!(app.world().get::<Flashlight>(player).unwrap().charge > 0.0);
+    for _ in 0..8 {
+        app.update();
+    }
+    assert!(app.world().get::<Flashlight>(player).unwrap().charge >= RESTART_CHARGE);
 
     app.world_mut()
         .resource_mut::<ButtonInput<MouseButton>>()
@@ -80,7 +103,10 @@ fn click_toggles_and_charge_drains_then_recharges() {
 #[test]
 fn controls_gate_toggle_and_charge_time() {
     let (mut app, player) = app(false);
-    app.world_mut().get_mut::<Flashlight>(player).unwrap().charge = 0.5;
+    app.world_mut()
+        .get_mut::<Flashlight>(player)
+        .unwrap()
+        .charge = 0.5;
     app.world_mut().resource_mut::<PlayerControlsEnabled>().0 = false;
     app.world_mut()
         .resource_mut::<ButtonInput<MouseButton>>()
