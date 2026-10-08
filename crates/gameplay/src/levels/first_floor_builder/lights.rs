@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use crate::levels::{
     builder::{light, prop, LightEffect},
     fuses::FusePanel,
+    module_names::{EXIT_SIGN, WALL_LAMP_RED},
 };
 
 use super::{AMBER, COOL, EXIT_GREEN, FAULT_RED};
@@ -282,8 +283,8 @@ pub(super) fn spawn(commands: &mut Commands) {
 
     commands
         .spawn(prop(
-            "exit_sign",
-            "exit_sign",
+            EXIT_SIGN,
+            EXIT_SIGN,
             Transform::from_xyz(0.0, 2.62, -31.15).with_rotation(Quat::from_rotation_y(PI)),
         ))
         .with_children(|children| {
@@ -302,8 +303,8 @@ pub(super) fn spawn(commands: &mut Commands) {
     commands
         .spawn((
             prop(
-                "wall_lamp_red",
-                "wall_lamp_red",
+                WALL_LAMP_RED,
+                WALL_LAMP_RED,
                 Transform::from_xyz(13.65, 2.2, -12.5)
                     .with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
             ),

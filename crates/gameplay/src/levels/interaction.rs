@@ -2,12 +2,14 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 
 use super::{
     animation::DoorSwing,
-    builder::{Door, DoorRef, Doors, Passage, Room},
+    builder::{Door, DoorRef, Doors, Passage, Prop, Room},
     doors::{aimed_door, panel_center, panel_hinge, panel_rotation, DoorLock, PANEL_WIDTH},
     fuses::{
         fuse_center, fuse_hit, fuse_panel_hit, FuseInventory, FusePanel, FusePickup, FUSE_COUNT,
     },
     hiding::{Hidden, HidingSpot},
+    module_names::BOILER_UNIT,
+    power::FacilityPower,
 };
 
 const TILE: f32 = 2.5;
@@ -17,6 +19,7 @@ pub enum InteractTarget {
     Door(Entity),
     Fuse(Entity),
     Panel(Entity),
+    Boiler(Entity),
     Hide(Entity),
     Leave(Entity),
 }
@@ -27,6 +30,8 @@ pub struct InteractTargets<'w, 's> {
     locks: Query<'w, 's, (), With<DoorLock>>,
     fuses: Query<'w, 's, (Entity, &'static Transform), With<FusePickup>>,
     panels: Query<'w, 's, (Entity, &'static Transform, &'static FusePanel)>,
+    boilers: Query<'w, 's, (Entity, &'static Prop, &'static Transform)>,
+    power: Option<Res<'w, FacilityPower>>,
     spots: Query<'w, 's, (Entity, &'static Transform, &'static HidingSpot)>,
     rooms: Query<'w, 's, (&'static Room, Option<&'static Doors>)>,
     links: Query<'w, 's, &'static DoorRef>,
@@ -61,6 +66,15 @@ impl InteractTargets<'_, '_> {
                 fuse_panel_hit(origin, forward, center)
                     .map(|distance| (InteractTarget::Panel(entity), center, distance))
             });
+        let boilers = self.boilers.iter().filter_map(|(entity, prop, transform)| {
+            (prop.0 == BOILER_UNIT && self.power.as_ref().is_some_and(|power| !power.on))
+                .then(|| {
+                    let center = transform.translation + Vec3::Y * 1.2;
+                    fuse_panel_hit(origin, forward, center)
+                        .map(|distance| (InteractTarget::Boiler(entity), center, distance))
+                })
+                .flatten()
+        });
         let spots = self.spots.iter().filter_map(|(entity, transform, spot)| {
             spot.hit(transform, origin, forward).map(|distance| {
                 (
@@ -72,6 +86,7 @@ impl InteractTargets<'_, '_> {
         });
         let mut candidates: Vec<_> = fuses
             .chain(panels)
+            .chain(boilers)
             .chain(spots)
             .filter(|&(_, _, distance)| door.is_none_or(|(_, nearest)| distance <= nearest))
             .collect();
@@ -105,6 +120,11 @@ impl InteractTargets<'_, '_> {
                 .get(entity)
                 .ok()
                 .map(|(_, transform, _)| transform.translation),
+            InteractTarget::Boiler(entity) => self
+                .boilers
+                .get(entity)
+                .ok()
+                .map(|(_, _, transform)| transform.translation + Vec3::Y * 1.2),
             InteractTarget::Hide(entity) | InteractTarget::Leave(entity) => self
                 .spots
                 .get(entity)

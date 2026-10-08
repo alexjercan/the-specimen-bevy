@@ -6,7 +6,10 @@ mod signs;
 
 use bevy::prelude::*;
 
-use super::fuses::{run_seed, FuseSeed};
+use super::{
+    fuses::{run_seed, FuseSeed},
+    power::FacilityPower,
+};
 
 pub use fuse_tables::{FuseTable, FUSE_TABLES};
 
@@ -23,5 +26,7 @@ pub fn build_first_floor(mut commands: Commands, seed: Option<Res<FuseSeed>>) {
     props::spawn_fixtures(&mut commands);
     signs::spawn(&mut commands);
     props::spawn_furniture(&mut commands);
-    fuse_tables::spawn(&mut commands, run_seed(seed.as_deref()));
+    let seed = run_seed(seed.as_deref());
+    fuse_tables::spawn(&mut commands, seed);
+    commands.insert_resource(FacilityPower::new(seed));
 }

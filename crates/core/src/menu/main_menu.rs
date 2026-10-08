@@ -1,7 +1,7 @@
-use bevy::{platform::collections::HashSet, prelude::*};
+use bevy::prelude::*;
 use game_assets::UiAssets;
 use game_ui::{menu_button, text, theme};
-use gameplay::levels::build_first_floor;
+use gameplay::levels::{build_first_floor, Door, FusePickup, LevelRoot, Passage, Prop, Room};
 
 use super::{release_cursor, screen_camera, GameState, MenuAction, TITLE};
 
@@ -67,16 +67,28 @@ fn spawn_main_menu(mut commands: Commands, assets: Res<UiAssets>) {
 
 fn enter_world(world: &mut World) {
     let build = world.register_system_cached(build_first_floor);
-    let existing: HashSet<Entity> = world.query::<Entity>().iter(world).collect();
     if let Err(error) = world.run_system(build) {
         error!("first floor build failed: {error}");
+        return;
     }
-    let spawned: Vec<Entity> = world
-        .query_filtered::<Entity, Without<ChildOf>>()
+    let roots: Vec<Entity> = world
+        .query_filtered::<
+            Entity,
+            (
+                Without<ChildOf>,
+                Or<(
+                    With<Room>,
+                    With<LevelRoot>,
+                    With<Door>,
+                    With<Passage>,
+                    With<Prop>,
+                    With<FusePickup>,
+                )>,
+            ),
+        >()
         .iter(world)
-        .filter(|entity| !existing.contains(entity))
         .collect();
-    for entity in spawned {
+    for entity in roots {
         world
             .entity_mut(entity)
             .insert(DespawnOnExit(GameState::Playing));

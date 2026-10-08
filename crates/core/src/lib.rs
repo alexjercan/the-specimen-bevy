@@ -15,7 +15,7 @@ use bevy_rand::prelude::{ChaCha8Rng, EntropyPlugin};
 use game_assets::GameAssetsState;
 use gameplay::{
     controller::PlayerController,
-    levels::{build_first_floor, FuseSeed, LightIntensity},
+    levels::{build_first_floor, FacilityPower, FuseSeed, LightIntensity},
 };
 
 pub use menu::{GameState, MenuPlugin, PauseState};
@@ -103,6 +103,7 @@ impl AppBuilder {
                 gameplay::levels::FusePlugin,
                 gameplay::levels::HidingPlugin,
                 gameplay::levels::ObjectivePlugin,
+                gameplay::levels::FacilityPowerPlugin,
             ));
             if self.transport {
                 app.add_plugins(transport::TransportPlugin);
@@ -130,6 +131,7 @@ impl AppBuilder {
                     gameplay::levels::FusePlugin,
                     gameplay::levels::HidingPlugin,
                     gameplay::levels::ObjectivePlugin,
+                    gameplay::levels::FacilityPowerPlugin,
                 ))
                 .add_plugins((
                     glue::InteractionHintPlugin,
@@ -149,7 +151,7 @@ impl AppBuilder {
                     brightness: WINDOWED_AMBIENT_BRIGHTNESS,
                     ..default()
                 })
-                .add_systems(Update, dim_new_lights);
+                .add_systems(Update, (dim_new_lights, dim_ambient_on_outage));
             }
         }
         if self.transport {
@@ -186,6 +188,22 @@ fn dim_new_lights(
     for (mut light, mut base) in &mut lights {
         base.0 *= WINDOWED_LIGHT_SCALE;
         light.intensity = base.0;
+    }
+}
+
+fn dim_ambient_on_outage(
+    power: Option<Res<FacilityPower>>,
+    game: Option<Res<State<GameState>>>,
+    mut ambient: ResMut<GlobalAmbientLight>,
+) {
+    let playing = game.is_none_or(|game| *game.get() == GameState::Playing);
+    let brightness = if playing && power.is_some_and(|power| !power.on) {
+        0.35
+    } else {
+        WINDOWED_AMBIENT_BRIGHTNESS
+    };
+    if ambient.brightness != brightness {
+        ambient.brightness = brightness;
     }
 }
 

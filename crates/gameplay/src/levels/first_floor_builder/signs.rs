@@ -2,13 +2,14 @@ use std::f32::consts::{FRAC_PI_2, PI};
 
 use bevy::prelude::*;
 
-use crate::levels::builder::prop;
+use crate::levels::builder::{prop, LevelRoot};
 
 pub(super) fn spawn(commands: &mut Commands) {
     commands
         .spawn((
             Transform::from_xyz(-2.5, 2.04, -16.15).with_rotation(Quat::from_rotation_y(PI)),
             Visibility::default(),
+            LevelRoot,
         ))
         .with_children(|children| {
             children.spawn(prop(
@@ -36,6 +37,7 @@ pub(super) fn spawn(commands: &mut Commands) {
         .spawn((
             Transform::from_xyz(3.65, 2.04, -15.0).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
             Visibility::default(),
+            LevelRoot,
         ))
         .with_children(|children| {
             children.spawn(prop(

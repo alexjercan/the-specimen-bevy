@@ -65,6 +65,29 @@ fn beam_is_view_attached_only_in_rendered_mode() {
 }
 
 #[test]
+fn click_held_while_player_spawns_does_not_toggle_until_released_and_pressed_again() {
+    let (mut app, _) = app(false);
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, 0.0)))
+        .id();
+    app.update();
+    assert!(!app.world().get::<Flashlight>(player).unwrap().on);
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+    app.update();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+    assert!(app.world().get::<Flashlight>(player).unwrap().on);
+}
+
+#[test]
 fn click_toggles_and_charge_drains_then_recharges() {
     let (mut app, player) = app(false);
     app.world_mut()

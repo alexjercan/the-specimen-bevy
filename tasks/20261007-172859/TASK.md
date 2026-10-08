@@ -10,4 +10,4 @@ Research pacing/trigger conditions and an understandable route to boiler recover
 
 ## Status
 
-Planned only. Do not claim implementation or runtime review.
+Implementation draft: a seeded 75-120 second delay triggers an outage during active play; F at the boiler restores power and starts the next seeded delay. Normal point lights and their glow are disabled during outage; the red wall lamp, EXIT sign, boiler fire, and flashlight remain independent. The shared interaction target handles boiler line of sight and prompt arbitration. Generated outage/repair sounds are review candidates only and are not in the game. A user-reported B0002 startup panic from conflicting FacilityPower system parameters led to a message-based repair path; this fix and the repeat-cycle tests have not been run. No runtime lighting or audio review is established.

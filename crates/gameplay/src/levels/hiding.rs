@@ -10,6 +10,7 @@ use super::{
     doors::box_hit,
     fuses::FuseInventory,
     interaction::{InteractTarget, InteractTargets},
+    module_names::{CONCEPT_LOCKER, CONCEPT_TABLE},
     sounds::{GameplaySound, GameplaySoundKind},
 };
 
@@ -66,8 +67,8 @@ impl Plugin for HidingPlugin {
 
 fn attach_prop_hiding(added: On<Add, Prop>, props: Query<&Prop>, mut commands: Commands) {
     let spot = match props.get(added.entity).map(|prop| prop.0.as_str()) {
-        Ok("concept_locker") => HidingSpot::Locker,
-        Ok("concept_table") => HidingSpot::Table,
+        Ok(CONCEPT_LOCKER) => HidingSpot::Locker,
+        Ok(CONCEPT_TABLE) => HidingSpot::Table,
         _ => return,
     };
     commands.entity(added.entity).insert(spot);

@@ -8,6 +8,7 @@ use gameplay::{
 const DOOR_HINT_WIDTH: f32 = 130.0;
 const FUSE_HINT_WIDTH: f32 = 160.0;
 const PANEL_HINT_WIDTH: f32 = 172.0;
+const BOILER_HINT_WIDTH: f32 = 184.0;
 const HIDING_HINT_WIDTH: f32 = 130.0;
 const LEAVE_HINT_MARGIN: f32 = 80.0;
 
@@ -100,6 +101,7 @@ fn update_hint(
         },
         InteractTarget::Fuse(_) => ("PICK UP FUSE", FUSE_HINT_WIDTH),
         InteractTarget::Panel(_) => ("INSTALL FUSES", PANEL_HINT_WIDTH),
+        InteractTarget::Boiler(_) => ("RESTORE POWER", BOILER_HINT_WIDTH),
         InteractTarget::Hide(_) => ("HIDE", HIDING_HINT_WIDTH),
         InteractTarget::Leave(_) => ("LEAVE", HIDING_HINT_WIDTH),
     };

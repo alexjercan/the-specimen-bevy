@@ -146,6 +146,32 @@ recording ownership or original-file rights. Loop quality, gain and spatial
 placement still need in-game listening review. Removed draft files are not
 reproducible from current generation scripts.
 
+## Boiler outage review candidates
+
+`python3 scripts/generate_boiler_outage_sounds.py` creates four original,
+reproducible mono 48 kHz PCM candidates under
+`generated/candidates/amb/boiler/` for a prototyped boiler-room power-outage
+event: `breaker-trip.wav` (0.22 s, a bright metallic snap over a low thunk,
+for the fault that cuts power), `power-down.wav` (1.4 s, a descending
+motor/fan hum with decaying blade-noise texture, for the boiler losing
+power), `reset.wav` (0.42 s, a double mechanical clack, for pressing a
+physical reset control), and `restart.wav` (2.3 s, igniter-style ticks
+followed by a rising ignition whoosh that settles into a rumble tail, for
+the boiler relighting). All four favor a recognizable mechanical character
+(impacts, motor pitch, igniter clicks) over an abstract electronic tone, per
+the task brief. They are deterministic synthesis with no recorded or
+third-party material, so no source, credit, or license caveat applies.
+
+These are candidate names only: `scripts/build_sound_catalog.py` lists them
+in `REVIEW_FILES` so they render as yellow "for review" cards once
+`art/sounds/catalog.html` is rebuilt, but no WAV exists on disk and no
+catalog page has been regenerated until someone runs the two commands
+above. None of the four has been listened to, approved, or copied to
+`assets/sounds/`; none is wired into runtime audio or the boiler-outage
+gameplay prototype. Approved furnace/boiler ambience
+(`generated/amb/furnace/burning.wav`, `generated/amb/boiler/tick.wav`) is
+unchanged by this work.
+
 ## Compose dread rather than continuous music
 
 Build a quiet baseline from facility sounds: HVAC, fluorescent buzz, distant

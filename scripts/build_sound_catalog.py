@@ -36,7 +36,11 @@ APPROVED_FILES = {
         "furnace/burning", "water/faucet", "vent/wind",
     )},
 }
-REVIEW_FILES = set()
+REVIEW_FILES = {
+    f"art/sounds/generated/candidates/amb/boiler/{cue}.wav" for cue in (
+        "breaker-trip", "power-down", "reset", "restart",
+    )
+}
 SOURCE_FILES = {
     *{f"art/sounds/sources/freesound/amb/{name}.ogg" for name in (
         "water/faucet-willstepp", "furnace/furnace-iankath", "vent/wind-dblover",

@@ -4,8 +4,8 @@ use bevy_enhanced_input::prelude::*;
 use super::player::{PlayerController, PlayerControlsEnabled};
 use crate::levels::{GameplaySound, GameplaySoundKind};
 
-pub const DRAIN_SECONDS: f32 = 30.0;
-pub const RECHARGE_SECONDS: f32 = 15.0;
+pub const DRAIN_SECONDS: f32 = 15.0;
+pub const RECHARGE_SECONDS: f32 = 10.0;
 pub const RESTART_CHARGE: f32 = 0.1;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
@@ -47,12 +47,35 @@ impl Flashlight {
 #[derive(Component)]
 pub struct FlashlightBeam;
 
+#[derive(Component)]
+pub(super) struct WaitForFlashlightRelease;
+
 #[derive(InputAction)]
 #[action_output(bool)]
 pub(super) struct ToggleFlashlight;
 
-pub(super) fn attach(added: On<Add, PlayerController>, mut commands: Commands) {
-    commands.entity(added.entity).insert(Flashlight::default());
+pub(super) fn attach(
+    added: On<Add, PlayerController>,
+    buttons: Res<ButtonInput<MouseButton>>,
+    mut commands: Commands,
+) {
+    let mut player = commands.entity(added.entity);
+    player.insert(Flashlight::default());
+    if buttons.pressed(MouseButton::Left) {
+        player.insert(WaitForFlashlightRelease);
+    }
+}
+
+pub(super) fn arm_after_release(
+    buttons: Res<ButtonInput<MouseButton>>,
+    waiting: Query<Entity, With<WaitForFlashlightRelease>>,
+    mut commands: Commands,
+) {
+    if !buttons.pressed(MouseButton::Left) {
+        for entity in &waiting {
+            commands.entity(entity).remove::<WaitForFlashlightRelease>();
+        }
+    }
 }
 
 pub(super) fn attach_beam(added: On<Add, PlayerController>, mut commands: Commands) {
@@ -79,7 +102,10 @@ pub(super) fn attach_beam(added: On<Add, PlayerController>, mut commands: Comman
 pub(super) fn toggle(
     _: On<Start<ToggleFlashlight>>,
     enabled: Res<PlayerControlsEnabled>,
-    mut players: Query<(&mut Flashlight, &Transform), With<PlayerController>>,
+    mut players: Query<
+        (&mut Flashlight, &Transform),
+        (With<PlayerController>, Without<WaitForFlashlightRelease>),
+    >,
     mut sounds: MessageWriter<GameplaySound>,
 ) {
     if !enabled.0 {

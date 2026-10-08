@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-pub const DRAIN_SECONDS: f32 = 8.0;
-pub const RECHARGE_SECONDS: f32 = 12.0;
+pub const DRAIN_SECONDS: f32 = 5.0;
+pub const RECHARGE_SECONDS: f32 = 8.0;
 pub const RESTART_CHARGE: f32 = 0.25;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]

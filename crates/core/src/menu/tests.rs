@@ -10,18 +10,22 @@ use bevy::{
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use game_assets::UiAssets;
 use gameplay::{
-    controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
-    levels::{Door, DoorPlugin, DoorRef, Room},
+    controller::{Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
+    levels::{Door, DoorPlugin, DoorRef, Escaped, LevelRoot, Room},
 };
 
 use super::{
-    loading::LoadingScreen, main_menu::MainMenu, pause::PauseMenu, GameState, MenuAction,
+    complete::CompleteScreen, loading::LoadingScreen, main_menu::MainMenu, pause::PauseMenu,
+    GameState, MenuAction,
     MenuPlugin, PauseState,
 };
 use crate::{AppBuilder, CoreState};
 use bevy::prelude::*;
 
 struct Custom;
+
+#[derive(Component)]
+struct NonLevelRoot;
 
 impl Plugin for Custom {
     fn build(&self, _: &mut App) {}
@@ -148,6 +152,11 @@ fn play_pause_and_main_menu_cycle_without_duplicate_worlds() {
     assert_eq!(count::<With<MainMenu>>(&mut app), 0);
     assert_eq!(count::<With<Camera2d>>(&mut app), 0);
     assert_eq!(count::<With<Room>>(&mut app), 18);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 2);
+    assert_eq!(
+        count::<(With<IsResource>, With<DespawnOnExit<GameState>>)>(&mut app),
+        0
+    );
     assert_eq!(count::<With<PlayerController>>(&mut app), 1);
     let playing = count::<Without<IsResource>>(&mut app);
 
@@ -181,6 +190,7 @@ fn play_pause_and_main_menu_cycle_without_duplicate_worlds() {
     assert_eq!(count::<With<PauseMenu>>(&mut app), 0);
     assert_eq!(count::<With<MainMenu>>(&mut app), 1);
     assert_eq!(count::<With<Room>>(&mut app), 0);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 0);
     assert_eq!(count::<With<PlayerController>>(&mut app), 0);
     assert!(!app.world().resource::<Time<Virtual>>().is_paused());
     assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
@@ -194,6 +204,73 @@ fn play_pause_and_main_menu_cycle_without_duplicate_worlds() {
     assert_eq!(count::<With<Room>>(&mut app), 18);
     assert_eq!(count::<With<PlayerController>>(&mut app), 1);
     assert_eq!(count::<Without<IsResource>>(&mut app), playing);
+}
+
+#[test]
+fn escape_transitions_to_completion_and_returns_to_menu() {
+    let mut app = app();
+    app.add_observer(|_: On<Add, Room>, mut commands: Commands| {
+        commands.spawn(NonLevelRoot);
+    });
+    ready(&mut app);
+    press(&mut app, MenuAction::Play);
+    assert!(count::<With<NonLevelRoot>>(&mut app) > 0);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 2);
+    let player = app
+        .world_mut()
+        .query_filtered::<Entity, With<PlayerController>>()
+        .single(app.world())
+        .unwrap();
+    app.world_mut().entity_mut(player).insert(Escaped);
+    app.update();
+    app.update();
+
+    assert_eq!(game_state(&app), GameState::Complete);
+    assert_eq!(count::<With<CompleteScreen>>(&mut app), 1);
+    assert_eq!(count::<With<Room>>(&mut app), 0);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 0);
+    assert_eq!(count::<With<PlayerController>>(&mut app), 0);
+    assert!(count::<With<NonLevelRoot>>(&mut app) > 0);
+    assert_eq!(count::<With<Camera2d>>(&mut app), 1);
+    assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
+
+    press(&mut app, MenuAction::MainMenu);
+    assert_eq!(game_state(&app), GameState::MainMenu);
+    assert_eq!(count::<With<CompleteScreen>>(&mut app), 0);
+    assert_eq!(count::<With<MainMenu>>(&mut app), 1);
+    press(&mut app, MenuAction::Play);
+    assert_eq!(game_state(&app), GameState::Playing);
+    assert_eq!(count::<With<Room>>(&mut app), 18);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 2);
+    assert_eq!(count::<With<PlayerController>>(&mut app), 1);
+}
+
+#[test]
+fn play_click_does_not_switch_on_flashlight() {
+    let mut app = app();
+    ready(&mut app);
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    press(&mut app, MenuAction::Play);
+    let flashlight = app
+        .world_mut()
+        .query_filtered::<&Flashlight, With<PlayerController>>()
+        .single(app.world())
+        .unwrap();
+    assert!(!flashlight.on);
+    assert_eq!(flashlight.charge, 1.0);
+
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+    app.update();
+    assert!(!app
+        .world_mut()
+        .query_filtered::<&Flashlight, With<PlayerController>>()
+        .single(app.world())
+        .unwrap()
+        .on);
 }
 
 #[test]

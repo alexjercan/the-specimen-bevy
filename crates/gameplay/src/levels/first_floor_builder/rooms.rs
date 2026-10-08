@@ -5,11 +5,10 @@ use bevy::prelude::*;
 use crate::levels::{
     builder::{DoorOf, DoorRef, door, passage, room},
     doors::{DoorLock, ExitDoor},
+    module_names::{DOOR_FRAME as FRAME, DOOR_PANEL as PANEL},
 };
 
 pub(super) fn spawn(commands: &mut Commands) {
-    const FRAME: &str = "wall_doorway";
-    const PANEL: &str = "door_panel";
     const FLOOR_TILE: &str = "floor_tile";
     const FLOOR_TILE_MARKED: &str = "floor_tile_marked";
     const WALL: &str = "wall";

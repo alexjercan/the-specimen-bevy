@@ -3,6 +3,9 @@ use bevy::{math::Rect, prelude::*};
 use super::animation::DoorSwing;
 
 #[derive(Component)]
+pub struct LevelRoot;
+
+#[derive(Component)]
 pub struct Room(pub Rect);
 
 #[derive(Component)]

@@ -9,6 +9,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import build_sound_catalog as catalog
 import generate_sounds as synth
 import generate_ambience_review as ambience
+import generate_boiler_outage_sounds as boiler_outage
 import generate_flashlight_sounds as flashlight
 
 
@@ -51,6 +52,25 @@ class SoundCatalogTests(unittest.TestCase):
                     self.assertGreater(audio.getnframes(), 0)
                 self.assertIn("<svg", catalog.waveform(path))
 
+    def test_boiler_outage_review_generation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            first = boiler_outage.generate(pathlib.Path(folder))
+            self.assertEqual(len(first), 4)
+            originals = {path.name: path.read_bytes() for path in first}
+            self.assertEqual(first, boiler_outage.generate(pathlib.Path(folder)))
+            for path in first:
+                self.assertEqual(path.read_bytes(), originals[path.name])
+                with wave.open(str(path)) as audio:
+                    self.assertEqual(audio.getframerate(), 48_000)
+                    self.assertEqual(audio.getnchannels(), 1)
+                    self.assertEqual(audio.getsampwidth(), 2)
+                    self.assertGreater(audio.getnframes(), 0)
+                self.assertIn("<svg", catalog.waveform(path))
+            self.assertEqual(
+                {path.name for path in first},
+                {f"{cue}.wav" for cue in ("breaker-trip", "power-down", "reset", "restart")},
+            )
+
     def test_approved_source_step_waveforms(self):
         for number in (1, 2, 4):
             source = catalog.ROOT / f"art/sounds/sources/opengameart/step/subway/subway-step-{dict(zip((1, 2, 4), 'abc'))[number]}.ogg"
@@ -86,7 +106,11 @@ class SoundCatalogTests(unittest.TestCase):
         )
         self.assertEqual(len([path for path in selected if "/door/" in path]), 4)
         breath = "art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav"
-        self.assertFalse(catalog.REVIEW_FILES)
+        self.assertEqual(catalog.REVIEW_FILES, {
+            f"art/sounds/generated/candidates/amb/boiler/{cue}.wav" for cue in (
+                "breaker-trip", "power-down", "reset", "restart",
+            )
+        })
         self.assertIn(breath, catalog.APPROVED_FILES)
         self.assertIn("<svg", catalog.waveform(catalog.ROOT / breath))
         click = "art/sounds/sources/freesound/flashlight/click-ralph0o7.ogg"

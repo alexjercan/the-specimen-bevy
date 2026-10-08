@@ -16,6 +16,8 @@ use super::{
     animation::DoorSwing,
     doors::{panel_transform, DoorPanel},
     fuses::{FusePickup, FUSE_LENGTH, FUSE_MODULE, FUSE_RADIUS},
+    module_names::{BOILER_UNIT, EXIT_SIGN, WALL_LAMP_RED},
+    power::FacilityPower,
 };
 
 const TILE: f32 = 2.5;
@@ -49,9 +51,18 @@ struct PendingFuseRender;
 
 #[derive(Component)]
 struct GlowSurface {
-    effect: LightEffect,
+    effect: Option<LightEffect>,
     base: LinearRgba,
+    needs_power: bool,
 }
+
+fn needs_mains_power(module: &str) -> bool {
+    !matches!(module, WALL_LAMP_RED | EXIT_SIGN | BOILER_UNIT)
+}
+
+#[cfg(test)]
+#[path = "../../tests/unit/level_render_power.rs"]
+mod power_tests;
 
 type PendingRooms<'w, 's> = Query<
     'w,
@@ -189,15 +200,20 @@ fn render_props(
 
 fn attach_prop_glow(
     ready: On<WorldInstanceReady>,
-    roots: Query<&LightEffect>,
+    roots: Query<(Option<&LightEffect>, &ChildOf)>,
+    props: Query<&Prop>,
     children: Query<&Children>,
     surfaces: Query<(&GltfMaterialName, &MeshMaterial3d<StandardMaterial>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut commands: Commands,
 ) {
-    let Ok(&effect) = roots.get(ready.entity) else {
+    let Ok((effect, parent)) = roots.get(ready.entity) else {
         return;
     };
+    let Ok(prop) = props.get(parent.parent()) else {
+        return;
+    };
+    let needs_power = needs_mains_power(&prop.0);
     for entity in children.iter_descendants(ready.entity) {
         let Ok((name, material)) = surfaces.get(entity) else {
             continue;
@@ -211,28 +227,48 @@ fn attach_prop_glow(
         let base = source.emissive;
         commands.entity(entity).insert((
             MeshMaterial3d(materials.add(source)),
-            GlowSurface { effect, base },
+            GlowSurface {
+                effect: effect.copied(),
+                base,
+                needs_power,
+            },
         ));
     }
 }
 
 fn animate_lights(
     time: Res<Time>,
-    mut lights: Query<(&LightEffect, &LightIntensity, &mut PointLight)>,
+    power: Option<Res<FacilityPower>>,
+    props: Query<&Prop>,
+    mut lights: Query<(Option<&LightEffect>, &LightIntensity, &ChildOf, &mut PointLight)>,
 ) {
-    for (effect, base, mut light) in &mut lights {
-        light.intensity = base.0 * effect.factor(time.elapsed_secs());
+    for (effect, base, parent, mut light) in &mut lights {
+        let powered = power.as_ref().is_none_or(|power| power.on)
+            || props
+                .get(parent.parent())
+                .is_ok_and(|prop| !needs_mains_power(&prop.0));
+        light.intensity = if powered {
+            base.0 * effect.map_or(1.0, |effect| effect.factor(time.elapsed_secs()))
+        } else {
+            0.0
+        };
     }
 }
 
 fn animate_surfaces(
     time: Res<Time>,
+    power: Option<Res<FacilityPower>>,
     surfaces: Query<(&GlowSurface, &MeshMaterial3d<StandardMaterial>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (surface, material) in &surfaces {
         if let Some(mut material) = materials.get_mut(&material.0) {
-            material.emissive = surface.base * surface.effect.factor(time.elapsed_secs());
+            material.emissive = surface.base
+                * if surface.needs_power && power.as_ref().is_some_and(|power| !power.on) {
+                    0.0
+                } else {
+                    surface.effect.map_or(1.0, |effect| effect.factor(time.elapsed_secs()))
+                };
         }
     }
 }

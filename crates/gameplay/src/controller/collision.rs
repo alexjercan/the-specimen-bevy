@@ -3,6 +3,11 @@ use bevy::prelude::*;
 use super::player::PlayerController;
 
 use crate::levels::{
+    module_names::{
+        BOILER_UNIT, CHAIR_TIPPED, CONCEPT_CONTAINMENT_TANK, CONCEPT_LOCKER, CONCEPT_TABLE,
+        DRUM_SPILLED, LAB_CONSOLE, SHELF_UNIT, SHELF_UNIT_BINS, SHELF_UNIT_LOW,
+        STEEL_DRUM, STORAGE_CRATE, WORK_ISLAND, WORKBENCH,
+    },
     Door, DoorOf, DoorRef, DoorSwing, Doors, Passage, Prop, PropCollider, Room,
     PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH,
 };
@@ -162,20 +167,20 @@ pub(crate) fn move_player(start: Vec2, delta: Vec2, obstacles: &[(Vec2, Vec2, f3
 
 fn prop_footprint(module: &str) -> Option<PropCollider> {
     let (min, max) = match module {
-        "storage_crate" => (Vec2::new(-0.51, -0.415), Vec2::new(0.51, 0.41)),
-        "steel_drum" => (Vec2::splat(-0.3), Vec2::splat(0.3)),
-        "drum_spilled" => (Vec2::new(-0.41, -0.35), Vec2::new(0.75, 0.35)),
-        "shelf_unit" => (Vec2::new(-0.9, -0.25), Vec2::new(0.9, 0.258)),
-        "shelf_unit_bins" => (Vec2::new(-0.9, -0.25), Vec2::new(0.9, 0.25)),
-        "shelf_unit_low" => (Vec2::new(-0.6, -0.225), Vec2::new(0.6, 0.225)),
-        "workbench" => (Vec2::new(-0.8, -0.35), Vec2::new(0.8, 0.35)),
-        "concept_table" => (Vec2::new(-0.9, -0.45), Vec2::new(0.9, 0.46)),
-        "concept_locker" => (Vec2::new(-0.3, -0.4873), Vec2::new(0.3144, 0.3)),
-        "work_island" => (Vec2::new(-0.95, -0.45), Vec2::new(0.95, 0.4529)),
-        "lab_console" => (Vec2::new(-0.75, -0.35), Vec2::new(0.75, 0.35)),
-        "boiler_unit" => (Vec2::new(-0.635, -0.7), Vec2::new(0.635, 0.635)),
-        "concept_containment_tank" => (Vec2::new(-0.7327, -0.9189), Vec2::new(0.702, 0.6687)),
-        "chair_tipped" => (Vec2::new(-0.4141, -0.3134), Vec2::new(0.4141, 0.311)),
+        STORAGE_CRATE => (Vec2::new(-0.51, -0.415), Vec2::new(0.51, 0.41)),
+        STEEL_DRUM => (Vec2::splat(-0.3), Vec2::splat(0.3)),
+        DRUM_SPILLED => (Vec2::new(-0.41, -0.35), Vec2::new(0.75, 0.35)),
+        SHELF_UNIT => (Vec2::new(-0.9, -0.25), Vec2::new(0.9, 0.258)),
+        SHELF_UNIT_BINS => (Vec2::new(-0.9, -0.25), Vec2::new(0.9, 0.25)),
+        SHELF_UNIT_LOW => (Vec2::new(-0.6, -0.225), Vec2::new(0.6, 0.225)),
+        WORKBENCH => (Vec2::new(-0.8, -0.35), Vec2::new(0.8, 0.35)),
+        CONCEPT_TABLE => (Vec2::new(-0.9, -0.45), Vec2::new(0.9, 0.46)),
+        CONCEPT_LOCKER => (Vec2::new(-0.3, -0.4873), Vec2::new(0.3144, 0.3)),
+        WORK_ISLAND => (Vec2::new(-0.95, -0.45), Vec2::new(0.95, 0.4529)),
+        LAB_CONSOLE => (Vec2::new(-0.75, -0.35), Vec2::new(0.75, 0.35)),
+        BOILER_UNIT => (Vec2::new(-0.635, -0.7), Vec2::new(0.635, 0.635)),
+        CONCEPT_CONTAINMENT_TANK => (Vec2::new(-0.7327, -0.9189), Vec2::new(0.702, 0.6687)),
+        CHAIR_TIPPED => (Vec2::new(-0.4141, -0.3134), Vec2::new(0.4141, 0.311)),
         _ => return None,
     };
     Some(PropCollider {

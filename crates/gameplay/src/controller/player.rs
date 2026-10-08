@@ -90,7 +90,16 @@ impl Plugin for PlayerControllerPlugin {
             .add_observer(on_run)
             .add_observer(on_run_complete)
             .add_observer(on_look)
-            .add_systems(Update, (apply_input, flashlight::advance, flashlight::sync_beam).chain());
+            .add_systems(
+                Update,
+                (
+                    apply_input,
+                    flashlight::arm_after_release,
+                    flashlight::advance,
+                    flashlight::sync_beam,
+                )
+                    .chain(),
+            );
         if self.camera {
             app.add_observer(attach_camera)
                 .add_observer(flashlight::attach_beam)

@@ -99,7 +99,7 @@ fn use_fuses(
                     panel,
                 });
             }
-            Some(InteractTarget::Door(_) | InteractTarget::Hide(_) | InteractTarget::Leave(_))
+            Some(InteractTarget::Door(_) | InteractTarget::Boiler(_) | InteractTarget::Hide(_) | InteractTarget::Leave(_))
             | None => {}
         }
     }

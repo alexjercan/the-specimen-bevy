@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use crate::levels::{
     builder::{light, prop, LightEffect},
+    module_names::{BOILER_UNIT, CONCEPT_LOCKER, CONCEPT_TABLE},
 };
 
 use super::{FIRE, SPECIMEN};
@@ -168,8 +169,8 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         Transform::from_xyz(10.0, 0.0, -30.0).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
-        "concept_locker",
-        "concept_locker",
+        CONCEPT_LOCKER,
+        CONCEPT_LOCKER,
         Transform::from_xyz(10.5, 0.0, -24.15).with_rotation(Quat::from_rotation_y(0.0)),
     ));
     commands.spawn(prop(
@@ -178,13 +179,13 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         Transform::from_xyz(12.5, 0.0, -30.0).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
-        "concept_locker",
-        "concept_locker",
+        CONCEPT_LOCKER,
+        CONCEPT_LOCKER,
         Transform::from_xyz(9.5, 0.0, -9.15).with_rotation(Quat::from_rotation_y(0.0)),
     ));
     commands.spawn(prop(
-        "concept_locker",
-        "concept_locker",
+        CONCEPT_LOCKER,
+        CONCEPT_LOCKER,
         Transform::from_xyz(13.35, 0.0, -12.5).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
     commands.spawn(prop(
@@ -203,23 +204,23 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         Transform::from_xyz(12.0, 0.0, -8.0),
     ));
     commands.spawn(prop(
-        "concept_locker",
-        "concept_locker",
+        CONCEPT_LOCKER,
+        CONCEPT_LOCKER,
         Transform::from_xyz(13.35, 0.0, -2.2).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
     commands.spawn(prop(
-        "concept_locker",
-        "concept_locker",
+        CONCEPT_LOCKER,
+        CONCEPT_LOCKER,
         Transform::from_xyz(13.35, 0.0, 2.2).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
     commands.spawn(prop(
-        "concept_table",
-        "concept_table",
+        CONCEPT_TABLE,
+        CONCEPT_TABLE,
         Transform::from_xyz(9.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
-        "concept_table",
-        "concept_table",
+        CONCEPT_TABLE,
+        CONCEPT_TABLE,
         Transform::from_xyz(-2.5, 0.0, -10.0).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
@@ -288,13 +289,13 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         Transform::from_xyz(-10.0, 0.0, -7.5).with_rotation(Quat::from_rotation_y(0.0)),
     ));
     commands.spawn(prop(
-        "concept_locker",
-        "concept_locker",
+        CONCEPT_LOCKER,
+        CONCEPT_LOCKER,
         Transform::from_xyz(-13.35, 0.0, -18.75).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
     ));
     commands.spawn(prop(
-        "concept_table",
-        "concept_table",
+        CONCEPT_TABLE,
+        CONCEPT_TABLE,
         Transform::from_xyz(-7.5, 0.0, -22.9).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
@@ -303,8 +304,8 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         Transform::from_xyz(-2.5, 0.0, -17.2).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
     commands.spawn(prop(
-        "concept_table",
-        "concept_table",
+        CONCEPT_TABLE,
+        CONCEPT_TABLE,
         Transform::from_xyz(3.75, 0.0, -18.75).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
@@ -380,8 +381,8 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
     commands
         .spawn((
             prop(
-                "boiler_unit",
-                "boiler_unit",
+                BOILER_UNIT,
+                BOILER_UNIT,
                 Transform::from_xyz(-10.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(0.0)),
             ),
             LightEffect::Flicker(-7.0),
