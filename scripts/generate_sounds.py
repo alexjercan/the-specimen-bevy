@@ -76,35 +76,15 @@ def impact(t, start, frequency, decay):
             + 0.26 * resonator(t, start, frequency * 1.73, decay * 0.47))
 
 
-def pickup():
-    texture = Texture(401)
-
-    def signal(t):
-        low, _, _ = texture.sample()
-        lift = 0.35 * impact(t, 0.035, 235, 0.038)
-        ring = 0.38 * resonator(t, 0.065, 940, 0.15)
-        ring += 0.12 * resonator(t, 0.065, 1510, 0.09)
-        return lift + ring + 0.04 * low * stroke(t, 0.02, 0.09)
-
-    return render("fuse.pickup.01", 0.35, signal)
-
-
-def panel():
-    return render("panel.install.01", 0.34, lambda t: (
-        1.0 * impact(t, 0.04, 125, 0.08)
-        + 0.38 * impact(t, 0.13, 205, 0.035)
-    ))
-
-
 def ui_hover():
-    return render("ui.hover.01", 0.09, lambda t: (
+    return render("ui.hover", 0.09, lambda t: (
         0.7 * resonator(t, 0.008, 510, 0.023, 65)
         + 0.13 * resonator(t, 0.008, 870, 0.014)
     ))
 
 
 def ui_press():
-    return render("ui.press.01", 0.14, lambda t: (
+    return render("ui.press", 0.14, lambda t: (
         0.9 * impact(t, 0.012, 255, 0.037)
         + 0.36 * impact(t, 0.075, 190, 0.023)
     ))
@@ -117,7 +97,7 @@ def ui_denied():
         clash = 0.16 * resonator(t, 0.14, 312, 0.095)
         return 0.55 * first + 0.85 * second + clash
 
-    return render("ui.denied.01", 0.43, signal)
+    return render("ui.denied", 0.43, signal)
 
 
 def ui_action(name, seed, shape):
@@ -148,7 +128,7 @@ def periodic_noise(t, seed, bins):
 
 
 def roomtone():
-    return render("amb.roomtone", 6.0, lambda t: (
+    return render("amb.roomtone.plain", 6.0, lambda t: (
         0.14 * periodic_noise(t, 601, 159) + 0.07 * periodic_noise(t, 602, 1279)
     ), loop=True)
 
@@ -161,14 +141,13 @@ def boiler():
 
 
 def main():
-    paths = [pickup(), panel(),
-             ui_hover(), ui_press(),
-             ui_action("ui.focus.01", 611, [(0.012, 185, 0.6)]),
-             ui_action("ui.back.01", 612, [(0.012, 200, 0.6), (0.07, 145, 0.4)]),
-             ui_action("ui.confirm.01", 613, [(0.012, 220, 0.5), (0.08, 275, 0.45)]),
+    paths = [ui_hover(), ui_press(),
+             ui_action("ui.focus", 611, [(0.012, 185, 0.6)]),
+             ui_action("ui.back", 612, [(0.012, 200, 0.6), (0.07, 145, 0.4)]),
+             ui_action("ui.confirm", 613, [(0.012, 220, 0.5), (0.08, 275, 0.45)]),
              ui_denied(),
-             ui_action("ui.pause.01", 615, [(0.012, 170, 0.75)]),
-             ui_action("ui.resume.01", 616, [(0.012, 190, 0.7), (0.075, 240, 0.3)]),
+             ui_action("ui.pause", 615, [(0.012, 170, 0.75)]),
+             ui_action("ui.resume", 616, [(0.012, 190, 0.7), (0.075, 240, 0.3)]),
              roomtone(), boiler()]
     for path in paths:
         print(path.relative_to(ROOT))

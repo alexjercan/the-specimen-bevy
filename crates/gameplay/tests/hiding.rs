@@ -10,9 +10,8 @@ use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput},
     levels::{
         build_first_floor, Door, DoorPlugin, DoorState, FuseInventory, FusePickup, FusePlugin,
-        FuseSeed, GameplaySound, GameplaySoundKind, Hidden, HidingPhase, HidingPlugin,
-        HidingSpot, Prop, PropCollider, Room,
-        HIDING_TRANSITION,
+        FuseSeed, GameplaySound, GameplaySoundKind, Hidden, HidingPhase, HidingPlugin, HidingSpot,
+        Prop, PropCollider, Room, HIDING_TRANSITION,
     },
 };
 
@@ -25,7 +24,8 @@ const WALL_HALF_DEPTH: f32 = 0.125;
 struct SoundLog(Vec<(GameplaySoundKind, Vec3)>);
 
 fn collect_sounds(mut events: MessageReader<GameplaySound>, mut log: ResMut<SoundLog>) {
-    log.0.extend(events.read().map(|sound| (sound.kind, sound.position)));
+    log.0
+        .extend(events.read().map(|sound| (sound.kind, sound.position)));
 }
 
 fn plugins(app: &mut App) {
@@ -60,10 +60,12 @@ fn spot(app: &mut App, kind: HidingSpot, position: Vec3, yaw: f32) -> Entity {
         .world_mut()
         .spawn((
             Prop(module.to_owned()),
-            kind,
             Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw)),
         ))
         .id();
+    if kind == HidingSpot::Table {
+        app.world_mut().entity_mut(entity).insert(kind);
+    }
     app.update();
     entity
 }
@@ -430,14 +432,30 @@ fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
         .iter(world)
         .map(|door| door.position)
         .collect();
-    assert_eq!(spots.len(), 8);
-    assert_eq!(
-        spots
-            .iter()
-            .filter(|(_, kind, ..)| *kind == HidingSpot::Locker)
-            .count(),
-        5
+    assert_eq!(spots.len(), 9);
+    let lockers: Vec<_> = spots
+        .iter()
+        .filter(|(_, kind, ..)| *kind == HidingSpot::Locker)
+        .collect();
+    assert_eq!(lockers.len(), 6);
+    let maintenance_locker = lockers
+        .iter()
+        .find(|(_, _, transform, _)| transform.translation.xz() == Vec2::new(-13.35, -18.75))
+        .expect("maintenance locker");
+    assert!(
+        maintenance_locker
+            .2
+            .translation
+            .xz()
+            .distance(Vec2::new(-12.5, -16.25))
+            > 2.0
     );
+    let concept_lockers = world
+        .query::<&Prop>()
+        .iter(world)
+        .filter(|prop| prop.0 == "concept_locker")
+        .count();
+    assert_eq!(lockers.len(), concept_lockers);
 
     for (entity, kind, spot_transform, module) in spots {
         let expected = match kind {
@@ -534,7 +552,10 @@ fn hiding_actions_emit_one_kind_specific_cue_per_transition() {
         settle(&mut app);
         assert_eq!(hidden(&app, player), None);
         let cues = &app.world().resource::<SoundLog>().0;
-        assert_eq!(&cues[cues.len() - 2..], &[(enter, position), (leave, position)]);
+        assert_eq!(
+            &cues[cues.len() - 2..],
+            &[(enter, position), (leave, position)]
+        );
         app.world_mut().despawn(entity);
     }
     assert_eq!(app.world().resource::<SoundLog>().0.len(), 4);

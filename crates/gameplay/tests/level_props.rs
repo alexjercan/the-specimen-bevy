@@ -96,7 +96,7 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
         ("concept_locker", 13.35, -2.2, Vec3::NEG_X),
         ("concept_locker", 13.35, 2.2, Vec3::NEG_X),
         ("concept_locker", 13.35, -12.5, Vec3::NEG_X),
-        ("concept_locker", -10.0, -16.65, Vec3::NEG_Z),
+        ("concept_locker", -13.35, -18.75, Vec3::X),
         ("shelf_unit", 13.35, -18.75, Vec3::NEG_X),
         ("shelf_unit_bins", 8.4, -17.5, Vec3::NEG_X),
         ("shelf_unit_bins", -13.35, -10.0, Vec3::X),

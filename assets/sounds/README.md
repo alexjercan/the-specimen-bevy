@@ -1,27 +1,30 @@
-# Shipped sound cues
+# Runtime sound cues
 
-These 27 files are byte-identical copies of approved clips in
-`art/sounds/`. Recorded footstep and door creators are credited explicitly in
-`credits/CREDITS.md`. See `art/sounds/README.md` for source URLs, license
-claims, source hashes, and editing history.
+Files here are byte-identical copies of selected art in `art/sounds/`, grouped
+by category and cue. See `art/sounds/README.md` for source hashes and
+`credits/CREDITS.md` for source-specific credits.
 
-- `step/subway/{01,02,04}.ogg`: recorded by GboxMikeFozzy; the OpenGameArt
-  [Footsteps](https://opengameart.org/content/footsteps-0) item displays CC0 1.0.
-  Tile surface and shoe type were not independently verified.
-- `door/{unlatch,swing/open,shut}/01.wav`: edits of rubberduck's recordings;
-  the OpenGameArt [100 CC0 metal and wood SFX](https://opengameart.org/content/100-cc0-metal-and-wood-sfx)
-  item displays CC0 1.0. Original OGG inputs were removed at the user's
-  request, so these edits cannot be rebuilt without downloading the source.
-- `hiding/{locker,table}/`: edited recordings from rubberduck's CC0-labeled
-  metal/wood pack. The four approved WAVs were copied from `art/sounds/review/hiding/`.
-- `amb/`, `fuse/`, `panel/`, and `ui/`: original synthesized project cues;
-  project MIT license. The five added ambience cues are `amb/roomtone/conduit.wav`,
-  `amb/boiler/tick/01.wav`, `amb/vent/hvac/01.wav`, `amb/tank/hum.wav`, and
-  `amb/light/buzz/cool-low.wav`. Rebuild these five with
-  `scripts/generate_ambience_review.py`; the earlier cues use
-  `scripts/generate_sounds.py`. The low-quality recorded flicker preview and
-  new drip candidates remain review-only and are not shipped.
+- `step/subway/subway-step-{a,b,c}.ogg`: GboxMikeFozzy's subway recordings,
+  from an OpenGameArt page labeled CC0 1.0.
+- `door/{unlatch,swing-open,shut}.wav` and `hiding/{locker,table}/`:
+  edited rubberduck metal/wood recordings, from an OpenGameArt page labeled
+  CC0 1.0.
+- `door/locked-rattle.wav`: a short edit of DrFahrts's recorded doorknob
+  attempt from a Freesound page labeled CC0 1.0. Its preview source remains
+  under `art/sounds/sources/freesound/door/locked/`; see the source caveat
+  and hashes in `art/sounds/README.md`.
+- `amb/furnace/burning.wav`, `amb/water/faucet.wav`, and
+  `amb/vent/wind.wav`: edited low-quality Freesound previews. Their item
+  pages display CC0 1.0; see the individual iankath, willstepp and DBlover
+  credits and source caveats in `credits/CREDITS.md`. The preview originals
+  remain only under `art/sounds/sources/freesound/` to reproduce the edits.
+- Other `amb/` and `ui/` sounds are original project-generated clips.
+  `ui/fuse/slot-{1,2,3}.wav` plays on successive fuse pickups and
+  `ui/fuse/complete.wav` plays on panel installation. The old `fuse/pickup.wav`
+  and `panel/install.wav` clips are removed. The approved low-pressure cue is
+  copied from `art/sounds/generated/amb/pressure/low.wav` and plays at
+  restrained gain.
 
-License claims for recordings are based on the source item pages, not
-independent authorship verification. Preserve this provenance with shipped
-copies. Playback levels and spatial behavior need in-game review.
+Source-page license labels do not independently verify authorship or
+original-file rights. Runtime mix and loop quality still need listening
+review.

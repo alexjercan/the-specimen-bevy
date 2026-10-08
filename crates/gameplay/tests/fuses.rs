@@ -6,7 +6,8 @@ use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{
         build_first_floor, select_fuse_slots, Door, DoorPlugin, DoorState, FuseInventory,
-        FusePickup, FusePlugin, FuseSeed, Prop, Room, FUSE_COUNT, FUSE_TABLES,
+        FusePickup, FusePlugin, FuseSeed, GameplaySound, GameplaySoundKind, Prop, Room, FUSE_COUNT,
+        FUSE_TABLES,
     },
 };
 
@@ -51,7 +52,10 @@ fn app() -> (App, Entity) {
 
 fn fuse(app: &mut App, position: Vec3) -> Entity {
     app.world_mut()
-        .spawn((FusePickup { slot: 0 }, Transform::from_translation(position)))
+        .spawn((
+            FusePickup { slot: 0 },
+            Transform::from_translation(position),
+        ))
         .id()
 }
 
@@ -175,6 +179,25 @@ fn f_picks_up_an_aimed_fuse_once() {
     press_f(&mut app);
     assert!(exists(&app, other));
     assert_eq!(inventory(&app, player), 1);
+}
+
+#[test]
+fn successive_pickups_emit_distinct_slot_cues() {
+    let (mut app, player) = app();
+    let position = Vec3::new(0.0, 0.8, -1.0);
+    aim(&mut app, player, position + Vec3::Y * 0.03);
+    for slot in 1..=FUSE_COUNT {
+        fuse(&mut app, position);
+        press_f(&mut app);
+        let cues: Vec<_> = app
+            .world_mut()
+            .resource_mut::<Messages<GameplaySound>>()
+            .drain()
+            .collect();
+        assert_eq!(cues.len(), 1);
+        assert_eq!(cues[0].kind, GameplaySoundKind::FuseSlot(slot));
+        assert_eq!(inventory(&app, player), slot);
+    }
 }
 
 #[test]

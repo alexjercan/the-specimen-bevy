@@ -56,7 +56,9 @@ impl Plugin for FusePlugin {
 }
 
 fn attach_inventory(added: On<Add, PlayerController>, mut commands: Commands) {
-    commands.entity(added.entity).insert_if_new(FuseInventory::default());
+    commands
+        .entity(added.entity)
+        .insert_if_new(FuseInventory::default());
 }
 
 fn use_fuses(
@@ -83,12 +85,12 @@ fn use_fuses(
                 }
                 taken.push(fuse);
                 inventory.0 += 1;
-                if let Some(position) = targets.anchor(InteractTarget::Fuse(fuse)) {
-                    sounds.write(GameplaySound {
-                        kind: GameplaySoundKind::FusePickup,
-                        position,
-                    });
-                }
+                sounds.write(GameplaySound {
+                    kind: GameplaySoundKind::FuseSlot(inventory.0),
+                    position: targets
+                        .anchor(InteractTarget::Fuse(fuse))
+                        .unwrap_or(player.translation),
+                });
                 commands.entity(fuse).despawn();
             }
             Some(InteractTarget::Panel(panel)) => {
@@ -124,7 +126,7 @@ fn install_fuses(
         inventory.0 -= FUSE_COUNT;
         panel.installed = FUSE_COUNT;
         sounds.write(GameplaySound {
-            kind: GameplaySoundKind::PanelInstall,
+            kind: GameplaySoundKind::FuseComplete,
             position: position.translation,
         });
         for door in &exits {

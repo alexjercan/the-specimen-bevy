@@ -132,9 +132,17 @@ pub(crate) fn box_hit(origin: Vec3, direction: Vec3, min: Vec3, max: Vec3) -> Op
 fn toggle_doors(
     mut toggles: MessageReader<ToggleDoor>,
     mut doors: Query<&mut Door, Without<DoorLock>>,
+    locked: Query<&Door, With<DoorLock>>,
     mut sounds: MessageWriter<GameplaySound>,
 ) {
     for ToggleDoor(entity) in toggles.read() {
+        if let Ok(door) = locked.get(*entity) {
+            sounds.write(GameplaySound {
+                kind: GameplaySoundKind::DoorLocked,
+                position: Vec3::new(door.position.x, 1.0, door.position.y),
+            });
+            continue;
+        }
         if let Ok(mut door) = doors.get_mut(*entity) {
             door.state = match door.state {
                 DoorState::Closed => DoorState::Open,

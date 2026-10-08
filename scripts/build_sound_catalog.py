@@ -13,44 +13,34 @@ OUTPUT = ROOT / "art/sounds/catalog.html"
 SOURCES = (ROOT / "art/sounds", ROOT / "assets/sounds")
 EXTENSIONS = {".wav", ".ogg", ".mp3", ".flac"}
 APPROVED_FILES = {
-    "art/sounds/source/step/subway/01.ogg",
-    "art/sounds/source/step/subway/02.ogg",
-    "art/sounds/source/step/subway/04.ogg",
-    "art/sounds/generated/door/unlatch/01.wav",
-    "art/sounds/generated/door/swing/open/01.wav",
-    "art/sounds/generated/door/shut/01.wav",
-    "art/sounds/generated/fuse/pickup/01.wav",
-    "art/sounds/generated/panel/install/01.wav",
-    "art/sounds/generated/amb/boiler/rumble.wav",
-    "art/sounds/generated/amb/roomtone.wav",
-    *{f"art/sounds/review/amb/{name}.wav" for name in (
-        "roomtone/conduit", "boiler/tick/01", "vent/hvac/01", "tank/hum",
-        "light/buzz/cool-low",
+    *{f"art/sounds/sources/opengameart/step/subway/subway-step-{letter}.ogg" for letter in "abc"},
+    *{f"art/sounds/generated/door/{name}.wav" for name in (
+        "unlatch", "swing-open", "shut", "locked-rattle",
     )},
-    *{f"art/sounds/review/hiding/{name}.wav" for name in (
-        "locker/open", "locker/close", "table/enter", "table/leave"
+    *{f"art/sounds/generated/hiding/{name}.wav" for name in (
+        "locker/open", "locker/close", "table/enter", "table/leave",
     )},
-    *{f"art/sounds/generated/ui/{cue}/01.wav" for cue in (
+    *{f"art/sounds/generated/amb/{name}.wav" for name in (
+        "roomtone/plain", "boiler/rumble", "roomtone/conduit", "boiler/tick",
+        "vent/hvac", "tank/hum", "light/cool-buzz", "pressure/low",
+    )},
+    *{f"art/sounds/generated/ui/fuse/{cue}.wav" for cue in (
+        "slot-1", "slot-2", "slot-3", "complete",
+    )},
+    *{f"art/sounds/generated/ui/{cue}.wav" for cue in (
         "back", "confirm", "denied", "focus", "hover", "pause", "press", "resume"
     )},
-}
-REVIEW_FILES = {
-    "art/sounds/review/amb/light/flicker/recorded-01.ogg",
-    *{f"art/sounds/review/amb/{name}.wav" for name in (
-        "drip/01", "drip/02", "drip/03", "drip/04",
-        "pipe/flow", "vent/rattle/01", "boiler/fire", "alarm/pulse",
-        "lab/console", "lab/console/beep-01", "outside/wind", "low/pressure",
-    )},
-    *{f"art/sounds/review/amb/web/{name}.ogg" for name in (
-        "drip/single-metaepitome", "drip/faucet-willstepp",
-        "drip/metal-wasabiwielder", "pipe/flow-pipelenisf",
-        "boiler/furnace-iankath", "outside/wind-dblover",
+    *{f"art/sounds/generated/amb/{name}.wav" for name in (
+        "furnace/burning", "water/faucet", "vent/wind",
     )},
 }
-DRAFT_FILES = {
-    f"art/sounds/review/amb/{name}.wav" for name in (
-        "light/buzz/cool", "light/flicker/01", "distant/settle/01",
-    )
+REVIEW_FILES = set()
+SOURCE_FILES = {
+    *{f"art/sounds/sources/freesound/amb/{name}.ogg" for name in (
+        "water/faucet-willstepp", "furnace/furnace-iankath", "vent/wind-dblover",
+    )},
+    "art/sounds/sources/freesound/door/locked/rattling-locked-door-shelbyshark.ogg",
+    "art/sounds/sources/freesound/door/locked/doorknob-rattle-drfahrts.ogg",
 }
 CATEGORIES = {
     "step": "A. Player self (bus self)",
@@ -64,26 +54,23 @@ CATEGORIES = {
 STEP_CREDIT = ('GboxMikeFozzy, "Footsteps" (CC0 1.0)', "https://opengameart.org/content/footsteps-0")
 METAL_WOOD_CREDIT = ('rubberduck, "100 CC0 metal and wood SFX" (CC0 1.0)', "https://opengameart.org/content/100-cc0-metal-and-wood-sfx")
 RECORDED_PATHS = {
-    path: STEP_CREDIT if path.startswith("art/sounds/source/step/") else METAL_WOOD_CREDIT
+    path: STEP_CREDIT if "/opengameart/step/" in path else METAL_WOOD_CREDIT
     for path in APPROVED_FILES
-    if path.startswith(("art/sounds/source/step/", "art/sounds/generated/door/", "art/sounds/review/hiding/"))
+    if "/opengameart/step/" in path or "/generated/door/" in path or "/generated/hiding/" in path
 }
-RECORDED_PATHS["art/sounds/review/amb/light/flicker/recorded-01.ogg"] = (
-    'mmaruska, "Lights Flicker On.wav" (page-labeled CC0 1.0, Freesound preview)',
-    "https://freesound.org/people/mmaruska/sounds/232447/",
-)
-for name, creator, sound_id in (
-    ("drip/single-metaepitome", "metaepitome", 165206),
-    ("drip/faucet-willstepp", "willstepp", 188293),
-    ("drip/metal-wasabiwielder", "WasabiWielder", 360735),
-    ("pipe/flow-pipelenisf", "Pipelenisf", 620620),
-    ("boiler/furnace-iankath", "iankath", 173991),
-    ("outside/wind-dblover", "DBlover", 405601),
+for creator, sound_id, edit in (
+    ("willstepp", 188293, "water/faucet"),
+    ("iankath", 173991, "furnace/burning"),
+    ("DBlover", 405601, "vent/wind"),
 ):
-    RECORDED_PATHS[f"art/sounds/review/amb/web/{name}.ogg"] = (
-        f"{creator} (page-labeled CC0 1.0, Freesound preview)",
+    RECORDED_PATHS[f"art/sounds/generated/amb/{edit}.wav"] = (
+        f"{creator} (Freesound preview, page-labeled CC0 1.0; edited by this project)",
         f"https://freesound.org/people/{creator}/sounds/{sound_id}/",
     )
+RECORDED_PATHS["art/sounds/generated/door/locked-rattle.wav"] = (
+    "DrFahrts (Freesound preview, page-labeled CC0 1.0; edited by this project)",
+    "https://freesound.org/people/DrFahrts/sounds/727791/",
+)
 STYLE = """body{background:#101416;color:#e2e5df;font:16px system-ui,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem}h1,h2{color:#b0d9cf}section{margin:2rem 0}article{background:#1a2224;border:1px solid #354644;border-radius:8px;margin:.6rem 0;padding:.8rem 1rem}article.review{background:#302919;border-color:#c69a46}article.review small{color:#f2cf83}strong,small{display:block}small{color:#9aada9}audio{display:block;width:100%;margin:.5rem 0}svg{display:block;width:100%;height:72px;background:#111b1b;border-radius:4px}input{background:#1a2224;color:#fff;border:1px solid #6e8b84;border-radius:4px;padding:.5rem;width:min(25rem,95%)}.empty{color:#c1a886}"""
 
 
@@ -146,7 +133,9 @@ def collect(sources=SOURCES):
 
 def sound_parts(path):
     part = path.relative_to(ROOT).parts[2:]
-    if part and part[0] in ("generated", "recorded", "source", "review"):
+    if part and part[0] in ("generated", "sources"):
+        part = part[1:]
+    if part and part[0] in ("opengameart", "freesound", "candidates"):
         part = part[1:]
     return part
 

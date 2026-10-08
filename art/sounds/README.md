@@ -1,129 +1,109 @@
 # Sound direction: an inhabited empty building
 
-## Original starter cues and browser catalog
+## Library organization
 
-`scripts/generate_sounds.py` creates the approved objective, UI, and ambience
-cues as deterministic mono 48 kHz/16-bit WAVs in `art/sounds/generated/`.
-It does not generate rejected synthetic doors or footsteps.
+`art/sounds/generated/` contains all selected synthetic cues and processed
+recordings. `art/sounds/sources/` holds retained originals in `freesound/`
+and `opengameart/`. Within `generated/`, audio is grouped by category and cue:
+`generated/amb/furnace/burning.wav` is an example. `assets/sounds/` holds
+runtime copies by cue. No `recorded/` or `review/` directory remains.
 
-The three approved door WAVs were rendered from recordings in the OpenGameArt
-pack [100 CC0 metal and wood SFX](https://opengameart.org/content/100-cc0-metal-and-wood-sfx)
-by rubberduck, whose item page displays CC0 1.0. They combine a lock-open,
-metal-open, metal-close, and wood-squeak take. The source OGGs and the door
-render script were removed at the user's request to keep only cataloged audio.
-To re-render those WAVs, the original pack must be retrieved and the edit
-reconstructed. The source archive SHA-256 was
-`be6eba63b03409ac0c77787a956b1503a7c186403d04aef9725c52644a4b7878`.
-The project-authored synthetic cues use the project MIT license; the edited
-door recordings retain the source-page CC0 1.0 designation.
+`python3 scripts/generate_sounds.py` reproduces approved original UI and
+roomtone clips. `python3 scripts/generate_more_sounds.py` reproduces the four
+approved UI fuse clips: slot-1, slot-2, slot-3 and complete. Slots play on
+successive pickups; complete plays on panel installation. The old spatial
+fuse-pickup and panel-install clips were removed to avoid overlapping cues.
+`python3 scripts/generate_ambience_review.py` reproduces the approved
+synthesized ambience, including `generated/amb/pressure/low.wav`.
+`python3 scripts/render_selected_ambience.py` re-renders the selected
+Freesound edits from their retained low-quality previews.
+`python3 scripts/build_sound_catalog.py` builds `art/sounds/catalog.html`.
+Yellow cards are catalog-only; other cards have runtime copies. ffmpeg is
+needed for rendering previews and drawing OGG waveforms.
 
-## Recorded player-step candidates
+The rejected `_stubb` handle-rattle edit, synthetic locked-door rattle and
+open-door stop are not in the catalog or runtime assets. DrFahrts's selected
+locked-door take now plays on locked-door attempts; the shelbyshark alternative
+remains a catalog-only review candidate:
 
-The OpenGameArt page [Footsteps](https://opengameart.org/content/footsteps-0)
-credits GboxMikeFozzy and displays [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
-The author describes recording them while walking through a subway, then
-normalizing and reducing noise. The page does not specify a verified tile
-surface or shoe type. The user approved source takes `01.ogg`, `02.ogg`, and
-`04.ogg` for randomized player footstep variations. Takes 03, 05, and 06, all synthetic steps, and the converted WAV copies were
-removed at the user's request. Approval does not establish that the recordings
-are tile footsteps. Only the original OGGs for takes 01, 02, and 04 remain in
-`art/sounds/source/step/subway/`. A run step can use the same takes with shorter
-playback intervals. Source URL, author, displayed license, and file-level
-checksums are retained here:
+| Edited review WAV | Freesound source and creator | Retained preview SHA-256 | Edit SHA-256 |
+| --- | --- | --- | --- |
+| `generated/candidates/door/locked/rattling-locked-door-shelbyshark.wav` | [Rattling Locked Door.wav](https://freesound.org/people/shelbyshark/sounds/513392/) by shelbyshark, preview `sources/freesound/door/locked/rattling-locked-door-shelbyshark.ogg` | `501c652dc56268c6443aa151d314f95893c41321580844125199ba2a4bd936da` | `83884e3936042d971290e9267a81475587c73e823f84c5406e4c80e317d31464` |
+| `generated/door/locked-rattle.wav` (runtime copy: `assets/sounds/door/locked-rattle.wav`) | [doorknob rattle](https://freesound.org/people/DrFahrts/sounds/727791/) by DrFahrts, preview `sources/freesound/door/locked/doorknob-rattle-drfahrts.ogg` | `4c622088b3b96daa015c8d834733e43bdd07e5acf1f7d8408d4c763c6b392cb0` | `5cb6860a7f6e363070e656826d5929b5975cdfc74a5009e842a2004b7c3a5d04` |
 
-| Source file | Download name | SHA-256 |
+Both item pages display CC0 1.0, but only low-quality previews were
+available without login. The source claims and uploader ownership are not
+independently verified. The WAVs are mono 48 kHz PCM with short fades, cut
+from preview times 1.35-3.35 s and 1.65-3.65 s, respectively. The DrFahrts edit was approved by listening; its in-game mix has not been
+reviewed. The shelbyshark crop has not been auditioned or approved. Generation scripts no
+longer make rejected drafts.
+
+## Recorded player steps
+
+GboxMikeFozzy's [Footsteps](https://opengameart.org/content/footsteps-0)
+OpenGameArt page displays CC0 1.0. The author describes subway walking,
+normalization and noise reduction. The three user-approved source takes are
+unchanged OGGs in `art/sounds/sources/opengameart/step/subway/` and have
+byte-identical game copies in `assets/sounds/step/subway/`:
+
+| Art file | Original download | SHA-256 |
 | --- | --- | --- |
-| 01.ogg | 01-footstep_0.ogg | 33c9bef5e8aeb1069455699a34a0c5e1ef1787fd3f61594b0859d7e6bb9f9dec |
-| 02.ogg | 02-footstep.ogg | f05396c807eb8eaecffb2a1ead611ec971c5a7914d1d081c91d7796e852692a2 |
-| 04.ogg | 04-footstep.ogg | b373ff981e44d6f7ba2291225a4803078771029615ed81606136fdb9599906d5 |
+| `subway-step-a.ogg` | `01-footstep_0.ogg` | `33c9bef5e8aeb1069455699a34a0c5e1ef1787fd3f61594b0859d7e6bb9f9dec` |
+| `subway-step-b.ogg` | `02-footstep.ogg` | `f05396c807eb8eaecffb2a1ead611ec971c5a7914d1d081c91d7796e852692a2` |
+| `subway-step-c.ogg` | `04-footstep.ogg` | `b373ff981e44d6f7ba2291225a4803078771029615ed81606136fdb9599906d5` |
 
-The CC0 claim comes from the item page, not an embedded per-file license;
-keep that page and this ledger with the original files. No mandatory attribution
-is stated by CC0, but preserve GboxMikeFozzy as provenance. Check cadence,
-background noise, and in-game loudness when integrating randomized playback.
+The CC0 and authorship claims come from the source page, not an embedded
+license. Tile surface and footwear were not verified. Run and walk vary step
+cadence; both currently choose among these three takes.
 
-Run `python3 scripts/generate_sounds.py` and then
-`python3 scripts/build_sound_catalog.py`. Open `art/sounds/catalog.html` in a
-browser. It lists the approved files, including the four user-approved hiding
-cues. WAV and OGG waveforms require ffmpeg for OGG decoding. The door edits are
-not regenerated by these scripts. Runtime copies live in `assets/sounds/`;
-preserve this ledger with them. Ambience under `art/sounds/review/amb/` includes approved runtime sources and
-new review-only candidates. The catalog marks only review-only cues yellow.
-Source credits appear only on recorded clip cards; project-generated clips
-are identified as such. Voluntary credits for the approved recordings are in
-`credits/CREDITS.md`. Audition volume cautiously, especially with headphones;
-the synthesized hum is not a psychoacoustic claim.
+## Recorded door and hiding edits
 
-## Hiding sounds
+The approved door cues in `art/sounds/generated/door/` and approved
+hiding cues in `art/sounds/generated/hiding/` use rubberduck's
+[100 CC0 metal and wood SFX](https://opengameart.org/content/100-cc0-metal-and-wood-sfx),
+whose OpenGameArt page displays CC0 1.0. Archive SHA-256:
+`be6eba63b03409ac0c77787a956b1503a7c186403d04aef9725c52644a4b7878`.
+Door source OGGs and its original edit script were removed earlier; obtaining
+the archive and reconstructing those edits is necessary to rerender doors.
+`scripts/render_hiding_sounds.py` retrieves the verified archive into a
+temporary directory to regenerate hiding edits. The approved rendered hiding
+file hashes are:
 
-`art/sounds/review/hiding/` contains four approved 48 kHz mono PCM WAVs:
-locker open/close and table enter/leave. Byte-identical runtime copies live in
-`assets/sounds/hiding/`. These edits use rubberduck's
-[100 CC0 metal and wood SFX](https://opengameart.org/content/100-cc0-metal-and-wood-sfx)
-(OpenGameArt item displays CC0 1.0). The archive URL is
-https://opengameart.org/sites/default/files/100-CC0-wood-metal-SFX.zip and its
-SHA-256 is `be6eba63b03409ac0c77787a956b1503a7c186403d04aef9725c52644a4b7878`.
-`scripts/render_hiding_sounds.py` downloads the archive into a temporary
-directory, verifies its hash, and applies filtering, volume changes and mixes
-with ffmpeg. No raw source recordings are kept in this repository.
-
-| Review cue | Source recording(s) from archive | SHA-256 of rendered WAV |
+| Cue | Recording(s) | SHA-256 |
 | --- | --- | --- |
 | `locker/open.wav` | `metal_open_01.ogg` | `7d774a8385141209e9037d02d3a9b5bf76cd1a2f25aa30701119b66cbabf3171` |
 | `locker/close.wav` | `metal_close_01.ogg` | `f205dec7851f16a6308fb4a2418ec08710e98b58d6fb2ee91433cd9583b4dd03` |
 | `table/enter.wav` | `wood_squeak_01.ogg`, `wood_misc_01.ogg` | `16222b747bb69fb1d347bcda724c10474621fdaed38117abef3b8742715f30a7` |
 | `table/leave.wav` | `wood_misc_02.ogg`, `wood_close_01.ogg` | `524adb9a3558265a45b522aa51ad8ea6f687bf1fef37da16d80a71af4004d9e7` |
 
-These are cabinet/wood recordings, not confirmed locker or cloth recordings.
-The user approved these for the game. Their in-game mix and timing remain to be
-reviewed. The source item is credited, but per-file recording authorship was
-not independently verified.
+These are metal and wood recordings, not independently confirmed locker or
+cloth recordings. Preserve source-specific voluntary credits in
+`credits/CREDITS.md`.
 
-## Facility ambience review
+## Facility ambience
 
-`scripts/generate_ambience_review.py` creates eight original, deterministic
-48 kHz mono review clips under `art/sounds/review/amb/`. The user liked conduit
-roomtone, vent airflow, and tank hum, and accepted boiler thermal tick. The
-original cool-light buzz was too high and buzzy; `light/buzz/cool-low.wav` is the
-lower-pitched revision accepted for the initial runtime ambience mix. The flicker tick and
-distant building settle were rejected. Their WAVs and the original buzz are
-kept as drafts, but excluded from the catalog. Five approved synthesized cues (`roomtone/conduit`, `boiler/tick/01`,
-`vent/hvac/01`, `tank/hum`, and `light/buzz/cool-low`) have byte-identical
-runtime copies in `assets/sounds/amb/`. The original runtime `roomtone.wav`
-and `boiler/rumble.wav` remain. The initial mix layers conduit roomtone in
-conduit-wall rooms, plays spatial vent, tank, boiler and select cool-light
-loops, and triggers a boiler tick at intervals. Gains, abrupt zone changes,
-and spatial placement need in-game listening review. Do not promote new drip
-or other review candidates to runtime merely because they are in the catalog.
+The approved synthesized cues are `generated/amb/roomtone/plain.wav`,
+`generated/amb/roomtone/conduit.wav`, `generated/amb/boiler/tick.wav`,
+`generated/amb/vent/hvac.wav`,
+`generated/amb/tank/hum.wav`, `generated/amb/light/cool-buzz.wav`, and
+`generated/amb/pressure/low.wav`. The low-pressure bed is approved for
+runtime at restrained gain; test it on ordinary speakers as well as headphones.
+The former `generated/amb/boiler/rumble.wav` and
+`assets/sounds/amb/boiler/rumble.wav` remain on disk by decision, but the
+runtime no longer loads the rumble; the boiler uses the furnace loop instead.
 
-The catalog also includes twelve new original synthesized review clips: four
-individual drips, pipe flow, vent rattle, boiler fire, red-lamp pulse, lab
-console fan and beep, exterior wind, and low-pressure drone. They are generated
-by `scripts/generate_ambience_review.py`, not loaded by the game, and have not
-been auditioned. Six new Freesound low-quality OGG previews provide alternate
-drip, pipe, furnace, and wind textures. Their per-file item-page CC0 claims,
-preview URLs, and SHA-256 hashes are recorded in
-`art/sounds/review/amb/web/README.md`. These are unapproved listening leads;
-do not infer that an uploader's license label verifies the recording's rights.
-
-`art/sounds/review/amb/light/flicker/recorded-01.ogg` is a separate recorded
-flicker candidate from mmaruska's "Lights Flicker On.wav" on Freesound:
-https://freesound.org/people/mmaruska/sounds/232447/ . The sound page labels
-it CC0 1.0, describes a recorded fluorescent light flickering on, humming,
-then switching off, and names a Sound Canvas 702, pre-amp, and AKG C414B
-microphone. The downloaded file is Freesound's **low-quality OGG preview**,
-not the original recording. Preview URL:
-https://cdn.freesound.org/previews/232/232447_3046049-lq.ogg . SHA-256:
-`6d53b808b0ca2401398983677bf25d615f3bdde6fe1fe7476d3b5b159cbce0cd`.
-It is a 15-second mono Vorbis clip. The page label and description do not
-independently verify underlying authorship. The catalog marks it for review only. An automode decision deferred this
-low-quality preview from runtime; obtain the original and check its terms
-before further use or promotion.
-
-Research and production sketches, not shipped audio assets. The door and step recordings above were reviewed in `art/sounds/` before promotion.
-Keep the original sound's page, author,
-license, license version, and required attribution when selecting a file; a
-site's general policy does not replace the license on a particular upload.
+Three edited Freesound low-quality previews now have game copies:
+`generated/amb/furnace/burning.wav` is a 24-second crossfaded boiler
+burner loop, `generated/amb/water/faucet.wav` is a 5-second water burst
+near the pipe manifold, and `generated/amb/vent/wind.wav` is a
+low-passed 18-second vent-wind loop. The long preview sources are retained
+under `sources/freesound/amb/` only to reproduce the edits, not listed in
+the catalog and not shipped. Per-file source pages, preview hashes and edit
+hashes are in `art/sounds/sources/freesound/README.md`; creator credits are
+in `credits/CREDITS.md`. Item-page CC0 labels do not independently prove
+recording ownership or original-file rights. Loop quality, gain and spatial
+placement still need in-game listening review. Removed draft files are not
+reproducible from current generation scripts.
 
 ## Compose dread rather than continuous music
 

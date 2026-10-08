@@ -23,6 +23,11 @@ impl Plugin for SoundGluePlugin {
                 volume: 0.12,
             },
             AmbientEmitter {
+                sound: AmbientSound::LowPressure,
+                position: None,
+                volume: 0.04,
+            },
+            AmbientEmitter {
                 sound: AmbientSound::Conduit,
                 position: None,
                 volume: 0.055,
@@ -53,6 +58,21 @@ impl Plugin for SoundGluePlugin {
                 volume: 0.09,
             },
             AmbientEmitter {
+                sound: AmbientSound::VentWind,
+                position: Some(Vec3::new(-13.65, 0.45, -1.1)),
+                volume: 0.035,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::VentWind,
+                position: Some(Vec3::new(-13.65, 1.9, -20.0)),
+                volume: 0.035,
+            },
+            AmbientEmitter {
+                sound: AmbientSound::VentWind,
+                position: Some(Vec3::new(13.65, 1.9, -21.25)),
+                volume: 0.035,
+            },
+            AmbientEmitter {
                 sound: AmbientSound::CoolBuzz,
                 position: Some(Vec3::new(0.0, 2.7, -27.5)),
                 volume: 0.045,
@@ -76,6 +96,7 @@ impl Plugin for SoundGluePlugin {
                 sync_pause,
                 sync_ambience,
                 boiler_ticks,
+                faucet_bursts,
             ),
         );
     }
@@ -96,8 +117,9 @@ fn forward_gameplay_sounds(
             GameplaySoundKind::DoorUnlatch => Sound::DoorUnlatch,
             GameplaySoundKind::DoorSwing => Sound::DoorSwing,
             GameplaySoundKind::DoorShut => Sound::DoorShut,
-            GameplaySoundKind::FusePickup => Sound::FusePickup,
-            GameplaySoundKind::PanelInstall => Sound::PanelInstall,
+            GameplaySoundKind::DoorLocked => Sound::DoorLocked,
+            GameplaySoundKind::FuseSlot(slot) => Sound::FuseSlot(slot),
+            GameplaySoundKind::FuseComplete => Sound::FuseComplete,
             GameplaySoundKind::LockerOpen => Sound::LockerOpen,
             GameplaySoundKind::LockerClose => Sound::LockerClose,
             GameplaySoundKind::TableEnter => Sound::TableEnter,
@@ -105,7 +127,10 @@ fn forward_gameplay_sounds(
         };
         sounds.write(PlaySound {
             sound,
-            position: Some(event.position),
+            position: match event.kind {
+                GameplaySoundKind::FuseSlot(_) | GameplaySoundKind::FuseComplete => None,
+                _ => Some(event.position),
+            },
         });
     }
 }
@@ -185,6 +210,35 @@ fn boiler_ticks(
     if player.translation.distance(position) <= 18.0 {
         sounds.write(PlaySound {
             sound: Sound::BoilerTick,
+            position: Some(position),
+        });
+    }
+}
+
+fn faucet_bursts(
+    time: Res<Time>,
+    paused: Res<AudioPaused>,
+    players: Query<&Transform, With<PlayerController>>,
+    mut remaining: Local<f32>,
+    mut rng: Single<&mut ChaCha8Rng, With<GlobalRng>>,
+    mut sounds: MessageWriter<PlaySound>,
+) {
+    let Ok(player) = players.single() else {
+        *remaining = 10.0;
+        return;
+    };
+    if paused.0 {
+        return;
+    }
+    *remaining -= time.delta_secs();
+    if *remaining > 0.0 {
+        return;
+    }
+    *remaining = 10.0 + 8.0 * (rng.next_u32() as f64 / (u32::MAX as f64 + 1.0)) as f32;
+    let position = Vec3::new(-13.4, 1.5, 0.0);
+    if player.translation.distance(position) <= 12.0 {
+        sounds.write(PlaySound {
+            sound: Sound::FaucetBurst,
             position: Some(position),
         });
     }

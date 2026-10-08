@@ -7,7 +7,7 @@ import urllib.request
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-OUTPUT = ROOT / "art/sounds/review/hiding"
+OUTPUT = ROOT / "art/sounds/generated/hiding"
 SOURCE_URL = "https://opengameart.org/sites/default/files/100-CC0-wood-metal-SFX.zip"
 SOURCE_SHA256 = "be6eba63b03409ac0c77787a956b1503a7c186403d04aef9725c52644a4b7878"
 

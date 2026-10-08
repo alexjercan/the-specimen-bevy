@@ -9,10 +9,12 @@ use super::{AmbienceActive, AudioPaused, ConduitAmbience, WorldAudio};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AmbientSound {
     Roomtone,
+    LowPressure,
     Conduit,
     Boiler,
     Tank,
     Vent,
+    VentWind,
     CoolBuzz,
 }
 
@@ -27,16 +29,18 @@ pub struct AmbientEmitter {
 pub struct AmbientEmitters(pub Vec<AmbientEmitter>);
 
 #[derive(Component)]
-struct AmbientVoice(usize);
+pub(super) struct AmbientVoice(usize);
 
 impl AmbientSound {
     fn handle(self, assets: &SoundAssets) -> Handle<AudioSource> {
         match self {
             Self::Roomtone => assets.roomtone.clone(),
+            Self::LowPressure => assets.low_pressure.clone(),
             Self::Conduit => assets.conduit_roomtone.clone(),
-            Self::Boiler => assets.boiler.clone(),
+            Self::Boiler => assets.furnace.clone(),
             Self::Tank => assets.tank_hum.clone(),
             Self::Vent => assets.vent_hvac.clone(),
+            Self::VentWind => assets.vent_wind.clone(),
             Self::CoolBuzz => assets.cool_buzz.clone(),
         }
     }

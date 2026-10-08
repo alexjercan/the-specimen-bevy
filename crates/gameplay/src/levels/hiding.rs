@@ -6,6 +6,7 @@ use crate::controller::player::{
 };
 
 use super::{
+    builder::Prop,
     doors::box_hit,
     fuses::FuseInventory,
     interaction::{InteractTarget, InteractTargets},
@@ -55,10 +56,17 @@ impl Plugin for HidingPlugin {
         app.add_message::<UseHidingSpot>()
             .add_message::<GameplaySound>()
             .add_observer(use_hiding_spots)
+            .add_observer(attach_locker_hiding)
             .add_systems(
                 Update,
                 (toggle_hiding, animate_hiding).chain().before(apply_input),
             );
+    }
+}
+
+fn attach_locker_hiding(added: On<Add, Prop>, props: Query<&Prop>, mut commands: Commands) {
+    if matches!(props.get(added.entity), Ok(prop) if prop.0 == "concept_locker") {
+        commands.entity(added.entity).insert(HidingSpot::Locker);
     }
 }
 

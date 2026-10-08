@@ -20,33 +20,62 @@ at the user's request; source URLs, license claims, and hashes remain in
 ## Hiding audio and ambience review
 
 The user approved all four hiding clips (locker open/close and table enter/leave).
-Source WAVs remain under `art/sounds/review/hiding/`; byte-identical runtime
+Source edits remain under `art/sounds/generated/hiding/`; byte-identical runtime
 copies are in `assets/sounds/hiding/`. Gameplay emits a cue on each enter/leave
 transition, and core maps it to `game_audio` for positional playback; Rust
 compilation and runtime mix remain unchecked. The source archive, license claim,
 and per-file rendered hashes are in `art/sounds/README.md`.
 
-Seven original ambience candidates are under `art/sounds/review/amb/` for
-listening, not runtime playback. The HTML catalog groups audio by the inventory's
-lettered sections; yellow cards mark these unapproved candidates. Existing
-approved objective, UI, step, door, and ambience cues remain unchanged.
+The selected 24-second furnace loop, 5-second faucet burst, and 18-second
+vent-wind loop were edited from retained Freesound previews and copied to
+`assets/sounds/amb/` for contextual playback. Their item pages display CC0,
+but authorship and original-file terms are not independently verified. Generated and processed art is under `art/sounds/generated/`, with retained
+originals under `art/sounds/sources/` grouped by site;
+unused draft audio was removed. The approved generated low-pressure clip
+is now a runtime bed. The HTML catalog groups audio by the inventory's
+lettered sections and excludes the full-length source previews.
 Catalog tests cover per-file provenance and review labels; gameplay audio checks
 and in-game audition remain outstanding.
 
-## Integration draft (unvalidated)
+## Integration status
 
-`game_assets` now declares explicit audio paths, and `game_audio` handles
+The later fuse-audio revision replaces the old spatial fuse-pickup cue with
+non-spatial slot-1/2/3 cues on successive pickups, and replaces the old
+panel-install cue with a non-spatial complete cue on installation. The old
+pickup/install files and generator output were removed; the synthetic
+locked-door rattle and open-door stop candidates were rejected. The later
+`_stubb` handle-rattle edit was also rejected after listening. The user
+approved DrFahrts's doorknob-rattle preview edit for locked-door attempts;
+the shelbyshark alternative was removed from the HTML catalog but its source
+and review edit were retained. Source-page CC0 claims and uploader ownership
+are not independently verified. The door-stop cue will
+not be added. Focused gameplay, audio,
+core and assets tests and catalog tests passed after this change; no game or
+example was launched, so audible behavior remains unverified.
+
+`game_assets` declares explicit audio paths, and `game_audio` handles
 playback, ambience, spatial attenuation, and sink pause. Gameplay emits
 asset-independent door/fuse/panel sound messages. Core glue maps these
 messages and player movement to audio, picks among the three approved steps,
 adds the player listener, and maps menu actions/hover. `bevy_rand` 0.15
 ChaCha8 replaces handwritten fuse selection and footstep random sequences;
 explicit `--seed` retains reproducible fuse selection and seeded windowed
-step sequences. No Rust compilation, Rust tests, or game/audio runtime review
-has been performed after this draft. Footstep cadence, sound levels, spatial
-mix, menu transitions, audio concurrency, and missing-asset handling need
-validation. The boiler loop is loaded but not yet wired to a positional
-emitter; flashlight and monster audio await those gameplay features.
+step sequences. The boiler ambience uses the edited Freesound furnace loop;
+the old boiler-rumble art and runtime files are retained but its asset handle
+was removed. The approved low-pressure bed, faucet bursts and vent wind are
+also wired. A reviewer reported 19/19 targeted Rust tests passing, no code
+or test defects, and valid asset-handle paths; faucet bursts use the same
+timer and pause logic as boiler ticks. Workspace all-target cargo check was
+also reported passing. A subsequent static catalog-to-runtime audit found
+34 catalog clips with runtime copies: 33 declared in SoundAssets and the
+retained boiler/rumble.wav is not loaded. ui/denied.wav, ui/focus.wav, and
+ui/pause.wav are loaded and mapped but have no game trigger. These checks do
+not establish audible playback or mix quality. Task #137 remains open for a
+human in-game review of the furnace and low-pressure beds, conduit and tank,
+vent HVAC and wind, cool-light buzz, boiler ticks, and faucet bursts. Check
+levels, loop seams, spatial balance on approach/departure, and pause/resume;
+report any audible defect before closing. Flashlight and monster audio await
+those gameplay features.
 
 ## Starter sound catalog (historical prototype)
 
@@ -422,7 +451,7 @@ The expanded `art/sounds/catalog.html` has 46 sounds: 27 approved sounds and
 six downloaded Freesound low-quality previews, and the earlier recorded
 flicker preview. Six Python catalog tests passed. The web previews have
 source-page CC0 labels and file hashes documented in
-`art/sounds/review/amb/web/README.md`; original downloads, underlying rights,
+`art/sounds/sources/freesound/README.md`; original downloads, underlying rights,
 and perceptual quality are not independently verified. New review-only clips
 are not runtime assets. The automode decision for this slice deferred the
 recorded flicker preview from runtime. The rest of the audio feature inventory

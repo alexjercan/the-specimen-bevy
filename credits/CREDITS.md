@@ -27,9 +27,39 @@ hashes and filenames are in `art/sounds/README.md`.
 
 rubberduck, [100 CC0 metal and wood SFX](https://opengameart.org/content/100-cc0-metal-and-wood-sfx),
 OpenGameArt item labeled [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
-The project's edited door cues at `assets/sounds/door/` use recordings from
-this pack. The four hiding candidates at `art/sounds/review/hiding/` also use
+The project's edited unlatch, swing-open and shut cues at
+`assets/sounds/door/` use recordings from this pack. The four approved hiding cues at `art/sounds/generated/hiding/` also use
 its metal and wood recordings, filtered and mixed by
-`scripts/render_hiding_sounds.py`. Hiding cues are not approved or shipped yet.
+`scripts/render_hiding_sounds.py`. Runtime copies are in `assets/sounds/hiding/`.
 Source-page licensing and authorship have not been independently verified.
 Source archive and edit details are in `art/sounds/README.md`.
+
+## Recorded locked-door rattle
+
+DrFahrts, [doorknob rattle](https://freesound.org/people/DrFahrts/sounds/727791/),
+Freesound item labeled [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+The two-second edit at `assets/sounds/door/locked-rattle.wav` was cut from
+its low-quality preview. The item page describes trying a locked doorknob
+repeatedly. Only the preview was obtained; the page label does not
+independently verify uploader ownership or original-file terms. Source and
+edit hashes are recorded in `art/sounds/README.md`.
+
+## Edited Freesound ambience previews
+
+The following Freesound pages display [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+Only the low-quality previews were obtained; page labels do not independently
+verify authorship, recording rights, or original-file terms. Keep this provenance
+with any game distribution that includes the edits.
+
+- iankath, [Furnace.WAV](https://freesound.org/people/iankath/sounds/173991/):
+  the 24-second filtered, crossfaded boiler loop at
+  `assets/sounds/amb/furnace/burning.wav`.
+- willstepp, [Water Drop](https://freesound.org/people/willstepp/sounds/188293/):
+  the filtered 5-second water burst at `assets/sounds/amb/water/faucet.wav`.
+- DBlover, [Howling Wind Ambience](https://freesound.org/people/DBlover/sounds/405601/):
+  the 18-second filtered, crossfaded vent wind at
+  `assets/sounds/amb/vent/wind.wav`.
+
+Preview sources, hashes, and edit parameters are in
+`art/sounds/sources/freesound/README.md` and
+`scripts/render_selected_ambience.py`.

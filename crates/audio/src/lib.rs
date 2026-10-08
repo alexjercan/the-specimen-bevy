@@ -16,9 +16,11 @@ pub enum Sound {
     DoorUnlatch,
     DoorSwing,
     DoorShut,
-    FusePickup,
-    PanelInstall,
+    DoorLocked,
+    FuseSlot(usize),
+    FuseComplete,
     BoilerTick,
+    FaucetBurst,
     LockerOpen,
     LockerClose,
     TableEnter,
@@ -40,6 +42,14 @@ pub struct PlaySound {
     pub position: Option<Vec3>,
 }
 
+#[cfg(test)]
+#[path = "../tests/unit/support.rs"]
+mod test_support;
+
+#[cfg(test)]
+#[path = "../tests/unit/playback.rs"]
+mod tests;
+
 #[derive(Resource, Default)]
 pub struct AudioPaused(pub bool);
 
@@ -60,7 +70,10 @@ impl Plugin for GameAudioPlugin {
             .init_resource::<AudioPaused>()
             .init_resource::<AmbienceActive>()
             .init_resource::<ConduitAmbience>()
-            .add_systems(Update, (update_pause, play_sounds, ambience::update_ambience).chain());
+            .add_systems(
+                Update,
+                (update_pause, play_sounds, ambience::update_ambience).chain(),
+            );
     }
 }
 
@@ -72,14 +85,14 @@ fn update_pause(
     if !paused.is_changed() {
         return;
     }
-    for mut sink in &mut sinks {
+    for sink in &mut sinks {
         if paused.0 {
             sink.pause();
         } else {
             sink.play();
         }
     }
-    for mut sink in &mut spatial {
+    for sink in &mut spatial {
         if paused.0 {
             sink.pause();
         } else {
@@ -102,9 +115,9 @@ fn play_sounds(
             Sound::DoorUnlatch
                 | Sound::DoorSwing
                 | Sound::DoorShut
-                | Sound::FusePickup
-                | Sound::PanelInstall
+                | Sound::DoorLocked
                 | Sound::BoilerTick
+                | Sound::FaucetBurst
                 | Sound::LockerOpen
                 | Sound::LockerClose
                 | Sound::TableEnter
@@ -118,9 +131,14 @@ fn play_sounds(
             Sound::DoorUnlatch => &assets.door_unlatch,
             Sound::DoorSwing => &assets.door_swing,
             Sound::DoorShut => &assets.door_shut,
-            Sound::FusePickup => &assets.fuse_pickup,
-            Sound::PanelInstall => &assets.panel_install,
+            Sound::DoorLocked => &assets.door_locked,
+            Sound::FuseSlot(1) => &assets.fuse_slot_1,
+            Sound::FuseSlot(2) => &assets.fuse_slot_2,
+            Sound::FuseSlot(3) => &assets.fuse_slot_3,
+            Sound::FuseSlot(_) => continue,
+            Sound::FuseComplete => &assets.fuse_complete,
             Sound::BoilerTick => &assets.boiler_tick,
+            Sound::FaucetBurst => &assets.faucet,
             Sound::LockerOpen => &assets.locker_open,
             Sound::LockerClose => &assets.locker_close,
             Sound::TableEnter => &assets.table_enter,
@@ -140,7 +158,9 @@ fn play_sounds(
             Sound::UiResume => &assets.ui_resume,
         };
         if let Some(position) = cue.position {
-            let Ok(listener) = listeners.single() else { continue };
+            let Ok(listener) = listeners.single() else {
+                continue;
+            };
             let distance = listener.translation().distance(position);
             if distance > 25.0 {
                 continue;
