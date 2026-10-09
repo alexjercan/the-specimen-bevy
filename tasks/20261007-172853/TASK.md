@@ -1,6 +1,6 @@
 # Define the playable facility loop and objective pacing
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 100
 - TAGS: backlog, design
 

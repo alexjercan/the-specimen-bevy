@@ -1,6 +1,6 @@
 # Run an end-to-end readability and performance playtest
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 20
 - TAGS: backlog, testing
 

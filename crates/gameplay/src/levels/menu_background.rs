@@ -35,7 +35,7 @@ pub fn build_main_menu_background(commands: &mut Commands) -> Entity {
             ),
             ChildOf(root),
         ))
-        .with_related::<DoorOf>(DoorRef(entrance));
+        .with_related::<DoorOf>((DoorRef(entrance), ChildOf(root)));
     commands
         .spawn((
             room(
@@ -47,7 +47,7 @@ pub fn build_main_menu_background(commands: &mut Commands) -> Entity {
             ),
             ChildOf(root),
         ))
-        .with_related::<DoorOf>(DoorRef(entrance));
+        .with_related::<DoorOf>((DoorRef(entrance), ChildOf(root)));
 
     commands.spawn((
         prop(

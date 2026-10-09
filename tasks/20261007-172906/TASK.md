@@ -1,6 +1,6 @@
 # Review and close legacy prototype cleanup decisions
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 10
 - TAGS: backlog, maintenance
 

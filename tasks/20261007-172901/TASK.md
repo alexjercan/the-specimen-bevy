@@ -1,6 +1,6 @@
 # Integrate spatial SFX, UI sounds and ambience
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 50
 - TAGS: backlog, audio
 

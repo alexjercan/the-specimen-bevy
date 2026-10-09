@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use gameplay::levels::LevelRoot;
+use gameplay::levels::{DoorRef, LevelRoot};
 
 use super::{spawn, GameState};
 
@@ -26,4 +26,23 @@ fn menu_room_and_cameras_are_state_scoped() {
         .single(world)
         .expect("room camera");
     assert_eq!(room_camera.order, 0);
+}
+
+#[test]
+fn menu_room_links_are_removed_on_each_visit() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_systems(Update, |mut commands: Commands| spawn(&mut commands));
+
+    for _ in 0..3 {
+        app.update();
+        let world = app.world_mut();
+        let root = world
+            .query_filtered::<Entity, With<LevelRoot>>()
+            .single(world)
+            .expect("menu room root");
+        assert_eq!(world.query::<&DoorRef>().iter(world).count(), 2);
+        world.entity_mut(root).despawn();
+        assert_eq!(world.query::<&DoorRef>().iter(world).count(), 0);
+    }
 }
