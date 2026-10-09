@@ -6,17 +6,18 @@ use game_assets::MonsterAssets;
 use game_audio::{PlaySourceSound, Sound, SourceSounds};
 use rand_core::Rng;
 
-use crate::controller::{collision, PlayerController, PlayerControlsEnabled, Stamina, RUN_SPEED};
+use crate::controller::{
+    collision, player::apply_input, PlayerController, PlayerControlsEnabled, Stamina, RUN_SPEED,
+};
 
 use super::{
-    interaction::InteractTargets, Door, DoorLock, DoorOf, DoorRef, DoorState, DoorSwing, Doors,
-    Escaped, Hidden, Passage, PropCollider, Room, ToggleDoor,
+    interaction::StructuralSight, Door, DoorLock, DoorOf, DoorRef, DoorState, DoorSwing, Doors,
+    Escaped, Hidden, HidingMotion, HidingPhase, Passage, PropCollider, Room, ToggleDoor,
 };
 
 const SPEED: f32 = 0.51;
 const CHASE_SPEED: f32 = RUN_SPEED + 1.0;
-const SIGHT_RANGE: f32 = 12.0;
-const SIGHT_COS: f32 = 0.45;
+pub(super) const SIGHT_COS: f32 = 0.45;
 const WALK_HEARING: f32 = 3.0;
 const RUN_HEARING: f32 = 9.0;
 const SEARCH_TIME: f32 = 8.0;
@@ -24,13 +25,17 @@ const SEARCH_RADIUS: f32 = 2.5;
 const SEARCH_REACH: f32 = 10.0;
 const STALL_LIMIT: u8 = 3;
 const SEARCH_RETRY: f32 = 0.5;
-const ATTACK_REACH: f32 = 0.9;
-const ATTACK_DURATION: f32 = 19.0 / 24.0;
+pub(super) const ATTACK_REACH: f32 = 1.8;
+const ATTACK_DURATION: f32 = 40.0 / 24.0;
 const JUMPSCARE_TURN_SPEED: f32 = 9.0;
-const JUMPSCARE_FOCUS: f32 = 1.8;
+const HEAD_JOINT: &str = "C_Head_J_023";
+const HEAD_REST: Vec3 = Vec3::new(0.085, -0.166, 0.591);
 const GRID: f32 = 0.5;
 const ARRIVAL: f32 = 0.16;
 const DOOR_APPROACH: f32 = 1.35;
+const DOOR_PASS: f32 = 0.5;
+const DOOR_LOOKAHEAD: f32 = DOOR_APPROACH + GRID;
+const DOOR_FACING_COS: f32 = 0.3;
 const STEP_PERIOD: f32 = 0.6;
 const CHASE_STEP_PERIOD: f32 = 0.32;
 const PRESENCE_INTERVAL: f32 = 24.0;
@@ -62,6 +67,11 @@ struct Pursuit {
     remaining: f32,
     searching: bool,
     planned: Option<Vec2>,
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct WitnessedHiding {
+    pub monster: Entity,
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
@@ -121,7 +131,9 @@ impl Plugin for MonsterPlugin {
             .add_observer(attach_monster_sounds)
             .add_systems(
                 Update,
-                (sense_player, manage_doors, patrol, catch_player).chain(),
+                (sense_player, manage_doors, patrol, catch_player)
+                    .chain()
+                    .before(apply_input),
             );
     }
 }
@@ -368,20 +380,32 @@ fn turn_toward(transform: &mut Transform, direction: Vec2, delta: f32, speed: f3
     (difference - step).abs() <= MOVE_FACING_TOLERANCE
 }
 
+pub(super) fn sees_player(pose: &Transform, target: Vec2, sight: &StructuralSight) -> bool {
+    let direction = target - pose.translation.xz();
+    (direction.length() <= ATTACK_REACH
+        || direction
+            .normalize_or_zero()
+            .dot((pose.rotation * -Vec3::Z).xz())
+            >= SIGHT_COS)
+        && sight.clear_sight(pose.translation.xz(), target)
+}
+
 fn sense_player(
     time: Res<Time>,
     enabled: Option<Res<PlayerControlsEnabled>>,
-    sight: InteractTargets,
+    sight: StructuralSight,
     players: Query<
         (
             &Transform,
             &crate::controller::PlayerInput,
             &Stamina,
-            Has<Hidden>,
+            Option<&Hidden>,
+            Option<&WitnessedHiding>,
         ),
         (With<PlayerController>, Without<Escaped>, Without<Caught>),
     >,
     mut monsters: Query<(Entity, &Transform, &mut Monster), Without<PlayerController>>,
+    spots: Query<(&super::HidingSpot, &Transform), Without<PlayerController>>,
     mut sounds: MessageWriter<PlaySourceSound>,
 ) {
     if enabled.is_some_and(|enabled| !enabled.0) {
@@ -389,28 +413,27 @@ fn sense_player(
     }
     for (entity, transform, mut monster) in &mut monsters {
         let position = transform.translation.xz();
-        let sensed = players.iter().find_map(|(player, input, stamina, hidden)| {
-            if hidden {
-                return None;
-            }
-            let target = player.translation.xz();
-            let distance = position.distance(target);
-            let direction = (target - position).normalize_or_zero();
-            let facing = (transform.rotation * -Vec3::Z).xz();
-            let visible = distance <= SIGHT_RANGE
-                && (distance <= ATTACK_REACH || direction.dot(facing) >= SIGHT_COS);
-            let heard = input.movement.length_squared() > 0.01
-                && distance
-                    <= if stamina.sprinting {
-                        RUN_HEARING
-                    } else {
-                        WALK_HEARING
-                    };
-            (visible || heard)
-                .then(|| sight.clear_sight(position, target))
-                .filter(|clear| *clear)
-                .map(|_| target)
-        });
+        let sensed = players
+            .iter()
+            .find_map(|(player, input, stamina, hidden, witness)| {
+                if let Some(hidden) = hidden {
+                    return (witness.is_some_and(|witness| witness.monster == entity))
+                        .then(|| spots.get(hidden.spot).ok())
+                        .flatten()
+                        .map(|(kind, place)| kind.exit(place));
+                }
+                let target = player.translation.xz();
+                let distance = position.distance(target);
+                let visible = sees_player(transform, target, &sight);
+                let heard = input.movement.length_squared() > 0.01
+                    && distance
+                        <= if stamina.sprinting {
+                            RUN_HEARING
+                        } else {
+                            WALK_HEARING
+                        };
+                (visible || (heard && sight.clear_sight(position, target))).then_some(target)
+            });
         if let Some(target) = sensed {
             if let Some(mut pursuit) = monster.pursuit {
                 if pursuit.searching {
@@ -447,14 +470,27 @@ fn sense_player(
     }
 }
 
-fn catch_player(
+pub(super) fn catch_player(
     time: Res<Time>,
     enabled: Option<Res<PlayerControlsEnabled>>,
+    sight: StructuralSight,
     mut players: Query<
-        (Entity, &mut Transform, Has<Hidden>, Option<&mut Caught>),
+        (
+            Entity,
+            &mut Transform,
+            Option<&mut Hidden>,
+            Option<&WitnessedHiding>,
+            Option<&mut Caught>,
+        ),
         (With<PlayerController>, Without<Escaped>),
     >,
-    mut monsters: Query<(Entity, &mut Transform, &mut Monster), Without<PlayerController>>,
+    mut monsters: Query<
+        (Entity, &mut Transform, &mut Monster),
+        (Without<PlayerController>, Without<super::HidingSpot>),
+    >,
+    children: Query<&Children>,
+    joints: Query<(&Name, &GlobalTransform)>,
+    spots: Query<(&super::HidingSpot, &Transform), Without<PlayerController>>,
     mut sounds: MessageWriter<PlaySourceSound>,
     mut commands: Commands,
 ) {
@@ -463,7 +499,7 @@ fn catch_player(
     }
     let delta = time.delta_secs();
     let mut staged = false;
-    for (_, mut view, _, caught) in &mut players {
+    for (_, mut view, _, _, caught) in &mut players {
         let Some(mut caught) = caught else {
             continue;
         };
@@ -472,13 +508,13 @@ fn catch_player(
             continue;
         }
         caught.remaining = (caught.remaining - delta).max(0.0);
-        let Ok((_, mut pose, _)) = monsters.get_mut(caught.monster) else {
+        let Ok((monster, mut pose, _)) = monsters.get_mut(caught.monster) else {
             continue;
         };
         let toward = (view.translation.xz() - pose.translation.xz()).normalize_or_zero();
         if toward != Vec2::ZERO {
             turn_toward(&mut pose, toward, delta, CHASE_TURN_SPEED);
-            let focus = pose.translation + Vec3::Y * JUMPSCARE_FOCUS;
+            let focus = head_position(monster, &pose, &children, &joints);
             let facing = view.looking_at(focus, Vec3::Y).rotation;
             view.rotation = view
                 .rotation
@@ -492,11 +528,37 @@ fn catch_player(
         if monster.pursuit.is_none() {
             continue;
         }
-        let Some((player, ..)) = players.iter().find(|(_, view, hidden, _)| {
-            !hidden && pose.translation.xz().distance(view.translation.xz()) <= ATTACK_REACH
-        }) else {
+        let Some((player, hiding_spot)) = players
+            .iter()
+            .find(|(_, view, hidden, witness, _)| {
+                let target = if let Some(hidden) = hidden {
+                    if !witness.is_some_and(|witness| witness.monster == monster_entity) {
+                        return false;
+                    }
+                    let Ok((kind, place)) = spots.get(hidden.spot) else {
+                        return false;
+                    };
+                    kind.exit(place)
+                } else {
+                    view.translation.xz()
+                };
+                pose.translation.xz().distance(target) <= ATTACK_REACH
+                    && sight.clear_sight(pose.translation.xz(), target)
+            })
+            .map(|(player, _, hidden, _, _)| (player, hidden.map(|hidden| hidden.spot)))
+        else {
             continue;
         };
+        if hiding_spot.is_some() {
+            if let Ok((_, view, Some(mut hidden), _, _)) = players.get_mut(player) {
+                if !matches!(hidden.phase, HidingPhase::Leaving(_)) {
+                    hidden.phase = HidingPhase::Leaving(HidingMotion::from(&view));
+                }
+            }
+            monster.route.clear();
+            return;
+        }
+        commands.entity(player).remove::<WitnessedHiding>();
         monster.route.clear();
         sounds.write(PlaySourceSound {
             source: monster_entity,
@@ -507,10 +569,65 @@ fn catch_player(
     }
 }
 
+fn head_rest_offset() -> Vec3 {
+    Vec3::new(
+        (HEAD_REST.x - MODEL_PIVOT.x) * MODEL_SCALE,
+        HEAD_REST.y * MODEL_SCALE + MODEL_LIFT,
+        (HEAD_REST.z - MODEL_PIVOT.y) * MODEL_SCALE,
+    )
+}
+
+fn head_position(
+    monster: Entity,
+    pose: &Transform,
+    children: &Query<&Children>,
+    joints: &Query<(&Name, &GlobalTransform)>,
+) -> Vec3 {
+    let mut stack = vec![monster];
+    while let Some(entity) = stack.pop() {
+        if let Ok((name, joint)) = joints.get(entity) {
+            if name.as_str() == HEAD_JOINT {
+                return joint.translation();
+            }
+        }
+        if let Ok(descendants) = children.get(entity) {
+            stack.extend(descendants.iter());
+        }
+    }
+    pose.transform_point(head_rest_offset())
+}
+
+fn door_on_route(position: Vec2, route: &VecDeque<Vec2>, door: Vec2) -> bool {
+    let mut from = position;
+    let mut travelled = 0.0;
+    for &to in route {
+        let segment = to - from;
+        let along = (door - from).dot(segment) / segment.length_squared().max(1e-6);
+        if door.distance(from + segment * along.clamp(0.0, 1.0)) <= DOOR_PASS {
+            return true;
+        }
+        travelled += segment.length();
+        if travelled >= DOOR_LOOKAHEAD {
+            break;
+        }
+        from = to;
+    }
+    false
+}
+
+fn approaching_door(transform: &Transform, route: &VecDeque<Vec2>, door: &Door) -> bool {
+    let position = transform.translation.xz();
+    let toward = door.position - position;
+    let facing = (transform.rotation * Vec3::NEG_Z).xz();
+    toward.length() < DOOR_APPROACH
+        && (toward.length() < GRID || toward.normalize().dot(facing) >= DOOR_FACING_COS)
+        && door_on_route(position, route, door.position)
+}
+
 fn manage_doors(
     enabled: Option<Res<PlayerControlsEnabled>>,
     doors: Query<(Entity, &Door, Has<DoorLock>)>,
-    monsters: Query<&Transform, With<Monster>>,
+    monsters: Query<(&Transform, &Monster)>,
     caught: Query<(), (With<PlayerController>, With<Caught>)>,
     mut toggles: MessageWriter<ToggleDoor>,
 ) {
@@ -522,7 +639,7 @@ fn manage_doors(
             && door.state == DoorState::Closed
             && monsters
                 .iter()
-                .any(|monster| monster.translation.xz().distance(door.position) < DOOR_APPROACH)
+                .any(|(transform, monster)| approaching_door(transform, &monster.route, door))
         {
             toggles.write(ToggleDoor(entity));
         }
@@ -693,24 +810,26 @@ fn patrol(
             continue;
         };
         let forward = (next - position).normalize_or_zero();
-        let chasing = monster.pursuit.is_some();
-        let facing_waypoint = turn_toward(
-            &mut transform,
-            forward,
-            delta,
-            if chasing {
-                CHASE_TURN_SPEED
-            } else {
-                TURN_SPEED
-            },
-        );
-        if doors.iter().any(|(_, door, swing, locked)| {
-            !locked
+        let turn_speed = if monster.pursuit.is_some() {
+            CHASE_TURN_SPEED
+        } else {
+            TURN_SPEED
+        };
+        let waiting = doors.iter().find_map(|(_, door, swing, locked)| {
+            (!locked
                 && position.distance(door.position) < DOOR_APPROACH
                 && (door.state == DoorState::Closed || swing.0 < 1.4)
-        }) {
+                && door_on_route(position, &monster.route, door.position))
+            .then_some(door.position)
+        });
+        if let Some(door) = waiting {
+            let toward = (door - position).normalize_or_zero();
+            if toward != Vec2::ZERO {
+                turn_toward(&mut transform, toward, delta, turn_speed);
+            }
             continue;
         }
+        let facing_waypoint = turn_toward(&mut transform, forward, delta, turn_speed);
         if !facing_waypoint {
             continue;
         }
@@ -719,7 +838,18 @@ fn patrol(
         } else {
             SPEED
         };
-        let step = forward * (speed * delta).min(position.distance(next));
+        let mut travel = (speed * delta).min(position.distance(next));
+        if let Some(pursuit) = monster
+            .pursuit
+            .filter(|pursuit| !pursuit.searching && pursuit.remaining >= SEARCH_TIME)
+        {
+            travel =
+                travel.min((position.distance(pursuit.last_sensed) - ATTACK_REACH * 0.9).max(0.0));
+        }
+        if travel <= 0.0 {
+            continue;
+        }
+        let step = forward * travel;
         let moved = collision::move_player(position, step, &dynamic);
         if moved.distance(position) < step.length() * 0.15 {
             monster.stalls += 1;

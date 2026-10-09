@@ -12,7 +12,7 @@ use super::{
     fuses::FuseInventory,
     interaction::{InteractTarget, InteractTargets},
     module_names::{CONCEPT_LOCKER, CONCEPT_TABLE},
-    monster::Caught,
+    monster::{sees_player, Caught, Monster, WitnessedHiding},
 };
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,7 +62,10 @@ impl Plugin for HidingPlugin {
             .add_observer(attach_hiding_sounds)
             .add_systems(
                 Update,
-                (toggle_hiding, animate_hiding).chain().before(apply_input),
+                (toggle_hiding, animate_hiding)
+                    .chain()
+                    .after(super::monster::catch_player)
+                    .before(apply_input),
             );
     }
 }
@@ -104,7 +107,7 @@ impl Hidden {
 }
 
 impl HidingMotion {
-    fn from(transform: &Transform) -> Self {
+    pub(super) fn from(transform: &Transform) -> Self {
         Self {
             from: transform.translation,
             rotation: transform.rotation,
@@ -212,26 +215,36 @@ fn toggle_hiding(
     mut uses: MessageReader<UseHidingSpot>,
     spots: Query<&HidingSpot, Without<PlayerController>>,
     mut players: Query<
-        (&Transform, &mut PlayerInput, Option<&mut Hidden>),
+        (
+            &Transform,
+            &mut PlayerInput,
+            Option<&mut Hidden>,
+            Option<&WitnessedHiding>,
+        ),
         (With<PlayerController>, Without<Caught>),
     >,
+    monsters: Query<(Entity, &Transform), With<Monster>>,
+    sight: super::interaction::StructuralSight,
     mut sounds: MessageWriter<PlaySourceSound>,
     mut commands: Commands,
 ) {
     let mut occupied: Vec<Entity> = players
         .iter()
-        .filter_map(|(_, _, hidden)| hidden.map(|hidden| hidden.spot))
+        .filter_map(|(_, _, hidden, _)| hidden.map(|hidden| hidden.spot))
         .collect();
     for &UseHidingSpot { player, spot } in uses.read() {
         let Ok(kind) = spots.get(spot) else {
             continue;
         };
-        let Ok((transform, mut input, hidden)) = players.get_mut(player) else {
+        let Ok((transform, mut input, hidden, witnessed)) = players.get_mut(player) else {
             continue;
         };
         let motion = HidingMotion::from(transform);
         match hidden {
             Some(mut hidden) if hidden.spot == spot => {
+                if witnessed.is_some() {
+                    continue;
+                }
                 let (phase, entering) = match hidden.phase {
                     HidingPhase::Leaving(_) => (HidingPhase::Entering(motion), true),
                     HidingPhase::Entering(_) | HidingPhase::Hidden => {
@@ -245,11 +258,18 @@ fn toggle_hiding(
                 });
             }
             None if !occupied.contains(&spot) => {
+                let start = transform.translation.xz();
+                let witness = monsters.iter().find_map(|(monster, pose)| {
+                    sees_player(pose, start, &sight).then_some(WitnessedHiding { monster })
+                });
                 commands.entity(player).insert(Hidden {
                     spot,
                     height: transform.translation.y,
                     phase: HidingPhase::Entering(motion),
                 });
+                if let Some(witness) = witness {
+                    commands.entity(player).insert(witness);
+                }
                 *input = PlayerInput::default();
                 occupied.push(spot);
                 sounds.write(PlaySourceSound {

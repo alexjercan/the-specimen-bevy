@@ -423,6 +423,155 @@ fn hiding_before_contact_keeps_a_chased_player_safe() {
 }
 
 #[test]
+fn witnessed_hiding_is_pulled_out_into_the_scripted_catch() {
+    use crate::controller::PlayerController;
+    use crate::levels::{
+        Caught, Hidden, HidingPhase, HidingPlugin, HidingSpot, Monster, Room, UseHidingSpot,
+    };
+
+    let mut app = monster_app(7);
+    app.add_plugins(HidingPlugin);
+    app.world_mut().spawn(Room(Rect::new(-5.0, -8.0, 5.0, 5.0)));
+    let spot = app
+        .world_mut()
+        .spawn((HidingSpot::Locker, Transform::from_xyz(0.0, 0.0, -4.0)))
+        .id();
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -2.9)))
+        .id();
+    app.update();
+    app.world_mut()
+        .write_message(UseHidingSpot { player, spot });
+    app.update();
+    assert!(app.world().get::<Hidden>(player).is_some());
+    assert_eq!(
+        app.world()
+            .get::<super::WitnessedHiding>(player)
+            .unwrap()
+            .monster,
+        monster
+    );
+    app.world_mut()
+        .write_message(UseHidingSpot { player, spot });
+    app.update();
+    assert!(!matches!(
+        app.world().get::<Hidden>(player).unwrap().phase,
+        HidingPhase::Leaving(_)
+    ));
+    let mut settled = false;
+    let mut pulled_out = false;
+    for _ in 0..100 {
+        app.update();
+        settled |= app
+            .world()
+            .get::<Hidden>(player)
+            .is_some_and(Hidden::settled);
+        pulled_out |= app
+            .world()
+            .get::<Hidden>(player)
+            .is_some_and(|hidden| matches!(hidden.phase, HidingPhase::Leaving(_)));
+        if app.world().get::<Caught>(player).is_some() {
+            break;
+        }
+    }
+    assert!(settled, "monster must reach a fully hidden player");
+    assert!(
+        pulled_out,
+        "monster must pull the player out before attacking"
+    );
+    assert_eq!(app.world().get::<Caught>(player).unwrap().monster, monster);
+    assert!(app.world().get::<Hidden>(player).is_none());
+    assert!(app.world().get::<super::WitnessedHiding>(player).is_none());
+    let exit = HidingSpot::Locker.exit(app.world().get::<Transform>(spot).unwrap());
+    assert_eq!(
+        app.world()
+            .get::<Transform>(player)
+            .unwrap()
+            .translation
+            .xz(),
+        exit
+    );
+}
+
+#[test]
+fn unseen_hiding_remains_safe_even_when_monster_later_approaches() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Caught, Hidden, HidingPlugin, HidingSpot, Monster, Room, UseHidingSpot};
+
+    let mut app = monster_app(7);
+    app.add_plugins(HidingPlugin);
+    app.world_mut().spawn(Room(Rect::new(-5.0, -8.0, 5.0, 5.0)));
+    let spot = app
+        .world_mut()
+        .spawn((HidingSpot::Locker, Transform::from_xyz(0.0, 0.0, -4.0)))
+        .id();
+    let monster = app
+        .world_mut()
+        .spawn((
+            Monster::default(),
+            Transform::from_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+        ))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -2.9)))
+        .id();
+    app.update();
+    app.world_mut()
+        .write_message(UseHidingSpot { player, spot });
+    app.update();
+    assert!(app.world().get::<super::WitnessedHiding>(player).is_none());
+    app.world_mut()
+        .entity_mut(monster)
+        .insert(Transform::from_xyz(0.0, 0.0, -3.2));
+    for _ in 0..40 {
+        app.update();
+    }
+    assert!(app
+        .world()
+        .get::<Hidden>(player)
+        .is_some_and(Hidden::settled));
+    assert!(app.world().get::<Caught>(player).is_none());
+}
+
+#[test]
+fn hiding_entry_behind_a_wall_is_not_witnessed() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Caught, Hidden, HidingPlugin, HidingSpot, Monster, Room, UseHidingSpot};
+
+    let mut app = monster_app(7);
+    app.add_plugins(HidingPlugin);
+    app.world_mut()
+        .spawn(Room(Rect::new(-5.0, -5.0, 5.0, -0.5)));
+    app.world_mut().spawn(Room(Rect::new(-5.0, -0.5, 5.0, 5.0)));
+    let spot = app
+        .world_mut()
+        .spawn((HidingSpot::Locker, Transform::from_xyz(0.0, 0.0, -2.4)))
+        .id();
+    app.world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY));
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -1.3)))
+        .id();
+    app.update();
+    app.world_mut()
+        .write_message(UseHidingSpot { player, spot });
+    app.update();
+    assert!(app.world().get::<Hidden>(player).is_some());
+    assert!(app.world().get::<super::WitnessedHiding>(player).is_none());
+    for _ in 0..20 {
+        app.update();
+    }
+    assert!(app.world().get::<Caught>(player).is_none());
+}
+
+#[test]
 fn caught_player_cannot_move_look_or_hide_and_faces_the_full_attack() {
     use crate::controller::{
         player::apply_input, PlayerController, PlayerControlsEnabled, PlayerInput, SprintExhausted,
@@ -438,7 +587,7 @@ fn caught_player_cannot_move_look_or_hide_and_faces_the_full_attack() {
     app.world_mut().spawn(Room(Rect::new(-5.0, -5.0, 5.0, 5.0)));
     let spot = app
         .world_mut()
-        .spawn((HidingSpot::Locker, Transform::from_xyz(1.0, 0.0, -0.7)))
+        .spawn((HidingSpot::Locker, Transform::from_xyz(1.0, 0.0, -1.7)))
         .id();
     let monster = app
         .world_mut()
@@ -446,16 +595,12 @@ fn caught_player_cannot_move_look_or_hide_and_faces_the_full_attack() {
         .id();
     let player = app
         .world_mut()
-        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -0.7)))
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -1.7)))
         .id();
-    app.update();
-    let caught = *app.world().get::<Caught>(player).unwrap();
-    assert_eq!(caught.monster, monster);
-    assert!(!caught.finished());
-    let anchor = app.world().get::<Transform>(player).unwrap().translation;
-    let mut previous = app.world().get::<Transform>(player).unwrap().rotation;
+    let anchor = Vec3::new(0.0, 1.6, -1.7);
+    let mut previous = Quat::IDENTITY;
     let mut finished_at = None;
-    for frame in 0..20 {
+    for frame in 0..30 {
         {
             let mut input = app.world_mut().get_mut::<PlayerInput>(player).unwrap();
             input.movement = Vec2::Y;
@@ -464,6 +609,11 @@ fn caught_player_cannot_move_look_or_hide_and_faces_the_full_attack() {
         app.world_mut()
             .write_message(UseHidingSpot { player, spot });
         app.update();
+        let caught = *app
+            .world()
+            .get::<Caught>(player)
+            .expect("contact must catch the player on the same frame");
+        assert_eq!(caught.monster, monster);
         let view = *app.world().get::<Transform>(player).unwrap();
         assert_eq!(view.translation, anchor, "caught player must not move");
         assert!(!app.world().entity(player).contains::<Hidden>());
@@ -472,21 +622,127 @@ fn caught_player_cannot_move_look_or_hide_and_faces_the_full_attack() {
             "caught view must turn at a bounded rate and ignore look input"
         );
         previous = view.rotation;
-        let caught = *app.world().get::<Caught>(player).unwrap();
         if caught.finished() && finished_at.is_none() {
             finished_at = Some(frame);
         }
     }
     let finished_at = finished_at.expect("scripted attack must finish");
+    assert!((super::ATTACK_DURATION - 40.0 / 24.0).abs() < 0.001);
     let frames = super::ATTACK_DURATION / 0.1;
     assert!(finished_at as f32 >= frames - 1.0);
     assert!(finished_at as f32 <= frames + 1.0);
     let view = app.world().get::<Transform>(player).unwrap();
     let pose = app.world().get::<Transform>(monster).unwrap();
-    let focus = pose.translation + Vec3::Y * super::JUMPSCARE_FOCUS;
-    assert!(view.forward().dot((focus - view.translation).normalize()) > 0.99);
+    let head = pose.transform_point(super::head_rest_offset());
+    assert!(view.forward().dot((head - view.translation).normalize()) > 0.99);
+    assert!(
+        view.forward().y > 0.3,
+        "caught view must look up at the head"
+    );
+    assert!(head.y > view.translation.y + 0.2);
     let toward_player = (view.translation - pose.translation).xz().normalize();
     assert!(pose.forward().xz().dot(toward_player) > 0.95);
+    assert!((head - pose.translation).xz().dot(toward_player) > 1.0);
+}
+
+#[test]
+fn jumpscare_aims_at_the_live_head_joint_when_the_scene_is_loaded() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Caught, Monster, Room};
+
+    let mut app = monster_app(7);
+    app.world_mut().spawn(Room(Rect::new(-5.0, -5.0, 5.0, 5.0)));
+    let joint = Vec3::new(0.3, 2.3, -1.1);
+    app.world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY))
+        .with_children(|children| {
+            children.spawn(Transform::default()).with_children(|bones| {
+                bones.spawn((
+                    Name::new(super::HEAD_JOINT),
+                    GlobalTransform::from_translation(joint),
+                ));
+            });
+        });
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -1.7)))
+        .id();
+    for _ in 0..12 {
+        app.update();
+    }
+    assert!(app.world().entity(player).contains::<Caught>());
+    let view = app.world().get::<Transform>(player).unwrap();
+    assert!(view.forward().dot((joint - view.translation).normalize()) > 0.99);
+}
+
+#[test]
+fn contact_reach_covers_the_head_offset_without_reaching_further() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Caught, Monster, Room};
+
+    let head = super::head_rest_offset();
+    assert!(head.y > 1.8);
+    assert!(head.z < -1.2);
+    assert!(super::ATTACK_REACH - head.xz().length() >= 0.3);
+    for (distance, caught) in [(1.7, true), (1.95, false)] {
+        let mut app = monster_app(7);
+        app.world_mut().spawn(Room(Rect::new(-5.0, -5.0, 5.0, 5.0)));
+        let monster = app
+            .world_mut()
+            .spawn((Monster::default(), Transform::IDENTITY))
+            .id();
+        let player = app
+            .world_mut()
+            .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, distance)))
+            .id();
+        for _ in 0..10 {
+            app.update();
+        }
+        assert_eq!(
+            app.world().entity(player).contains::<Caught>(),
+            caught,
+            "still player behind the monster at {distance} m"
+        );
+        assert_eq!(monster_state(&app, monster).pursuit.is_some(), caught);
+    }
+}
+
+#[test]
+fn chase_stops_at_contact_range_so_the_head_stays_in_front_of_the_view() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Caught, Monster, Room};
+
+    let mut app = monster_app(7);
+    app.world_mut()
+        .spawn(Room(Rect::new(-5.0, -12.0, 5.0, 5.0)));
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -7.0)))
+        .id();
+    let mut caught = false;
+    for _ in 0..30 {
+        app.update();
+        if app.world().entity(player).contains::<Caught>() {
+            caught = true;
+            break;
+        }
+    }
+    assert!(caught);
+    let pose = app.world().get::<Transform>(monster).unwrap();
+    let view = app.world().get::<Transform>(player).unwrap();
+    let distance = pose.translation.xz().distance(view.translation.xz());
+    assert!(distance <= super::ATTACK_REACH);
+    assert!(distance >= super::ATTACK_REACH * 0.85);
+    let head = pose.transform_point(super::head_rest_offset());
+    let toward_player = (view.translation - pose.translation).xz().normalize();
+    assert!(
+        (view.translation - head).xz().dot(toward_player) > 0.25,
+        "head must stay in front of the camera"
+    );
 }
 
 #[test]
@@ -745,6 +1001,49 @@ fn walls_block_sight_and_contact_is_a_guaranteed_catch() {
 }
 
 #[test]
+fn pursuing_monster_cannot_catch_through_a_wall_within_attack_reach() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Caught, Monster, Room};
+
+    let mut app = monster_app(7);
+    app.world_mut().spawn(Room(Rect::new(-2.5, 0.0, 2.5, 5.0)));
+    app.world_mut().spawn(Room(Rect::new(-2.5, -5.0, 2.5, 0.0)));
+    let monster = app
+        .world_mut()
+        .spawn((
+            Monster::default(),
+            Transform::from_xyz(0.0, 0.0, 0.25)
+                .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+        ))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, 3.0)))
+        .id();
+    app.update();
+    assert!(monster_state(&app, monster).pursuit.is_some());
+    app.world_mut()
+        .get_mut::<Transform>(player)
+        .unwrap()
+        .translation
+        .z = -0.8;
+    assert!(
+        app.world()
+            .get::<Transform>(monster)
+            .unwrap()
+            .translation
+            .z
+            .abs()
+            + 0.8
+            < super::ATTACK_REACH
+    );
+    for _ in 0..3 {
+        app.update();
+        assert!(app.world().get::<Caught>(player).is_none());
+    }
+}
+
+#[test]
 fn detection_and_attack_emit_one_source_attached_cue_each() {
     use crate::controller::PlayerController;
     use crate::levels::{Caught, Monster, Room};
@@ -902,93 +1201,237 @@ fn route_through_an_interior_door_is_independent_of_its_open_state() {
     assert_eq!(closed, open);
 }
 
-#[test]
-fn nearby_monster_opens_unlocked_door_without_a_route_and_leaves_it_open() {
-    use crate::levels::{Door, DoorState, Monster, ToggleDoor};
+#[derive(Resource, Default)]
+struct DoorToggles(Vec<Entity>);
 
-    #[derive(Resource, Default)]
-    struct Operations(Vec<Entity>);
+fn record_door_toggles(
+    mut toggles: MessageReader<crate::levels::ToggleDoor>,
+    mut doors: Query<&mut crate::levels::Door>,
+    mut recorded: ResMut<DoorToggles>,
+) {
+    use crate::levels::DoorState;
 
-    fn toggle(
-        mut events: MessageReader<ToggleDoor>,
-        mut doors: Query<&mut Door>,
-        mut operations: ResMut<Operations>,
-    ) {
-        for event in events.read() {
-            operations.0.push(event.0);
-            let mut door = doors.get_mut(event.0).unwrap();
+    for toggle in toggles.read() {
+        recorded.0.push(toggle.0);
+        if let Ok(mut door) = doors.get_mut(toggle.0) {
             door.state = match door.state {
                 DoorState::Closed => DoorState::Open,
                 DoorState::Open => DoorState::Closed,
             };
         }
     }
+}
 
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .init_resource::<Operations>()
-        .add_plugins(super::MonsterPlugin)
-        .add_systems(PostUpdate, toggle);
+fn door_app(door_at: Vec2, yaw: f32, rooms: [Rect; 2]) -> (App, Entity) {
+    use crate::levels::{DoorOf, DoorRef, Room};
+
+    let mut app = monster_app(7);
+    app.init_resource::<DoorToggles>().add_systems(
+        Update,
+        (record_door_toggles, crate::levels::animation::animate_doors).chain(),
+    );
     let door = app
         .world_mut()
         .spawn(crate::levels::builder::door(
-            "proximity door",
-            Vec2::ZERO,
-            std::f32::consts::FRAC_PI_2,
+            "route door",
+            door_at,
+            yaw,
             "wall_doorway",
             "door_panel",
         ))
         .id();
+    for bounds in rooms {
+        app.world_mut()
+            .spawn(Room(bounds))
+            .with_related::<DoorOf>(DoorRef(door));
+    }
+    (app, door)
+}
+
+fn monster_on_route(app: &mut App, start: Vec2, end: Vec2) -> Entity {
+    use crate::levels::Monster;
+
+    let steps = (start.distance(end) / GRID).round() as usize;
+    let route = (1..=steps)
+        .map(|step| start.lerp(end, step as f32 / steps as f32))
+        .collect();
+    let facing = Quat::from_rotation_arc(Vec3::NEG_Z, (end - start).normalize().extend(0.0).xzy());
+    app.world_mut()
+        .spawn((
+            Monster {
+                route,
+                ..Monster::default()
+            },
+            Transform::from_xyz(start.x, 0.0, start.y).with_rotation(facing),
+        ))
+        .id()
+}
+
+#[test]
+fn monster_walking_past_a_side_door_leaves_it_closed_and_keeps_moving() {
+    use crate::levels::{Door, DoorState};
+
+    let (mut app, door) = door_app(
+        Vec2::new(1.25, 1.25),
+        0.0,
+        [
+            Rect::new(-5.0, -1.25, 5.0, 1.25),
+            Rect::new(0.0, 1.25, 2.5, 3.75),
+        ],
+    );
+    let monster = monster_on_route(&mut app, Vec2::new(-1.0, 0.0), Vec2::new(4.0, 0.0));
+    let mut closest = f32::MAX;
+    let mut furthest = f32::MIN;
+    for _ in 0..100 {
+        app.update();
+        let position = app
+            .world()
+            .get::<Transform>(monster)
+            .unwrap()
+            .translation
+            .xz();
+        closest = closest.min(position.distance(Vec2::new(1.25, 1.25)));
+        furthest = furthest.max(position.x);
+    }
+    assert!(
+        closest < super::DOOR_APPROACH,
+        "route must pass the side door"
+    );
+    assert!(app.world().resource::<DoorToggles>().0.is_empty());
+    assert_eq!(
+        app.world().get::<Door>(door).unwrap().state,
+        DoorState::Closed
+    );
+    assert!(furthest > 3.5, "monster must not wait at a side door");
+}
+
+#[test]
+fn monster_opens_the_doorway_it_faces_on_its_route_and_crosses_without_snagging() {
+    use crate::controller::collision::{clear_for_player, door_frames, door_panel};
+    use crate::levels::{Door, DoorState, DoorSwing};
+
+    let (mut app, door) = door_app(
+        Vec2::ZERO,
+        std::f32::consts::FRAC_PI_2,
+        [
+            Rect::new(-5.0, -1.25, 0.0, 1.25),
+            Rect::new(0.0, -1.25, 5.0, 1.25),
+        ],
+    );
+    let monster = monster_on_route(&mut app, Vec2::new(-2.5, 0.0), Vec2::new(2.5, 0.0));
+    let mut crossed = false;
+    for _ in 0..200 {
+        app.update();
+        let world = app.world();
+        let position = world.get::<Transform>(monster).unwrap().translation.xz();
+        let state = world.get::<Door>(door).unwrap();
+        let swing = world.get::<DoorSwing>(door).unwrap();
+        let mut blockers = door_frames(state).to_vec();
+        blockers.push(door_panel(state, swing));
+        assert!(
+            clear_for_player(position, &blockers),
+            "monster clipped the doorway at {position}"
+        );
+        if position.x > 2.3 {
+            crossed = true;
+            break;
+        }
+    }
+    assert!(crossed, "monster must cross the opened doorway");
+    assert_eq!(app.world().resource::<DoorToggles>().0, vec![door]);
+    for _ in 0..30 {
+        app.update();
+    }
+    assert_eq!(app.world().resource::<DoorToggles>().0, vec![door]);
+    assert_eq!(
+        app.world().get::<Door>(door).unwrap().state,
+        DoorState::Open
+    );
+}
+
+#[test]
+fn monster_turns_to_a_route_door_entered_from_a_corner_and_crosses() {
+    use crate::levels::{Door, DoorState, Monster};
+
+    let (mut app, door) = door_app(
+        Vec2::ZERO,
+        std::f32::consts::FRAC_PI_2,
+        [
+            Rect::new(-5.0, -1.25, 0.0, 1.25),
+            Rect::new(0.0, -1.25, 5.0, 1.25),
+        ],
+    );
+    let start = Vec2::new(-0.9, -0.9);
+    assert!(start.length() < super::DOOR_APPROACH);
     let monster = app
         .world_mut()
-        .spawn((Monster::default(), Transform::from_xyz(0.8, 0.0, 0.0)))
+        .spawn((
+            Monster {
+                route: [
+                    Vec2::new(-1.5, -0.5),
+                    Vec2::ZERO,
+                    Vec2::new(1.0, 0.0),
+                    Vec2::new(2.5, 0.0),
+                ]
+                .into(),
+                ..Monster::default()
+            },
+            Transform::from_xyz(start.x, 0.0, start.y),
+        ))
         .id();
-    app.update();
-    assert_eq!(app.world().resource::<Operations>().0, vec![door]);
+    let mut crossed = false;
+    for _ in 0..300 {
+        app.update();
+        if app.world().get::<Transform>(monster).unwrap().translation.x > 2.0 {
+            crossed = true;
+            break;
+        }
+    }
+    assert_eq!(app.world().resource::<DoorToggles>().0, vec![door]);
     assert_eq!(
         app.world().get::<Door>(door).unwrap().state,
         DoorState::Open
     );
-    assert!(app
-        .world()
-        .get::<Monster>(monster)
-        .unwrap()
-        .route
-        .is_empty());
-    app.update();
-    assert_eq!(app.world().resource::<Operations>().0.len(), 1);
-    app.world_mut()
-        .get_mut::<Transform>(monster)
-        .unwrap()
-        .translation
-        .x = 2.0;
-    app.update();
-    assert_eq!(app.world().resource::<Operations>().0, vec![door]);
-    assert_eq!(
-        app.world().get::<Door>(door).unwrap().state,
-        DoorState::Open
+    assert!(
+        crossed,
+        "monster must not deadlock at a door entered from a corner"
     );
-    app.world_mut().get_mut::<Door>(door).unwrap().state = DoorState::Closed;
-    app.update();
-    assert_eq!(app.world().resource::<Operations>().0, vec![door]);
-    app.world_mut().get_mut::<Door>(door).unwrap().state = DoorState::Open;
-    app.world_mut()
-        .get_mut::<Transform>(monster)
-        .unwrap()
-        .translation
-        .x = 0.8;
-    app.update();
-    app.world_mut()
-        .get_mut::<Transform>(monster)
-        .unwrap()
-        .translation
-        .x = 2.0;
-    app.update();
-    assert_eq!(app.world().resource::<Operations>().0, vec![door]);
-    assert_eq!(
-        app.world().get::<Door>(door).unwrap().state,
-        DoorState::Open
-    );
+}
+
+#[test]
+fn distant_player_ahead_is_seen_but_cone_and_walls_still_limit_sight() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Monster, Room};
+
+    for (rooms, player_at, seen) in [
+        (vec![Rect::new(-3.0, -60.0, 3.0, 3.0)], -50.0, true),
+        (vec![Rect::new(-3.0, -60.0, 3.0, 3.0)], 2.5, false),
+        (
+            vec![
+                Rect::new(-3.0, -60.0, 3.0, -10.0),
+                Rect::new(-3.0, -10.0, 3.0, 3.0),
+            ],
+            -50.0,
+            false,
+        ),
+    ] {
+        let mut app = monster_app(7);
+        for bounds in rooms {
+            app.world_mut().spawn(Room(bounds));
+        }
+        let monster = app
+            .world_mut()
+            .spawn((Monster::default(), Transform::IDENTITY))
+            .id();
+        app.world_mut()
+            .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, player_at)));
+        app.update();
+        let pursuit = monster_state(&app, monster).pursuit;
+        assert_eq!(pursuit.is_some(), seen, "player at z {player_at}");
+        if seen {
+            assert_eq!(pursuit.unwrap().last_sensed, Vec2::new(0.0, player_at));
+        }
+    }
 }
 
 #[test]

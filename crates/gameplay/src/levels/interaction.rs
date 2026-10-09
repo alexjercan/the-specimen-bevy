@@ -33,6 +33,12 @@ pub struct InteractTargets<'w, 's> {
     boilers: Query<'w, 's, (Entity, &'static Prop, &'static Transform)>,
     power: Option<Res<'w, FacilityPower>>,
     spots: Query<'w, 's, (Entity, &'static Transform, &'static HidingSpot)>,
+    sight: StructuralSight<'w, 's>,
+}
+
+#[derive(SystemParam)]
+pub(crate) struct StructuralSight<'w, 's> {
+    doors: Query<'w, 's, (&'static Door, &'static DoorSwing)>,
     rooms: Query<'w, 's, (&'static Room, Option<&'static Doors>)>,
     links: Query<'w, 's, &'static DoorRef>,
     passages: Query<'w, 's, &'static Passage>,
@@ -92,7 +98,7 @@ impl InteractTargets<'_, '_> {
             .collect();
         if !candidates.is_empty() {
             candidates.sort_by(|a, b| a.2.total_cmp(&b.2));
-            let blockers = self.sight_blockers();
+            let blockers = self.sight.sight_blockers();
             if let Some(&(target, ..)) = candidates.iter().find(|(_, center, _)| {
                 let sight = (origin.xz(), center.xz());
                 !blockers.iter().any(|&blocker| crosses(sight, blocker))
@@ -140,7 +146,9 @@ impl InteractTargets<'_, '_> {
     pub fn locked(&self, entity: Entity) -> bool {
         self.locks.contains(entity)
     }
+}
 
+impl StructuralSight<'_, '_> {
     pub(crate) fn clear_sight(&self, start: Vec2, end: Vec2) -> bool {
         !self
             .sight_blockers()
@@ -152,7 +160,7 @@ impl InteractTargets<'_, '_> {
         let target = self.links.get(link).ok()?.0;
         self.doors
             .get(target)
-            .map(|(_, door, _)| door.position)
+            .map(|(door, _)| door.position)
             .or_else(|_| self.passages.get(target).map(|passage| passage.0))
             .ok()
     }
@@ -189,7 +197,7 @@ impl InteractTargets<'_, '_> {
                 }
             }
         }
-        for (_, door, swing) in &self.doors {
+        for (door, swing) in &self.doors {
             let position = Vec3::new(door.position.x, 0.0, door.position.y);
             for side in [-1.0, 1.0] {
                 let inner = position + door.rotation * Vec3::X * (side * PANEL_WIDTH / 2.0);

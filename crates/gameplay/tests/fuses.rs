@@ -101,24 +101,48 @@ fn eligible_tables_are_five_or_six_distinct_rooms_on_table_tops() {
     let tables: Vec<(String, Transform)> = world
         .query::<(&Prop, &Transform)>()
         .iter(world)
-        .filter(|(prop, _)| prop.0 == "concept_table" || prop.0 == "workbench")
+        .filter(|(prop, _)| prop.0 == "workbench")
         .map(|(prop, transform)| (prop.0.clone(), *transform))
         .collect();
+    let hiding_props: Vec<Vec2> = world
+        .query::<(&Prop, &Transform)>()
+        .iter(world)
+        .filter(|(prop, _)| prop.0 == "concept_table" || prop.0 == "concept_locker")
+        .map(|(_, transform)| transform.translation.xz())
+        .collect();
+    let doors: Vec<Vec2> = world
+        .query::<&Door>()
+        .iter(world)
+        .map(|door| door.position)
+        .collect();
     for table in &FUSE_TABLES {
+        assert!(
+            hiding_props
+                .iter()
+                .all(|&position| table.position.xz().distance(position) > 1.8),
+            "{} fuse is too close to a hiding spot",
+            table.room
+        );
+        assert!(
+            doors
+                .iter()
+                .all(|&position| table.position.xz().distance(position) > 1.5),
+            "{} fuse blocks a doorway",
+            table.room
+        );
         let (_, rect) = bounds
             .iter()
             .find(|(name, _)| name == table.room)
             .unwrap_or_else(|| panic!("missing room {}", table.room));
         assert!(rect.contains(table.position.xz()), "{}", table.room);
         let support = tables.iter().find(|(module, transform)| {
-            let (half, top) = match module.as_str() {
-                "concept_table" => (Vec2::new(0.9, 0.45), 0.8),
-                _ => (Vec2::new(0.8, 0.35), 0.9),
-            };
+            if module != "workbench" {
+                return false;
+            }
             let local = transform.rotation.inverse() * (table.position - transform.translation);
-            local.x.abs() + 0.1 <= half.x
-                && local.z.abs() + 0.03 <= half.y
-                && (table.position.y - top).abs() < 1e-4
+            local.x.abs() + 0.1 <= 0.8
+                && local.z.abs() + 0.03 <= 0.35
+                && (table.position.y - 0.9).abs() < 1e-4
         });
         assert!(
             support.is_some(),

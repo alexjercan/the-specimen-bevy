@@ -1,8 +1,11 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    f32::consts::{FRAC_PI_2, PI},
+};
 
 use bevy::prelude::*;
 use gameplay::levels::{
-    build_first_floor, LightEffect, LightIntensity, Prop, PropLightsPlugin, Room,
+    build_first_floor, Door, LightEffect, LightIntensity, Passage, Prop, PropLightsPlugin, Room,
 };
 
 #[test]
@@ -159,7 +162,7 @@ fn prep_and_new_crawl_vents_preserve_room_routes() {
         .collect();
     for (module, position) in [
         ("shelf_unit_low", Vec3::new(13.15, 0.0, -6.25)),
-        ("workbench", Vec3::new(9.5, 0.0, -8.1)),
+        ("workbench", Vec3::new(7.0, 0.0, -7.3)),
         ("storage_crate", Vec3::new(12.0, 0.0, -8.0)),
         ("concept_locker", Vec3::new(13.35, 0.0, -12.5)),
         ("concept_crawl_vent", Vec3::new(-13.65, 0.55, -8.0)),
@@ -189,13 +192,148 @@ fn prep_and_new_crawl_vents_preserve_room_routes() {
          .0;
     for (x, z, half_x, half_z) in [
         (13.15, -6.25, 0.225, 0.6),
-        (9.5, -8.1, 0.8, 0.35),
+        (7.0, -7.3, 0.35, 0.8),
         (12.0, -8.0, 0.5, 0.4),
     ] {
         assert!(prep.contains(Vec2::new(x - half_x, z - half_z)));
         assert!(prep.contains(Vec2::new(x + half_x, z + half_z)));
         assert!(Vec2::new(x, z).distance(Vec2::new(6.25, -5.0)) > 1.5);
         assert!(Vec2::new(x, z).distance(Vec2::new(10.0, -3.75)) > 1.5);
+    }
+}
+
+#[test]
+fn first_floor_workbenches_face_open_space_from_walls() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_systems(Startup, build_first_floor);
+    app.update();
+
+    let world = app.world_mut();
+    let rooms: HashMap<_, _> = world
+        .query::<(&Name, &Room)>()
+        .iter(world)
+        .map(|(name, room)| (name.as_str().to_owned(), room.0))
+        .collect();
+    let props: Vec<_> = world
+        .query::<(&Prop, &Transform)>()
+        .iter(world)
+        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .collect();
+    let mut openings: Vec<_> = world
+        .query::<&Door>()
+        .iter(world)
+        .map(|door| door.position)
+        .collect();
+    openings.extend(
+        world
+            .query::<&Passage>()
+            .iter(world)
+            .map(|passage| passage.0),
+    );
+
+    for (room, position, yaw, wall, neighbors) in [
+        (
+            "maintenance",
+            Vec2::new(-13.0, -21.5),
+            -FRAC_PI_2,
+            Vec2::new(-13.75, -21.5),
+            &[][..],
+        ),
+        (
+            "security",
+            Vec2::new(10.0, -30.65),
+            PI,
+            Vec2::new(10.0, -31.25),
+            &[][..],
+        ),
+        (
+            "hiding",
+            Vec2::new(13.0, 0.0),
+            FRAC_PI_2,
+            Vec2::new(13.75, 0.0),
+            &[][..],
+        ),
+        (
+            "utility",
+            Vec2::new(-10.0, -15.5),
+            PI,
+            Vec2::new(-10.0, -16.25),
+            &[][..],
+        ),
+        (
+            "office",
+            Vec2::new(3.0, -20.7),
+            PI,
+            Vec2::new(3.0, -21.25),
+            &[
+                (
+                    "concept_table",
+                    Vec2::new(3.75, -18.75),
+                    Vec2::new(0.9, 0.46),
+                ),
+                (
+                    "shelf_unit_bins",
+                    Vec2::new(8.4, -17.5),
+                    Vec2::new(0.25, 0.9),
+                ),
+            ][..],
+        ),
+        (
+            "prep",
+            Vec2::new(7.0, -7.3),
+            FRAC_PI_2,
+            Vec2::new(6.25, -7.3),
+            &[
+                (
+                    "shelf_unit_low",
+                    Vec2::new(13.15, -6.25),
+                    Vec2::new(0.225, 0.6),
+                ),
+                ("storage_crate", Vec2::new(12.0, -8.0), Vec2::new(0.5, 0.4)),
+            ][..],
+        ),
+    ] {
+        let transform = props
+            .iter()
+            .find(|(module, transform)| {
+                module == "workbench" && transform.translation.xz() == position
+            })
+            .unwrap_or_else(|| panic!("missing {room} workbench"))
+            .1;
+        assert!(transform.rotation.dot(Quat::from_rotation_y(yaw)).abs() > 0.9999);
+        let horizontal = yaw.abs() == PI;
+        let half = if horizontal {
+            Vec2::new(0.8, 0.35)
+        } else {
+            Vec2::new(0.35, 0.8)
+        };
+        let bounds = rooms[room];
+        assert!(bounds.contains(position - half));
+        assert!(bounds.contains(position + half));
+        let wall_gap = if horizontal {
+            (position.y - wall.y).abs() - half.y
+        } else {
+            (position.x - wall.x).abs() - half.x
+        };
+        assert!(wall_gap <= 0.5, "{room} bench is not wall-mounted");
+        assert!(
+            openings.iter().all(|door| {
+                let delta = (*door - position).abs() - half;
+                delta.max(Vec2::ZERO).length() >= 1.0
+            }),
+            "{room} bench blocks an opening"
+        );
+        for &(module, other, other_half) in neighbors {
+            assert!(props.iter().any(|(prop, transform)| {
+                prop == module && transform.translation.xz() == other
+            }));
+            let separation = (other - position).abs() - half - other_half;
+            assert!(
+                separation.max_element() >= 0.5,
+                "{room} bench crowds {module}"
+            );
+        }
     }
 }
 

@@ -111,7 +111,7 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
     commands.spawn(prop(
         "workbench",
         "workbench",
-        Transform::from_xyz(-10.65, 0.0, -20.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+        Transform::from_xyz(-13.0, 0.0, -21.5).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
     ));
     commands.spawn(prop(
         "storage_crate",
@@ -166,7 +166,7 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
     commands.spawn(prop(
         "workbench",
         "workbench",
-        Transform::from_xyz(10.0, 0.0, -30.0).with_rotation(Quat::from_rotation_y(PI)),
+        Transform::from_xyz(10.0, 0.0, -30.65).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
         CONCEPT_LOCKER,
@@ -196,7 +196,7 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
     commands.spawn(prop(
         "workbench",
         "workbench",
-        Transform::from_xyz(9.5, 0.0, -8.1).with_rotation(Quat::from_rotation_y(PI)),
+        Transform::from_xyz(7.0, 0.0, -7.3).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
     commands.spawn(prop(
         "storage_crate",
@@ -217,6 +217,11 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         CONCEPT_TABLE,
         CONCEPT_TABLE,
         Transform::from_xyz(9.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(PI)),
+    ));
+    commands.spawn(prop(
+        "workbench",
+        "workbench",
+        Transform::from_xyz(13.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
     commands.spawn(prop(
         CONCEPT_TABLE,
@@ -307,6 +312,11 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         CONCEPT_TABLE,
         CONCEPT_TABLE,
         Transform::from_xyz(3.75, 0.0, -18.75).with_rotation(Quat::from_rotation_y(PI)),
+    ));
+    commands.spawn(prop(
+        "workbench",
+        "workbench",
+        Transform::from_xyz(3.0, 0.0, -20.7).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
         "vent_grille",

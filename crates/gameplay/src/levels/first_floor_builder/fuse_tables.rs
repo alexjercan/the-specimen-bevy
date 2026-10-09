@@ -13,17 +13,17 @@ pub struct FuseTable {
 pub const FUSE_TABLES: [FuseTable; 5] = [
     FuseTable {
         room: "hiding",
-        position: Vec3::new(8.8, 0.8, 0.0),
+        position: Vec3::new(13.0, 0.9, 0.0),
         yaw: PI + 0.35,
     },
     FuseTable {
         room: "office",
-        position: Vec3::new(3.45, 0.8, -18.85),
+        position: Vec3::new(3.0, 0.9, -20.7),
         yaw: PI - 0.25,
     },
     FuseTable {
         room: "maintenance",
-        position: Vec3::new(-7.2, 0.8, -22.9),
+        position: Vec3::new(-13.0, 0.9, -21.5),
         yaw: PI + 0.6,
     },
     FuseTable {
@@ -33,7 +33,7 @@ pub const FUSE_TABLES: [FuseTable; 5] = [
     },
     FuseTable {
         room: "security",
-        position: Vec3::new(9.8, 0.9, -29.95),
+        position: Vec3::new(10.0, 0.9, -30.65),
         yaw: PI - 0.2,
     },
 ];
