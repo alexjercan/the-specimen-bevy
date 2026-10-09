@@ -14,11 +14,11 @@ use super::builder::{
 };
 use super::{
     animation::DoorSwing,
-    devices::DevicePlaceholder,
     doors::{panel_transform, DoorPanel},
-    fuses::{FusePickup, FUSE_LENGTH, FUSE_MODULE, FUSE_RADIUS},
+    fuses::{FUSE_LENGTH, FUSE_MODULE, FUSE_RADIUS},
     menu_background::MenuBackground,
     module_names::{BOILER_UNIT, EXIT_SIGN, WALL_LAMP_RED},
+    pickups::PickupKind,
     power::FacilityPower,
 };
 
@@ -64,10 +64,7 @@ struct PendingDoorRender;
 struct PendingPropRender;
 
 #[derive(Component)]
-struct PendingFuseRender;
-
-#[derive(Component)]
-struct PendingDeviceRender;
+struct PendingPickupRender;
 
 #[derive(Component)]
 struct GlowSurface {
@@ -104,8 +101,7 @@ impl Plugin for LevelRenderPlugin {
             .add_observer(mark_room_for_render)
             .add_observer(mark_door_for_render)
             .add_observer(mark_prop_for_render)
-            .add_observer(mark_fuse_for_render)
-            .add_observer(mark_device_for_render)
+            .add_observer(mark_pickup_for_render)
             .add_observer(attach_prop_glow)
             .add_systems(
                 PostUpdate,
@@ -133,21 +129,21 @@ fn mark_prop_for_render(added: On<Add, Prop>, mut commands: Commands) {
     commands.entity(added.entity).insert(PendingPropRender);
 }
 
-fn mark_fuse_for_render(added: On<Add, FusePickup>, mut commands: Commands) {
-    commands.entity(added.entity).insert(PendingFuseRender);
-}
-
-fn mark_device_for_render(added: On<Add, DevicePlaceholder>, mut commands: Commands) {
-    commands.entity(added.entity).insert(PendingDeviceRender);
+fn mark_pickup_for_render(added: On<Add, PickupKind>, mut commands: Commands) {
+    commands.entity(added.entity).insert(PendingPickupRender);
 }
 
 fn render_devices(
-    devices: Query<(Entity, &DevicePlaceholder), With<PendingDeviceRender>>,
+    pickups: Query<(Entity, &PickupKind), With<PendingPickupRender>>,
     assets: Option<Res<FacilityAssets>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut commands: Commands,
 ) {
+    let devices: Vec<_> = pickups
+        .iter()
+        .filter(|(_, kind)| !matches!(kind, PickupKind::Fuse { .. }))
+        .collect();
     if assets.is_none() || devices.is_empty() {
         return;
     }
@@ -157,9 +153,10 @@ fn render_devices(
         cull_mode: Some(Face::Front),
         ..default()
     });
-    for (entity, device) in &devices {
+    for (entity, device) in devices {
         let parts = match device {
-            DevicePlaceholder::Flashbang => {
+            PickupKind::Fuse { .. } => continue,
+            PickupKind::Flashbang => {
                 let shape = Transform::from_xyz(0.0, FLASHBANG_LENGTH / 2.0, 0.0);
                 vec![
                     (
@@ -181,7 +178,7 @@ fn render_devices(
                     ),
                 ]
             }
-            DevicePlaceholder::Detector => {
+            PickupKind::Detector => {
                 let shape = Transform::from_xyz(0.0, DETECTOR_SIZE.y / 2.0, 0.0);
                 vec![
                     (
@@ -217,12 +214,12 @@ fn render_devices(
                 children.spawn((Mesh3d(mesh), MeshMaterial3d(material), transform));
             }
         });
-        commands.entity(entity).remove::<PendingDeviceRender>();
+        commands.entity(entity).remove::<PendingPickupRender>();
     }
 }
 
 fn render_fuses(
-    fuses: Query<Entity, With<PendingFuseRender>>,
+    pickups: Query<(Entity, &PickupKind), With<PendingPickupRender>>,
     assets: Option<Res<FacilityAssets>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -231,6 +228,11 @@ fn render_fuses(
     let Some(assets) = assets else {
         return;
     };
+    let fuses: Vec<Entity> = pickups
+        .iter()
+        .filter(|(_, kind)| matches!(kind, PickupKind::Fuse { .. }))
+        .map(|(entity, _)| entity)
+        .collect();
     if fuses.is_empty() {
         return;
     }
@@ -261,7 +263,7 @@ fn render_fuses(
         cull_mode: Some(Face::Front),
         ..default()
     });
-    for entity in &fuses {
+    for entity in fuses {
         commands.entity(entity).with_children(|children| {
             if let Some(module) = module {
                 children.spawn((WorldAssetRoot(module.clone()), Transform::IDENTITY));
@@ -279,7 +281,7 @@ fn render_fuses(
                 shape,
             ));
         });
-        commands.entity(entity).remove::<PendingFuseRender>();
+        commands.entity(entity).remove::<PendingPickupRender>();
     }
 }
 

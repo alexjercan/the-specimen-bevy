@@ -4,8 +4,8 @@ use bevy::{ecs::system::SystemState, prelude::*};
 use gameplay::{
     controller::{door_frames, wall_obstacles},
     levels::{
-        build_first_floor, DevicePlaceholder, Door, DoorOf, DoorRef, DoorSwing, Doors, FusePickup,
-        FuseSeed, FuseZone, HidingSpot, Passage, Prop, PropCollider, Room, FUSE_TABLES,
+        build_first_floor, Door, DoorOf, DoorRef, DoorSwing, Doors, FuseSeed, FuseZone, HidingSpot,
+        Passage, PickupKind, Prop, PropCollider, Room, FUSE_TABLES,
     },
 };
 
@@ -325,13 +325,14 @@ fn player_can_walk_from_spawn_to_every_fuse_table_and_placeholder() {
     }
 
     let world = app.world_mut();
-    let placeholders: Vec<Vec2> = world
-        .query::<(&DevicePlaceholder, &Transform)>()
+    let devices: Vec<Vec2> = world
+        .query::<(&PickupKind, &Transform)>()
         .iter(world)
+        .filter(|(kind, _)| !matches!(kind, PickupKind::Fuse { .. }))
         .map(|(_, transform)| transform.translation.xz())
         .collect();
-    assert_eq!(placeholders.len(), 2);
-    for position in placeholders {
+    assert_eq!(devices.len(), 2);
+    for position in devices {
         assert!(
             covers(position),
             "cannot reach placeholder at {position} on foot"
@@ -343,9 +344,12 @@ fn fuse_placements(seed: u64) -> Vec<(usize, Vec3)> {
     let mut app = first_floor(seed);
     let world = app.world_mut();
     let mut placements: Vec<(usize, Vec3)> = world
-        .query::<&FusePickup>()
+        .query::<&PickupKind>()
         .iter(world)
-        .map(|fuse| (fuse.slot, FUSE_TABLES[fuse.slot].position))
+        .filter_map(|kind| match kind {
+            PickupKind::Fuse { slot } => Some((*slot, FUSE_TABLES[*slot].position)),
+            PickupKind::Flashbang | PickupKind::Detector => None,
+        })
         .collect();
     placements.sort_by_key(|(slot, _)| *slot);
     placements
@@ -376,13 +380,14 @@ fn three_fuses_spawn_in_one_front_and_two_back_tables_reproducibly() {
 }
 
 #[test]
-fn device_placeholders_are_fixed_and_disjoint_from_fuses_and_hiding() {
-    let positions = |seed: u64| -> HashMap<DevicePlaceholder, Vec3> {
+fn device_pickups_are_fixed_and_disjoint_from_fuses_and_hiding() {
+    let positions = |seed: u64| -> HashMap<PickupKind, Vec3> {
         let mut app = first_floor(seed);
         let world = app.world_mut();
         world
-            .query::<(&DevicePlaceholder, &Transform)>()
+            .query::<(&PickupKind, &Transform)>()
             .iter(world)
+            .filter(|(kind, _)| !matches!(kind, PickupKind::Fuse { .. }))
             .map(|(kind, transform)| (*kind, transform.translation))
             .collect()
     };
@@ -398,19 +403,25 @@ fn device_placeholders_are_fixed_and_disjoint_from_fuses_and_hiding() {
         .iter(world)
         .map(|(name, room)| (name.as_str().to_owned(), room.0))
         .collect();
-    let flashbang = p0[&DevicePlaceholder::Flashbang];
-    let detector = p0[&DevicePlaceholder::Detector];
+    let flashbang = p0[&PickupKind::Flashbang];
+    let detector = p0[&PickupKind::Detector];
     assert!(bounds["storage"].contains(flashbang.xz()));
     assert!(bounds["lab"].contains(detector.xz()));
 
     let devices: HashSet<Entity> = world
-        .query_filtered::<Entity, With<DevicePlaceholder>>()
+        .query::<(Entity, &PickupKind)>()
         .iter(world)
+        .filter(|(_, kind)| !matches!(kind, PickupKind::Fuse { .. }))
+        .map(|(entity, _)| entity)
         .collect();
     let fuses: HashSet<Entity> = world
-        .query_filtered::<Entity, With<FusePickup>>()
+        .query::<(Entity, &PickupKind)>()
         .iter(world)
+        .filter(|(_, kind)| matches!(kind, PickupKind::Fuse { .. }))
+        .map(|(entity, _)| entity)
         .collect();
+    assert_eq!(devices.len(), 2);
+    assert_eq!(fuses.len(), 3);
     assert!(devices.is_disjoint(&fuses));
     let hiding_props: HashSet<Entity> = world
         .query_filtered::<Entity, With<HidingSpot>>()
@@ -460,13 +471,14 @@ fn fuse_tables_and_placeholders_keep_clearance_from_hiding_props_and_openings() 
         );
     }
 
-    let placeholders: Vec<Vec2> = world
-        .query::<(&DevicePlaceholder, &Transform)>()
+    let devices: Vec<Vec2> = world
+        .query::<(&PickupKind, &Transform)>()
         .iter(world)
+        .filter(|(kind, _)| !matches!(kind, PickupKind::Fuse { .. }))
         .map(|(_, transform)| transform.translation.xz())
         .collect();
-    assert_eq!(placeholders.len(), 2);
-    for position in placeholders {
+    assert_eq!(devices.len(), 2);
+    for position in devices {
         assert!(
             openings.iter().all(|&p| position.distance(p) > 1.0),
             "placeholder at {position} blocks an opening"

@@ -12,7 +12,9 @@ import generate_sounds as synth
 import generate_ambience_review as ambience
 import generate_boiler_outage_sounds as boiler_outage
 import generate_flashlight_sounds as flashlight
+import generate_device_sounds as devices
 import render_monster_sounds as monster
+import render_flashbang_sounds as flashbang
 
 
 class SoundCatalogTests(unittest.TestCase):
@@ -53,6 +55,34 @@ class SoundCatalogTests(unittest.TestCase):
                     self.assertEqual(audio.getsampwidth(), 2)
                     self.assertGreater(audio.getnframes(), 0)
                 self.assertIn("<svg", catalog.waveform(path))
+
+    def test_device_review_generation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            first = devices.generate(pathlib.Path(folder))
+            self.assertEqual(len(first), 5)
+            originals = {str(path.relative_to(folder)): path.read_bytes() for path in first}
+            self.assertEqual(first, devices.generate(pathlib.Path(folder)))
+            for path in first:
+                self.assertEqual(path.read_bytes(), originals[str(path.relative_to(folder))])
+                with wave.open(str(path)) as audio:
+                    self.assertEqual(audio.getframerate(), 48_000)
+                    self.assertEqual(audio.getnchannels(), 1)
+                    self.assertEqual(audio.getsampwidth(), 2)
+                    self.assertGreater(audio.getnframes(), 0)
+                self.assertIn("<svg", catalog.waveform(path))
+
+    def test_flashbang_source_cuts_are_reproducible(self):
+        with tempfile.TemporaryDirectory() as folder:
+            paths = flashbang.generate(pathlib.Path(folder))
+            self.assertEqual({path.name for path in paths}, {"pickup.wav", "throw.wav"})
+            original = {path.name: path.read_bytes() for path in paths}
+            flashbang.generate(pathlib.Path(folder))
+            for path in paths:
+                self.assertEqual(path.read_bytes(), original[path.name])
+                with wave.open(str(path)) as audio:
+                    self.assertEqual(audio.getnchannels(), 1)
+                    self.assertEqual(audio.getframerate(), 48_000)
+                    self.assertGreater(audio.getnframes(), 0)
 
     def test_boiler_outage_review_generation(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -137,6 +167,14 @@ class SoundCatalogTests(unittest.TestCase):
         self.assertEqual(len([path for path in selected if "/door/" in path]), 4)
         breath = "art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav"
         self.assertFalse(catalog.REVIEW_FILES)
+        original = "art/sounds/generated/device/flashbang/burst-original.wav"
+        self.assertIn(original, catalog.APPROVED_FILES)
+        self.assertIn("<svg", catalog.waveform(catalog.ROOT / original))
+        self.assertTrue({f"art/sounds/generated/device/flashbang/{cue}.wav" for cue in ("pickup", "throw")} <= catalog.APPROVED_FILES)
+        detector = {f"art/sounds/generated/candidates/device/detector/{cue}.wav" for cue in ("pickup", "nearby")}
+        self.assertTrue(detector <= catalog.APPROVED_FILES)
+        self.assertTrue(detector.isdisjoint(catalog.REVIEW_FILES))
+        self.assertNotIn(original, catalog.REVIEW_FILES)
         self.assertTrue(catalog.MONSTER_SOURCES.isdisjoint(selected))
         monster_paths = {path for path in selected if "/monster/" in path}
         self.assertEqual(len(monster_paths), 10)
@@ -170,6 +208,9 @@ class SoundCatalogTests(unittest.TestCase):
                 "thumb-switch-lunardrive", "spring-switch-eskildnp",
             )},
             *catalog.REVIEW_FILES,
+            *{f"art/sounds/generated/candidates/device/flashbang/{cue}.wav" for cue in ("pickup", "throw", "burst", "burst-original")},
+            *{f"art/sounds/sources/freesound/device/flashbang/{cue}.ogg" for cue in (
+                "throw-cloth-avreliy", "burst-designed-modusmogulus", "burst-open-field-modusmogulus")},
             *catalog.MONSTER_SOURCES,
             *{f"art/sounds/generated/candidates/amb/boiler/{cue}.wav" for cue in (
                 "breaker-trip", "power-down", "reset", "restart",
@@ -219,6 +260,10 @@ class SoundCatalogTests(unittest.TestCase):
                 elif "/generated/door/" in path or "/generated/hiding/" in path:
                     self.assertIn("rubberduck", card)
                     self.assertNotIn("GboxMikeFozzy", card)
+                elif "/generated/device/flashbang/" in path and not path.endswith("burst-original.wav"):
+                    self.assertIn("Avreliy", card)
+                    self.assertIn("edited Freesound low-quality preview", card)
+                    self.assertNotIn("For review - not in game", card)
                 elif "Freesound preview" in catalog.RECORDED_PATHS.get(path, ("", ""))[0]:
                     self.assertIn("Freesound preview", card)
                     self.assertIn("freesound.org/people/", card)
@@ -236,6 +281,10 @@ class SoundCatalogTests(unittest.TestCase):
                     self.assertIn("opengameart.org/content/breathing-tired", matching[0])
                     self.assertIn("page-labeled CC0 1.0", matching[0])
                     self.assertNotIn("Original project-generated sound", matching[0])
+                elif "/sources/freesound/device/flashbang/" in path:
+                    self.assertIn("Freesound low-quality preview", matching[0])
+                    self.assertIn("provenance unverified", matching[0])
+                    self.assertIn("freesound.org/people/", matching[0])
                 elif "/monster/" in path:
                     name = path.split("/monster/", 1)[1].rsplit(".", 1)[0]
                     creator, sound_id, note = catalog.MONSTER_CANDIDATES[name]
@@ -259,7 +308,7 @@ class SoundCatalogTests(unittest.TestCase):
             self.assertIn("<h2>F. Monster and threat cues</h2>", page)
             self.assertEqual(page.count('class="review"'), len(catalog.REVIEW_FILES))
             self.assertEqual(page.count('Freesound preview'), 4)
-            self.assertEqual(page.count('Freesound low-quality preview'), 11)
+            self.assertEqual(page.count('Freesound low-quality preview'), 13)
             for path in catalog.MONSTER_SOURCES:
                 self.assertNotIn(f"<small>{path}</small>", page)
             for filename in ("thumb-switch-lunardrive", "spring-switch-eskildnp", "switch-on.wav", "switch-off.wav", "battery-empty.wav"):
@@ -276,7 +325,9 @@ class SoundCatalogTests(unittest.TestCase):
             self.assertTrue((catalog.ROOT / "assets" / path).is_file(), path)
         for path in catalog.APPROVED_FILES:
             art = catalog.ROOT / path
-            if "art/sounds/generated/" in path:
+            if "art/sounds/generated/candidates/device/detector/" in path:
+                runtime = catalog.ROOT / path.replace("art/sounds/generated/candidates/device/", "assets/sounds/device/")
+            elif "art/sounds/generated/" in path:
                 runtime = catalog.ROOT / path.replace("art/sounds/generated/", "assets/sounds/")
             elif "art/sounds/sources/opengameart/" in path:
                 runtime = catalog.ROOT / path.replace("art/sounds/sources/opengameart/", "assets/sounds/")

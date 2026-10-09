@@ -3,8 +3,8 @@ use game_assets::{FacilityAssets, UiAssets};
 use game_ui::{menu_button, text, theme};
 use gameplay::controller::PlayerController;
 use gameplay::levels::{
-    build_first_floor, spawn_first_floor_actors, DevicePlaceholder, Door, DoorRef, FusePanel,
-    FusePickup, LevelRoot, Monster, Passage, Prop, Room,
+    build_first_floor, spawn_first_floor_actors, Door, DoorRef, FusePanel, LevelRoot, Monster,
+    Passage, PickupKind, Prop, Room,
 };
 
 use super::{background, release_cursor, screen_camera, GameState, MenuAction, TITLE};
@@ -108,8 +108,7 @@ fn enter_world(world: &mut World) {
                 With<Passage>,
                 With<Prop>,
                 With<FusePanel>,
-                With<FusePickup>,
-                With<DevicePlaceholder>,
+                With<PickupKind>,
                 With<Monster>,
                 With<PlayerController>,
             )>,

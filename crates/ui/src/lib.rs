@@ -1,3 +1,4 @@
+mod device;
 mod flashlight;
 mod hud;
 mod slider;
@@ -7,7 +8,12 @@ mod widgets;
 
 use bevy::prelude::*;
 
-pub use flashlight::{flashlight_meter, FlashlightMeter};
+pub use device::{
+    detector_readout, flash_alpha, flash_overlay, flashbang_status, tracker_blip, tracker_edge,
+    tracker_range_text, tracker_status_text, DetectorReadout, DetectorSignal, FlashOverlay,
+    FlashbangPrompt, FlashbangStatus, TrackerEdge,
+};
+pub use flashlight::{flashlight_meter, FlashlightMeter, FlashlightPrompt};
 pub use hud::{fuse_part_paint, fuse_slots, FuseIconPart, FuseSlot, FuseSlots, FUSE_SLOT_COUNT};
 pub use slider::{slider, SliderFill};
 pub use stamina::{stamina_meter, StaminaMeter};
@@ -26,6 +32,9 @@ impl Plugin for GameUiPlugin {
                     hud::paint_fuse_slots,
                     flashlight::paint_flashlight,
                     stamina::paint_stamina,
+                    device::paint_flashbang_status,
+                    device::paint_detector_readout,
+                    device::paint_flash_overlay,
                 ),
             );
     }

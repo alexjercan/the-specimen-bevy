@@ -4,11 +4,10 @@ use super::{
     animation::DoorSwing,
     builder::{Door, DoorRef, Doors, Passage, Prop, Room},
     doors::{aimed_door, panel_center, panel_hinge, panel_rotation, DoorLock, PANEL_WIDTH},
-    fuses::{
-        fuse_center, fuse_hit, fuse_panel_hit, FuseInventory, FusePanel, FusePickup, FUSE_COUNT,
-    },
+    fuses::{fuse_panel_hit, FuseInventory, FusePanel, FUSE_COUNT},
     hiding::{Hidden, HidingSpot},
     module_names::BOILER_UNIT,
+    pickups::PickupKind,
     power::FacilityPower,
 };
 
@@ -17,7 +16,7 @@ const TILE: f32 = 2.5;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InteractTarget {
     Door(Entity),
-    Fuse(Entity),
+    Pickup(Entity),
     Panel(Entity),
     Boiler(Entity),
     Hide(Entity),
@@ -28,7 +27,7 @@ pub enum InteractTarget {
 pub struct InteractTargets<'w, 's> {
     doors: Query<'w, 's, (Entity, &'static Door, &'static DoorSwing)>,
     locks: Query<'w, 's, (), With<DoorLock>>,
-    fuses: Query<'w, 's, (Entity, &'static Transform), With<FusePickup>>,
+    pickups: Query<'w, 's, (Entity, &'static Transform, &'static PickupKind)>,
     panels: Query<'w, 's, (Entity, &'static Transform, &'static FusePanel)>,
     boilers: Query<'w, 's, (Entity, &'static Prop, &'static Transform)>,
     power: Option<Res<'w, FacilityPower>>,
@@ -58,10 +57,10 @@ impl InteractTargets<'_, '_> {
         let forward = player.rotation * -Vec3::Z;
         let door = aimed_door(player, &self.doors);
         let ready = inventory.is_some_and(|inventory| inventory.0 >= FUSE_COUNT);
-        let fuses = self.fuses.iter().filter_map(|(entity, transform)| {
-            let center = fuse_center(transform);
-            fuse_hit(origin, forward, center)
-                .map(|distance| (InteractTarget::Fuse(entity), center, distance))
+        let pickups = self.pickups.iter().filter_map(|(entity, transform, kind)| {
+            let center = kind.center(transform);
+            kind.hit(origin, forward, center)
+                .map(|distance| (InteractTarget::Pickup(entity), center, distance))
         });
         let panels = self
             .panels
@@ -90,7 +89,7 @@ impl InteractTargets<'_, '_> {
                 )
             })
         });
-        let mut candidates: Vec<_> = fuses
+        let mut candidates: Vec<_> = pickups
             .chain(panels)
             .chain(boilers)
             .chain(spots)
@@ -116,11 +115,11 @@ impl InteractTargets<'_, '_> {
                 .get(entity)
                 .ok()
                 .map(|(_, door, swing)| panel_center(door, swing)),
-            InteractTarget::Fuse(entity) => self
-                .fuses
+            InteractTarget::Pickup(entity) => self
+                .pickups
                 .get(entity)
                 .ok()
-                .map(|(_, transform)| fuse_center(transform)),
+                .map(|(_, transform, kind)| kind.center(transform)),
             InteractTarget::Panel(entity) => self
                 .panels
                 .get(entity)
@@ -141,6 +140,10 @@ impl InteractTargets<'_, '_> {
 
     pub fn door(&self, entity: Entity) -> Option<&Door> {
         self.doors.get(entity).ok().map(|(_, door, _)| door)
+    }
+
+    pub fn pickup(&self, entity: Entity) -> Option<PickupKind> {
+        self.pickups.get(entity).ok().map(|(_, _, kind)| *kind)
     }
 
     pub fn locked(&self, entity: Entity) -> bool {

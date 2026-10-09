@@ -1738,3 +1738,266 @@ fn route_grid_is_half_meter() {
         Vec2::new(-1.0, 2.0)
     );
 }
+
+fn flash_app() -> App {
+    let mut app = monster_app(7);
+    app.add_plugins(crate::levels::DevicePlugin);
+    app
+}
+
+#[test]
+fn flashed_player_in_view_and_reach_is_not_sensed_or_caught_until_the_flash_ends() {
+    use crate::controller::{PlayerController, PlayerInput, Stamina};
+    use crate::levels::{Caught, Flashed, Monster, Room};
+
+    let mut app = flash_app();
+    app.world_mut().spawn(Room(Rect::new(-5.0, -5.0, 5.0, 5.0)));
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((
+            PlayerController,
+            Transform::from_xyz(0.0, 1.6, -1.0),
+            Flashed::default(),
+        ))
+        .id();
+    app.world_mut()
+        .get_mut::<PlayerInput>(player)
+        .unwrap()
+        .movement = Vec2::Y;
+    app.world_mut()
+        .get_mut::<Stamina>(player)
+        .unwrap()
+        .sprinting = true;
+    for _ in 0..48 {
+        app.update();
+        assert!(app.world().get::<Flashed>(player).is_some());
+        assert!(monster_state(&app, monster).pursuit.is_none());
+        assert!(app.world().get::<Caught>(player).is_none());
+    }
+    for _ in 0..10 {
+        app.update();
+    }
+    assert!(app.world().get::<Flashed>(player).is_none());
+    assert_eq!(app.world().get::<Caught>(player).unwrap().monster, monster);
+}
+
+#[test]
+fn flash_mid_chase_keeps_the_last_known_search_without_tracking_or_contact() {
+    use crate::controller::{PlayerController, PlayerInput, Stamina};
+    use crate::levels::{Caught, Flashed, Monster, Room};
+
+    let mut app = flash_app();
+    app.world_mut()
+        .spawn(Room(Rect::new(-6.0, -16.0, 6.0, 4.0)));
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -6.0)))
+        .id();
+    app.update();
+    let last = monster_state(&app, monster).pursuit.unwrap().last_sensed;
+    assert_eq!(last, Vec2::new(0.0, -6.0));
+    app.world_mut()
+        .entity_mut(player)
+        .insert((Transform::from_xyz(0.0, 1.6, -8.0), Flashed::default()));
+    app.world_mut()
+        .get_mut::<PlayerInput>(player)
+        .unwrap()
+        .movement = Vec2::Y;
+    app.world_mut()
+        .get_mut::<Stamina>(player)
+        .unwrap()
+        .sprinting = true;
+    let mut searched = false;
+    loop {
+        app.update();
+        if app.world().get::<Flashed>(player).is_none() {
+            break;
+        }
+        let pursuit = monster_state(&app, monster)
+            .pursuit
+            .expect("search must persist through the flash");
+        assert_eq!(
+            pursuit.last_sensed, last,
+            "flashed player must not be tracked"
+        );
+        searched |= pursuit.searching;
+        assert!(app.world().get::<Caught>(player).is_none());
+    }
+    assert!(searched, "monster must search the last known position");
+    let mut tracked = monster_state(&app, monster)
+        .pursuit
+        .is_some_and(|pursuit| pursuit.last_sensed == Vec2::new(0.0, -8.0));
+    for _ in 0..5 {
+        app.update();
+        tracked |= monster_state(&app, monster)
+            .pursuit
+            .is_some_and(|pursuit| pursuit.last_sensed == Vec2::new(0.0, -8.0));
+    }
+    assert!(
+        tracked,
+        "monster must sense the player again after the flash"
+    );
+}
+
+#[test]
+fn hiding_while_flashed_in_plain_view_is_not_witnessed_and_stays_safe() {
+    use crate::controller::PlayerController;
+    use crate::levels::{
+        Caught, Flashed, Hidden, HidingPlugin, HidingSpot, Monster, Room, UseHidingSpot,
+    };
+
+    let mut app = flash_app();
+    app.add_plugins(HidingPlugin);
+    app.world_mut().spawn(Room(Rect::new(-5.0, -8.0, 5.0, 5.0)));
+    let spot = app
+        .world_mut()
+        .spawn((HidingSpot::Locker, Transform::from_xyz(0.0, 0.0, -4.0)))
+        .id();
+    app.world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY));
+    let player = app
+        .world_mut()
+        .spawn((
+            PlayerController,
+            Transform::from_xyz(0.0, 1.6, -2.9),
+            Flashed::default(),
+        ))
+        .id();
+    app.update();
+    app.world_mut()
+        .write_message(UseHidingSpot { player, spot });
+    app.update();
+    assert!(app.world().get::<Hidden>(player).is_some());
+    assert!(app.world().get::<super::WitnessedHiding>(player).is_none());
+    for _ in 0..120 {
+        app.update();
+        assert!(app.world().get::<Caught>(player).is_none());
+    }
+    assert!(app.world().get::<Flashed>(player).is_none());
+    assert!(app
+        .world()
+        .get::<Hidden>(player)
+        .is_some_and(Hidden::settled));
+}
+
+#[test]
+fn witnessed_hiding_is_not_pulled_out_while_flashed_but_is_after_expiry() {
+    use crate::controller::PlayerController;
+    use crate::levels::{
+        Caught, Flashed, Hidden, HidingPhase, HidingPlugin, HidingSpot, Monster, Room,
+        UseHidingSpot,
+    };
+
+    let mut app = flash_app();
+    app.add_plugins(HidingPlugin);
+    app.world_mut().spawn(Room(Rect::new(-5.0, -8.0, 5.0, 5.0)));
+    let spot = app
+        .world_mut()
+        .spawn((HidingSpot::Locker, Transform::from_xyz(0.0, 0.0, -4.0)))
+        .id();
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -2.9)))
+        .id();
+    app.update();
+    app.world_mut()
+        .write_message(UseHidingSpot { player, spot });
+    app.update();
+    assert!(app.world().get::<super::WitnessedHiding>(player).is_some());
+    app.world_mut()
+        .entity_mut(player)
+        .insert(Flashed::default());
+    while app.world().get::<Flashed>(player).is_some() {
+        app.update();
+        assert!(!app
+            .world()
+            .get::<Hidden>(player)
+            .is_some_and(|hidden| matches!(hidden.phase, HidingPhase::Leaving(_))));
+        assert!(app.world().get::<Caught>(player).is_none());
+    }
+    for _ in 0..100 {
+        app.update();
+        if app.world().get::<Caught>(player).is_some() {
+            break;
+        }
+    }
+    assert_eq!(app.world().get::<Caught>(player).unwrap().monster, monster);
+}
+
+#[test]
+fn flash_after_contact_does_not_cancel_the_catch() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Caught, Flashed, Monster, Room};
+
+    let mut app = flash_app();
+    app.world_mut().spawn(Room(Rect::new(-5.0, -5.0, 5.0, 5.0)));
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -1.0)))
+        .id();
+    for _ in 0..3 {
+        app.update();
+    }
+    let started = *app.world().get::<Caught>(player).unwrap();
+    app.world_mut()
+        .entity_mut(player)
+        .insert(Flashed::default());
+    for _ in 0..30 {
+        app.update();
+    }
+    let caught = app.world().get::<Caught>(player).unwrap();
+    assert_eq!(caught.monster, monster);
+    assert!(caught.remaining < started.remaining);
+    assert!(caught.finished());
+}
+
+#[test]
+fn detector_cues_near_the_monster_never_alert_it() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Detector, Monster, Room};
+    use game_audio::{PlaySound, Sound};
+
+    #[derive(Resource, Default)]
+    struct Pulses(usize);
+
+    fn count(mut sounds: MessageReader<PlaySound>, mut pulses: ResMut<Pulses>) {
+        pulses.0 += sounds
+            .read()
+            .filter(|cue| cue.sound == Sound::DetectorNearby)
+            .count();
+    }
+
+    let mut app = flash_app();
+    app.init_resource::<Pulses>().add_systems(PostUpdate, count);
+    app.world_mut().spawn(Room(Rect::new(-5.0, -5.0, 5.0, 5.0)));
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY))
+        .id();
+    app.world_mut().spawn((
+        PlayerController,
+        Detector::default(),
+        Transform::from_xyz(0.0, 1.6, 2.5),
+    ));
+    for _ in 0..60 {
+        app.update();
+        assert!(monster_state(&app, monster).pursuit.is_none());
+    }
+    assert!(app.world().resource::<Pulses>().0 >= 15);
+}

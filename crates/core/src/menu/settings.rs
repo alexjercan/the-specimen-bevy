@@ -5,7 +5,8 @@ use bevy::{
 };
 use game_assets::UiAssets;
 use game_settings::{
-    parse_key, GameSettings, SettingsDirty, DEFAULT_SENSITIVITY, MAX_SENSITIVITY, MIN_SENSITIVITY,
+    parse_binding, parse_key, GameSettings, SettingsDirty, DEFAULT_SENSITIVITY, MAX_SENSITIVITY,
+    MIN_SENSITIVITY,
 };
 use game_ui::{menu_button, text, theme, MenuButton};
 
@@ -14,7 +15,7 @@ use super::{GameState, PauseState};
 const GLYPH_SIZE: f32 = 30.0;
 const CHIP_WIDTH: f32 = 230.0;
 const CHIP_HEIGHT: f32 = 40.0;
-const AWAITING_TEXT: &str = "PRESS A KEY (Esc cancels)";
+const AWAITING_TEXT: &str = "PRESS KEY OR MOUSE (Esc cancels)";
 
 #[derive(Component)]
 pub(super) struct SettingsOverlay;
@@ -65,6 +66,8 @@ pub(super) enum SettingsAction {
     Backward,
     Right,
     Interact,
+    Flashlight,
+    Flashbang,
 }
 
 impl SettingsAction {
@@ -76,6 +79,8 @@ impl SettingsAction {
             Self::Backward => "Backward",
             Self::Right => "Right",
             Self::Interact => "Interact",
+            Self::Flashlight => "Flashlight",
+            Self::Flashbang => "Flashbang",
             Self::Open | Self::Back | Self::Tab(_) => "",
         }
     }
@@ -88,6 +93,8 @@ impl SettingsAction {
             Self::Backward => &keys.backward,
             Self::Right => &keys.right,
             Self::Interact => &keys.interact,
+            Self::Flashlight => &keys.flashlight,
+            Self::Flashbang => &keys.flashbang,
             _ => return None,
         };
         Some(key.as_str())
@@ -128,7 +135,11 @@ impl SettingsGroup {
                 Row::Key(SettingsAction::Backward),
                 Row::Key(SettingsAction::Right),
             ],
-            Self::Interaction => &[Row::Key(SettingsAction::Interact)],
+            Self::Interaction => &[
+                Row::Key(SettingsAction::Interact),
+                Row::Key(SettingsAction::Flashlight),
+                Row::Key(SettingsAction::Flashbang),
+            ],
             Self::Quality => &[Row::Choice(SettingsAction::Graphics)],
         }
     }
@@ -671,7 +682,9 @@ fn activate(
             | SettingsAction::Left
             | SettingsAction::Backward
             | SettingsAction::Right
-            | SettingsAction::Interact) => awaiting.0 = Some(*key),
+            | SettingsAction::Interact
+            | SettingsAction::Flashlight
+            | SettingsAction::Flashbang) => awaiting.0 = Some(*key),
             SettingsAction::Open => {}
         }
     }
@@ -679,6 +692,7 @@ fn activate(
 
 fn capture_key(
     keys: Res<ButtonInput<KeyCode>>,
+    buttons: Res<ButtonInput<MouseButton>>,
     mut awaiting: ResMut<AwaitingKey>,
     mut settings: ResMut<GameSettings>,
     mut dirty: ResMut<SettingsDirty>,
@@ -695,14 +709,31 @@ fn capture_key(
         }
         return;
     }
+    if awaiting.is_changed() {
+        return;
+    }
     let Some(action) = awaiting.0 else {
         return;
     };
-    let Some(key) = keys.get_just_pressed().copied().next() else {
+    let name = if let Some(key) = keys.get_just_pressed().copied().next() {
+        format!("{key:?}")
+    } else if buttons.just_pressed(MouseButton::Left) {
+        "MouseLeft".to_owned()
+    } else if buttons.just_pressed(MouseButton::Right) {
+        "MouseRight".to_owned()
+    } else if buttons.just_pressed(MouseButton::Middle) {
+        "MouseMiddle".to_owned()
+    } else {
         return;
     };
-    let name = format!("{key:?}");
-    if parse_key(&name).is_none() {
+    if parse_binding(&name).is_none() {
+        return;
+    }
+    if !matches!(
+        action,
+        SettingsAction::Flashlight | SettingsAction::Flashbang
+    ) && parse_key(&name).is_none()
+    {
         return;
     }
     let mut updated = settings.keys.clone();
@@ -712,6 +743,8 @@ fn capture_key(
         SettingsAction::Backward => updated.backward = name,
         SettingsAction::Right => updated.right = name,
         SettingsAction::Interact => updated.interact = name,
+        SettingsAction::Flashlight => updated.flashlight = name,
+        SettingsAction::Flashbang => updated.flashbang = name,
         _ => return,
     }
     if !updated.unique() {

@@ -26,6 +26,9 @@ impl FlashlightMeter {
 #[derive(Component)]
 pub struct FlashlightFill;
 
+#[derive(Component)]
+pub struct FlashlightPrompt;
+
 pub fn flashlight_meter() -> impl Bundle {
     (
         FlashlightMeter::default(),
@@ -47,9 +50,24 @@ pub fn flashlight_meter() -> impl Bundle {
         BorderColor::all(theme::PANEL_BORDER),
         children![
             (
-                Text::new("LIGHT"),
-                TextFont::from_font_size(12.0),
-                TextColor(theme::TEXT),
+                Name::new("Flashlight text"),
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                children![
+                    (
+                        Text::new("LIGHT"),
+                        TextFont::from_font_size(12.0),
+                        TextColor(theme::TEXT),
+                    ),
+                    (
+                        FlashlightPrompt,
+                        Text::new("LMB TOGGLE"),
+                        TextFont::from_font_size(10.0),
+                        TextColor(theme::TEXT),
+                    ),
+                ],
             ),
             (
                 Name::new("Flashlight charge track"),

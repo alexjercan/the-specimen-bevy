@@ -10,8 +10,8 @@ use game_audio::{PlaySourceSound, Sound, SourceSounds};
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput},
     levels::{
-        build_first_floor, Door, DoorPlugin, DoorState, FuseInventory, FusePickup, FusePlugin,
-        FuseSeed, Hidden, HidingPhase, HidingPlugin, HidingSpot, Prop, PropCollider, Room,
+        build_first_floor, Door, DoorPlugin, DoorState, FuseInventory, FusePlugin, FuseSeed,
+        Hidden, HidingPhase, HidingPlugin, HidingSpot, PickupKind, Prop, PropCollider, Room,
         HIDING_TRANSITION,
     },
 };
@@ -362,7 +362,10 @@ fn fuse_on_a_table_wins_over_hiding_under_it() {
     spot(&mut app, HidingSpot::Table, Vec3::new(0.0, 0.0, -1.5), PI);
     let fuse = app
         .world_mut()
-        .spawn((FusePickup { slot: 0 }, Transform::from_xyz(0.0, 0.8, -1.5)))
+        .spawn((
+            PickupKind::Fuse { slot: 0 },
+            Transform::from_xyz(0.0, 0.8, -1.5),
+        ))
         .id();
     aim(&mut app, player, Vec3::new(0.0, 0.83, -1.5));
     press_f(&mut app);
@@ -387,7 +390,7 @@ fn hidden_player_cannot_pick_up_fuses() {
     let fuse = app
         .world_mut()
         .spawn((
-            FusePickup { slot: 0 },
+            PickupKind::Fuse { slot: 0 },
             Transform::from_translation(eye + Vec3::new(0.0, -0.03, 0.6)),
         ))
         .id();

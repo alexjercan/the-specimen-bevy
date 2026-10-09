@@ -13,6 +13,12 @@ by category and cue. See `art/sounds/README.md` for source hashes and
   attempt from a Freesound page labeled CC0 1.0. Its preview source remains
   under `art/sounds/sources/freesound/door/locked/`; see the source caveat
   and hashes in `art/sounds/README.md`.
+- `device/detector/{pickup,nearby}.wav`: original project-generated detector
+  cues selected for pickup and proximity pulses.
+- `device/flashbang/{pickup,throw}.wav`: user-selected edits of Avreliy's
+  low-quality Freesound preview. The original is retained under
+  `art/sounds/sources/freesound/device/flashbang/`; see `credits/CREDITS.md`
+  for the source-page license and provenance caveat.
 - `flashlight/click-ralph0o7.ogg`: unchanged low-quality Freesound preview
   from Ralph0o7, used for both manual flashlight switch transitions. The
   page displays CC0 1.0; see `credits/CREDITS.md` for the source caveat.

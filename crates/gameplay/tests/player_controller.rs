@@ -10,8 +10,8 @@ use bevy::{
 use bevy_enhanced_input::EnhancedInputPlugin;
 use game_settings::GameSettings;
 use gameplay::controller::{
-    PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput, RUN_SPEED,
-    WALK_SPEED,
+    Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput,
+    RUN_SPEED, WALK_SPEED,
 };
 
 fn app(camera: bool) -> (App, Entity) {
@@ -132,6 +132,25 @@ fn changed_movement_binding_replaces_wasd_action() {
         .press(KeyCode::ArrowUp);
     app.update();
     assert!(app.world().get::<Transform>(player).unwrap().translation.z < 0.0);
+}
+
+#[test]
+fn changing_flashlight_binding_replaces_mouse_action() {
+    let (mut app, player) = app(false);
+    let mut settings = GameSettings::default();
+    settings.keys.flashlight = "KeyQ".into();
+    app.insert_resource(settings);
+    app.update();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+    assert!(!app.world().get::<Flashlight>(player).unwrap().on);
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::KeyQ);
+    app.update();
+    assert!(app.world().get::<Flashlight>(player).unwrap().on);
 }
 
 #[test]

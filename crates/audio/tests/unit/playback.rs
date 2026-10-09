@@ -32,6 +32,55 @@ fn settings_scale_new_ui_and_spatial_cues_without_changing_base_gain() {
 }
 
 #[test]
+fn device_cues_are_non_spatial_and_stop_when_world_audio_is_paused() {
+    let mut app = playback_app(None);
+    let voices = play(
+        &mut app,
+        &[
+            PlaySound {
+                sound: Sound::DetectorPickup,
+                position: None,
+            },
+            PlaySound {
+                sound: Sound::DetectorNearby,
+                position: None,
+            },
+            PlaySound {
+                sound: Sound::FlashbangPickup,
+                position: None,
+            },
+            PlaySound {
+                sound: Sound::FlashbangThrow,
+                position: None,
+            },
+            PlaySound {
+                sound: Sound::FlashbangBurst,
+                position: None,
+            },
+        ],
+    );
+    assert_eq!(voices.len(), 5);
+    let assets = test_support::sound_assets();
+    assert_eq!(voices[0].0, assets.detector_pickup);
+    assert_eq!(voices[1].0, assets.detector_nearby);
+    assert_eq!(voices[2].0, assets.flashbang_pickup);
+    assert_eq!(voices[3].0, assets.flashbang_throw);
+    assert_eq!(voices[4].0, assets.flashbang_burst);
+    assert!(voices.iter().all(|(_, settings, position, world_audio)| {
+        !settings.spatial && position.is_none() && *world_audio
+    }));
+    app.world_mut().resource_mut::<AudioPaused>().0 = true;
+    assert!(play(
+        &mut app,
+        &[PlaySound {
+            sound: Sound::FlashbangBurst,
+            position: None
+        }]
+    )
+    .is_empty());
+}
+
+#[test]
 fn distant_spatial_cues_pan_toward_the_source_for_both_listener_orientations() {
     for yaw in [0.0, std::f32::consts::FRAC_PI_2] {
         let transform = Transform::from_rotation(Quat::from_rotation_y(yaw));

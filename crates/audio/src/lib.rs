@@ -21,6 +21,11 @@ pub enum Sound {
     FuseSlot(usize),
     FuseComplete,
     FlashlightClick,
+    DetectorPickup,
+    DetectorNearby,
+    FlashbangPickup,
+    FlashbangThrow,
+    FlashbangBurst,
     SprintExhausted,
     PowerDown,
     BreakerTrip,
@@ -219,6 +224,11 @@ fn sound_handle(sound: Sound, assets: &SoundAssets) -> Option<&Handle<AudioSourc
         Sound::FuseSlot(_) => return None,
         Sound::FuseComplete => &assets.fuse_complete,
         Sound::FlashlightClick => &assets.flashlight_click,
+        Sound::DetectorPickup => &assets.detector_pickup,
+        Sound::DetectorNearby => &assets.detector_nearby,
+        Sound::FlashbangPickup => &assets.flashbang_pickup,
+        Sound::FlashbangThrow => &assets.flashbang_throw,
+        Sound::FlashbangBurst => &assets.flashbang_burst,
         Sound::SprintExhausted => &assets.sprint_exhausted,
         Sound::PowerDown => &assets.power_down,
         Sound::BreakerTrip => &assets.breaker_trip,
@@ -355,6 +365,11 @@ fn play_sounds(
                 | Sound::MonsterAttack
                 | Sound::MonsterHeartbeat
                 | Sound::SprintExhausted
+                | Sound::DetectorPickup
+                | Sound::DetectorNearby
+                | Sound::FlashbangPickup
+                | Sound::FlashbangThrow
+                | Sound::FlashbangBurst
         );
         if paused.0 && world_sound {
             continue;

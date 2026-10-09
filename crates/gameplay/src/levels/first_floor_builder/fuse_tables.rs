@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_rand::prelude::ChaCha8Rng;
 use rand_core::{Rng, SeedableRng};
 
-use crate::levels::fuses::{FusePickup, FUSE_COUNT};
+use crate::levels::{fuses::FUSE_COUNT, pickups::PickupKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum FuseZone {
@@ -113,7 +113,7 @@ pub(super) fn spawn(commands: &mut Commands, seed: u64) {
         let table = &FUSE_TABLES[slot];
         commands.spawn((
             Name::new("fuse"),
-            FusePickup { slot },
+            PickupKind::Fuse { slot },
             Transform::from_translation(table.position)
                 .with_rotation(Quat::from_rotation_y(table.yaw)),
         ));

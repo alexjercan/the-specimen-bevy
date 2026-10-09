@@ -11,6 +11,7 @@ mod menu_background;
 pub(crate) mod module_names;
 mod monster;
 mod objective;
+mod pickups;
 mod power;
 mod render;
 mod sounds;
@@ -20,7 +21,10 @@ pub use builder::{
     Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Floor, LevelRoot, LightEffect,
     LightIntensity, Passage, Prop, PropCollider, Room, Walls,
 };
-pub use devices::DevicePlaceholder;
+pub use devices::{
+    detector_reading, pulse_interval, Detector, DetectorReading, DevicePlugin, Flashbangs, Flashed,
+    DETECTOR_RANGE, FLASHBANG_DURATION, PULSE_FAST, PULSE_NEAR, PULSE_SLOW,
+};
 pub use doors::{panel_center, panel_top, DoorLock, DoorPanel, DoorPlugin, ExitDoor, ToggleDoor};
 pub(crate) use doors::{PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH};
 pub use first_floor_builder::{
@@ -28,8 +32,7 @@ pub use first_floor_builder::{
     FUSE_TABLES, FUSE_ZONES,
 };
 pub use fuses::{
-    FuseInventory, FusePanel, FusePickup, FusePlugin, FuseSeed, InstallFuses, FUSE_COUNT,
-    FUSE_MODULE,
+    FuseInventory, FusePanel, FusePlugin, FuseSeed, InstallFuses, FUSE_COUNT, FUSE_MODULE,
 };
 pub use hiding::{
     Hidden, HidingMotion, HidingPhase, HidingPlugin, HidingSpot, UseHidingSpot, HIDING_TRANSITION,
@@ -40,6 +43,7 @@ pub use menu_background::build_main_menu_background;
 pub use module_names::BOILER_UNIT;
 pub use monster::{Caught, Monster, MonsterPlugin, MonsterRenderPlugin};
 pub use objective::{Escaped, ObjectivePlugin};
+pub use pickups::{PickupKind, PickupPlugin};
 pub use power::{FacilityPower, FacilityPowerPlugin, MAX_OUTAGE_DELAY_SECS, MIN_OUTAGE_DELAY_SECS};
 pub use render::{LevelRenderPlugin, RenderCeilings};
 pub use sounds::{

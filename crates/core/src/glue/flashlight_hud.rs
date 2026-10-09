@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use game_ui::{flashlight_meter, FlashlightMeter, GameUiPlugin};
+use game_settings::GameSettings;
+use game_ui::{flashlight_meter, FlashlightMeter, FlashlightPrompt, GameUiPlugin};
 use gameplay::controller::{Flashlight, PlayerController};
 
 pub struct FlashlightHudPlugin;
@@ -10,7 +11,7 @@ impl Plugin for FlashlightHudPlugin {
             app.add_plugins(GameUiPlugin);
         }
         app.add_systems(Startup, spawn_hud)
-            .add_systems(Update, sync_hud);
+            .add_systems(Update, (sync_hud, sync_prompt));
     }
 }
 
@@ -28,11 +29,26 @@ fn sync_hud(
             charge: flashlight.charge,
             on: flashlight.on,
         });
-        visibility.set_if_neq(if player.is_some() && state.visible() {
+        visibility.set_if_neq(if player.is_some() {
             Visibility::Inherited
         } else {
             Visibility::Hidden
         });
         meter.set_if_neq(state);
+    }
+}
+
+fn sync_prompt(
+    settings: Option<Res<GameSettings>>,
+    mut prompts: Query<&mut Text, With<FlashlightPrompt>>,
+) {
+    let binding = settings
+        .as_ref()
+        .map_or("MouseLeft", |settings| settings.keys.flashlight.as_str());
+    let value = format!("{} TOGGLE", super::hud_binding_label(binding));
+    for mut prompt in &mut prompts {
+        if prompt.0 != value {
+            prompt.0 = value.clone();
+        }
     }
 }

@@ -37,6 +37,8 @@ pub struct MovementKeys {
     pub backward: String,
     pub right: String,
     pub interact: String,
+    pub flashlight: String,
+    pub flashbang: String,
 }
 
 impl Default for MovementKeys {
@@ -47,6 +49,8 @@ impl Default for MovementKeys {
             backward: "KeyS".into(),
             right: "KeyD".into(),
             interact: "KeyF".into(),
+            flashlight: "MouseLeft".into(),
+            flashbang: "MouseRight".into(),
         }
     }
 }
@@ -59,12 +63,30 @@ impl MovementKeys {
             &self.backward,
             &self.right,
             &self.interact,
+            &self.flashlight,
+            &self.flashbang,
         ];
-        keys.iter().all(|key| parse_key(key).is_some())
+        keys[..5].iter().all(|key| parse_key(key).is_some())
+            && keys[5..].iter().all(|key| parse_binding(key).is_some())
             && keys
                 .iter()
                 .enumerate()
                 .all(|(index, key)| keys[index + 1..].iter().all(|other| other != key))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InputBinding {
+    Key(KeyCode),
+    Mouse(MouseButton),
+}
+
+pub fn parse_binding(name: &str) -> Option<InputBinding> {
+    match name {
+        "MouseLeft" => Some(InputBinding::Mouse(MouseButton::Left)),
+        "MouseRight" => Some(InputBinding::Mouse(MouseButton::Right)),
+        "MouseMiddle" => Some(InputBinding::Mouse(MouseButton::Middle)),
+        _ => parse_key(name).map(InputBinding::Key),
     }
 }
 

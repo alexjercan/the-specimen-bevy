@@ -275,6 +275,16 @@ pub struct MonsterAssets {
 
 #[derive(AssetCollection, Resource)]
 pub struct SoundAssets {
+    #[asset(path = "sounds/device/detector/pickup.wav")]
+    pub detector_pickup: Handle<AudioSource>,
+    #[asset(path = "sounds/device/detector/nearby.wav")]
+    pub detector_nearby: Handle<AudioSource>,
+    #[asset(path = "sounds/device/flashbang/pickup.wav")]
+    pub flashbang_pickup: Handle<AudioSource>,
+    #[asset(path = "sounds/device/flashbang/throw.wav")]
+    pub flashbang_throw: Handle<AudioSource>,
+    #[asset(path = "sounds/device/flashbang/burst-original.wav")]
+    pub flashbang_burst: Handle<AudioSource>,
     #[asset(path = "sounds/monster/amb/metal-footsteps-gristi.ogg")]
     pub monster_presence: Handle<AudioSource>,
     #[asset(path = "sounds/monster/detected/growl-jofae.wav")]

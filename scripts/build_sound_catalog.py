@@ -13,6 +13,8 @@ OUTPUT = ROOT / "art/sounds/catalog.html"
 SOURCES = (ROOT / "art/sounds", ROOT / "assets/sounds")
 EXTENSIONS = {".wav", ".ogg", ".mp3", ".flac"}
 APPROVED_FILES = {
+    *{f"art/sounds/generated/candidates/device/detector/{cue}.wav" for cue in ("pickup", "nearby")},
+    *{f"art/sounds/generated/device/flashbang/{cue}.wav" for cue in ("pickup", "throw", "burst-original")},
     "art/sounds/sources/freesound/flashlight/click-ralph0o7.ogg",
     "art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav",
     "art/sounds/sources/opengameart/amb/boiler/switch-off-cleytonkauffman.wav",
@@ -78,6 +80,7 @@ CATEGORIES = {
     "flashlight": "A. Player self (bus self)",
     "self": "A. Player self (bus self)",
     "monster": "F. Monster and threat cues",
+    "device": "H. Tools and devices",
 }
 STEP_CREDIT = ('GboxMikeFozzy, "Footsteps" (CC0 1.0)', "https://opengameart.org/content/footsteps-0")
 METAL_WOOD_CREDIT = ('rubberduck, "100 CC0 metal and wood SFX" (CC0 1.0)', "https://opengameart.org/content/100-cc0-metal-and-wood-sfx")
@@ -103,6 +106,11 @@ RECORDED_PATHS["art/sounds/sources/opengameart/amb/boiler/switch-off-cleytonkauf
     "CleytonKauffman, SFX - Circuit breaker (OpenGameArt page-labeled CC0; source ownership unverified)",
     "https://opengameart.org/content/sfx-circuit-breaker",
 )
+for cue in ("pickup", "throw"):
+    RECORDED_PATHS[f"art/sounds/generated/device/flashbang/{cue}.wav"] = (
+        "Avreliy (edited Freesound low-quality preview; item page displays CC0 1.0; provenance unverified)",
+        "https://freesound.org/people/Avreliy/sounds/611613/",
+    )
 RECORDED_PATHS["art/sounds/generated/door/locked-rattle.wav"] = (
     "DrFahrts (Freesound preview, page-labeled CC0 1.0; edited by this project)",
     "https://freesound.org/people/DrFahrts/sounds/727791/",

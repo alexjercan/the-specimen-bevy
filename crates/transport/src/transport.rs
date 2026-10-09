@@ -6,12 +6,13 @@ use std::{
 use bevy::{
     app::{App, AppExit, Plugin, PluginsState},
     input::mouse::MouseMotion,
-    prelude::{ButtonInput, EulerRot, KeyCode, MouseButton, Transform, With, World},
+    prelude::{ButtonInput, EulerRot, KeyCode, Transform, With, World},
     time::TimeUpdateStrategy,
 };
+use game_settings::{parse_binding, GameSettings, InputBinding};
 use gameplay::{
     controller::{Flashlight, PlayerController, PlayerInput, Stamina},
-    levels::{Caught, Escaped},
+    levels::{Caught, Detector, DetectorReading, Escaped, Flashbangs, Flashed},
 };
 use serde::{Deserialize, Serialize};
 
@@ -40,6 +41,7 @@ pub(super) struct Controls {
     shift: Option<bool>,
     f: Option<bool>,
     flashlight: Option<bool>,
+    flashbang: Option<bool>,
     look: [f32; 2],
 }
 
@@ -64,17 +66,39 @@ impl Controls {
                 None => continue,
             }
         }
-        if let Some(held) = self.flashlight {
-            let mut mouse = world.resource_mut::<ButtonInput<MouseButton>>();
-            if held {
-                mouse.press(MouseButton::Left);
-            } else {
-                mouse.release(MouseButton::Left);
+        let keys = world
+            .get_resource::<GameSettings>()
+            .map(|settings| settings.keys.clone())
+            .unwrap_or_default();
+        for (binding, held) in [
+            (&keys.flashlight, self.flashlight),
+            (&keys.flashbang, self.flashbang),
+        ] {
+            let Some(held) = held else {
+                continue;
+            };
+            match parse_binding(binding) {
+                Some(InputBinding::Key(key)) => press(world, key, held),
+                Some(InputBinding::Mouse(button)) => press(world, button, held),
+                None => {}
             }
         }
         world.write_message(MouseMotion {
             delta: self.look.into(),
         });
+    }
+}
+
+fn press<T: Copy + Eq + std::hash::Hash + Send + Sync + 'static>(
+    world: &mut World,
+    input: T,
+    held: bool,
+) {
+    let mut buttons = world.resource_mut::<ButtonInput<T>>();
+    if held {
+        buttons.press(input);
+    } else {
+        buttons.release(input);
     }
 }
 
@@ -100,19 +124,39 @@ struct PlayerSnapshot {
     running: bool,
     flashlight_on: bool,
     flashlight_charge: f32,
+    flashbangs: usize,
+    flash_remaining: f32,
+    has_detector: bool,
+    detector: Option<DetectorSnapshot>,
     stamina_charge: f32,
     stamina_exhausted: bool,
 }
 
+#[derive(Serialize)]
+struct DetectorSnapshot {
+    distance_m: f32,
+    bearing_deg: f32,
+}
+
+fn detector_snapshot(reading: DetectorReading) -> DetectorSnapshot {
+    DetectorSnapshot {
+        distance_m: reading.distance,
+        bearing_deg: reading.bearing.to_degrees(),
+    }
+}
+
 pub fn snapshot(world: &mut World, tick: u64) -> String {
-    let mut players = world.query_filtered::<
-        (&Transform, &PlayerInput, &Flashlight, &Stamina),
-        With<PlayerController>,
-    >();
-    let player = players
-        .iter(world)
-        .next()
-        .map(|(pose, input, flashlight, stamina)| {
+    let mut players = world.query_filtered::<(
+        &Transform,
+        &PlayerInput,
+        &Flashlight,
+        &Stamina,
+        Option<&Flashbangs>,
+        Option<&Flashed>,
+        Option<&Detector>,
+    ), With<PlayerController>>();
+    let player = players.iter(world).next().map(
+        |(pose, input, flashlight, stamina, flashbangs, flashed, detector)| {
             let (yaw, pitch, _) = pose.rotation.to_euler(EulerRot::YXZ);
             PlayerSnapshot {
                 position: pose.translation.to_array(),
@@ -122,10 +166,17 @@ pub fn snapshot(world: &mut World, tick: u64) -> String {
                 running: stamina.sprinting,
                 flashlight_on: flashlight.on,
                 flashlight_charge: flashlight.charge,
+                flashbangs: flashbangs.map_or(0, |flashbangs| flashbangs.0),
+                flash_remaining: flashed.map_or(0.0, |flashed| flashed.remaining),
+                has_detector: detector.is_some(),
+                detector: detector
+                    .and_then(|detector| detector.reading)
+                    .map(detector_snapshot),
                 stamina_charge: stamina.charge,
                 stamina_exhausted: stamina.exhausted,
             }
-        });
+        },
+    );
     let won = world
         .query_filtered::<(), (With<PlayerController>, With<Escaped>)>()
         .iter(world)

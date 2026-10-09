@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CONTROLS = frozenset(("w", "a", "s", "d", "shift", "f", "flashlight"))
+CONTROLS = frozenset(("w", "a", "s", "d", "shift", "f", "flashlight", "flashbang"))
 
 
 def positive(value):
@@ -71,9 +71,16 @@ def progress_snapshot(snapshot):
     nearest = min(doors, key=lambda item: item.get("distance_m", float("inf")), default=None)
     door = (f" nearest_door={nearest['distance_m']:.1f}m/"
             f"{nearest['bearing_deg'][0]:+.0f}deg/open={nearest['open']}" if nearest else "")
+    devices = ""
+    if "flashbangs" in player:
+        devices += f" flashbangs={player['flashbangs']} flash_remaining={player.get('flash_remaining', 0):.1f}s"
+    if "has_detector" in player:
+        reading = player.get("detector")
+        devices += (f" detector={reading['distance_m']:.1f}m/{reading['bearing_deg']:+.0f}deg"
+                    if reading else f" detector={'no signal' if player['has_detector'] else 'not held'}")
     return (f"tick={snapshot['tick']}{location} won={snapshot.get('won', False)}"
             f" game_over={snapshot.get('game_over', False)}"
-            f" visible={len(visible)} heard={len(snapshot.get('heard', []))}{door}")
+            f" visible={len(visible)} heard={len(snapshot.get('heard', []))}{door}{devices}")
 
 
 def progress_input(controls, held=None):
@@ -297,8 +304,14 @@ def play(args):
         rules = ("Respond with ONLY JSON: {\"intent\":\"one short sentence describing your next action\","
                  "\"frames\":1..MAX,\"input\":{\"w\":true/false,"
                  "\"a\":true/false,\"s\":true/false,\"d\":true/false,\"shift\":true/false,"
-                 "\"f\":true/false,\"flashlight\":true/false,\"look\":[dx,dy]}}. "
+                 "\"f\":true/false,\"flashlight\":true/false,\"flashbang\":true/false,"
+                 "\"look\":[dx,dy]}}. "
                  "Omitted buttons stay held; explicitly send false to release. Look applies once. "
+                 "Flashlight and flashbang are logical controls mapped to configured bindings. "
+                 "Flashbang is single-use: press flashbang to throw, then release it before another press. "
+                 "Player flashbangs is remaining inventory; flash_remaining is the temporary effect in seconds. "
+                 "Detector is passive: has_detector indicates ownership, detector gives nearby distance_m "
+                 "and bearing_deg, and null means no signal; do not infer monster location from null. "
                  "Keep intent to one short, user-visible sentence, not private reasoning. "
                  "Move and look by choosing a bounded number of frames. "
                  "To open a door, face its visible bearing, approach within interaction range, "

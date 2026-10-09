@@ -7,7 +7,7 @@ use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{
         build_first_floor, select_fuse_slots, Door, DoorPlugin, DoorState, FuseInventory,
-        FusePickup, FusePlugin, FuseSeed, FuseZone, Prop, Room, FUSE_COUNT, FUSE_TABLES,
+        FusePlugin, FuseSeed, FuseZone, PickupKind, Prop, Room, FUSE_COUNT, FUSE_TABLES,
     },
 };
 
@@ -23,9 +23,12 @@ fn first_floor(seed: u64) -> App {
 fn fuse_placements(app: &mut App) -> Vec<(usize, Vec3)> {
     let mut placements: Vec<_> = app
         .world_mut()
-        .query::<(&FusePickup, &Transform)>()
+        .query::<(&PickupKind, &Transform)>()
         .iter(app.world())
-        .map(|(fuse, transform)| (fuse.slot, transform.translation))
+        .filter_map(|(kind, transform)| match kind {
+            PickupKind::Fuse { slot } => Some((*slot, transform.translation)),
+            PickupKind::Flashbang | PickupKind::Detector => None,
+        })
         .collect();
     placements.sort_by_key(|(slot, _)| *slot);
     placements
@@ -53,7 +56,7 @@ fn app() -> (App, Entity) {
 fn fuse(app: &mut App, position: Vec3) -> Entity {
     app.world_mut()
         .spawn((
-            FusePickup { slot: 0 },
+            PickupKind::Fuse { slot: 0 },
             Transform::from_translation(position),
         ))
         .id()
@@ -212,7 +215,7 @@ fn first_floor_spawns_three_logical_fuses_at_the_seeded_tables() {
     assert_eq!(placements, fuse_placements(&mut first_floor(42)));
     assert!(app
         .world_mut()
-        .query_filtered::<(), (With<FusePickup>, With<Children>)>()
+        .query_filtered::<(), (With<PickupKind>, With<Children>)>()
         .iter(app.world())
         .next()
         .is_none());

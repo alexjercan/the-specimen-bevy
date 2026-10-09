@@ -9,6 +9,11 @@ pub(crate) fn sound_assets() -> SoundAssets {
         Handle::<AudioSource>::Uuid(Uuid::from_u128(next), default())
     };
     SoundAssets {
+        detector_pickup: handle(),
+        detector_nearby: handle(),
+        flashbang_pickup: handle(),
+        flashbang_throw: handle(),
+        flashbang_burst: handle(),
         monster_presence: handle(),
         monster_detected: handle(),
         monster_attack: handle(),

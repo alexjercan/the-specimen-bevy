@@ -2,6 +2,7 @@ use bevy::{
     asset::AssetPath,
     input::{
         keyboard::{Key, KeyboardInput},
+        mouse::MouseButtonInput,
         ButtonState, InputPlugin,
     },
     platform::collections::HashMap,
@@ -66,6 +67,17 @@ fn key(app: &mut App, key_code: KeyCode, logical_key: Key) {
             state,
             text: None,
             repeat: false,
+            window: Entity::PLACEHOLDER,
+        });
+        app.update();
+    }
+}
+
+fn mouse(app: &mut App, button: MouseButton) {
+    for state in [ButtonState::Pressed, ButtonState::Released] {
+        app.world_mut().write_message(MouseButtonInput {
+            button,
+            state,
             window: Entity::PLACEHOLDER,
         });
         app.update();
@@ -182,6 +194,9 @@ fn settings_tabs_switch_pages_and_hold_labeled_groups() {
         assert_eq!(ancestor::<SettingsGroup>(&app, entity), Some(expected));
     }
 
+    assert_eq!(chip_text(&mut app, SettingsAction::Flashlight), "MouseLeft");
+    assert_eq!(chip_text(&mut app, SettingsAction::Flashbang), "MouseRight");
+
     let actions = app
         .world_mut()
         .query::<(Entity, &SettingsAction)>()
@@ -197,7 +212,9 @@ fn settings_tabs_switch_pages_and_hold_labeled_groups() {
                 None
             }
             SettingsAction::Graphics => Some(SettingsGroup::Quality),
-            SettingsAction::Interact => Some(SettingsGroup::Interaction),
+            SettingsAction::Interact | SettingsAction::Flashlight | SettingsAction::Flashbang => {
+                Some(SettingsGroup::Interaction)
+            }
             SettingsAction::Forward
             | SettingsAction::Left
             | SettingsAction::Backward
@@ -247,6 +264,7 @@ fn key_chips_show_bound_glyphs_with_text_fallback() {
     assert_eq!(chip_glyph(&mut app, SettingsAction::Forward), handles[0]);
     assert_eq!(chip_glyph(&mut app, SettingsAction::Interact), handles[1]);
     assert_eq!(chip_text(&mut app, SettingsAction::Left), "A");
+    assert_eq!(chip_text(&mut app, SettingsAction::Flashlight), "MouseLeft");
 
     click(&mut app, SettingsAction::Forward);
     assert_eq!(chip_text(&mut app, SettingsAction::Forward), AWAITING_TEXT);
@@ -266,6 +284,39 @@ fn key_chips_show_bound_glyphs_with_text_fallback() {
     key(&mut app, KeyCode::KeyW, Key::Character("w".into()));
     assert_eq!(app.world().resource::<GameSettings>().keys.left, "KeyW");
     assert_eq!(chip_glyph(&mut app, SettingsAction::Left), handles[0]);
+    assert!(app.world().resource::<SettingsDirty>().0);
+}
+
+#[test]
+fn flashlight_and_flashbang_bindings_capture_mouse_and_keyboard_without_the_opening_click() {
+    let mut app = app(UiAssets::default());
+    click(&mut app, SettingsAction::Open);
+    click(&mut app, SettingsAction::Flashlight);
+    assert_eq!(
+        app.world().resource::<GameSettings>().keys.flashlight,
+        "MouseLeft"
+    );
+    mouse(&mut app, MouseButton::Middle);
+    assert_eq!(
+        app.world().resource::<GameSettings>().keys.flashlight,
+        "MouseMiddle"
+    );
+    click(&mut app, SettingsAction::Flashbang);
+    key(&mut app, KeyCode::KeyQ, Key::Character("q".into()));
+    assert_eq!(
+        app.world().resource::<GameSettings>().keys.flashbang,
+        "KeyQ"
+    );
+    click(&mut app, SettingsAction::Flashbang);
+    mouse(&mut app, MouseButton::Middle);
+    assert_eq!(
+        app.world().resource::<GameSettings>().keys.flashbang,
+        "KeyQ"
+    );
+    assert_eq!(
+        app.world().resource::<AwaitingKey>().0,
+        Some(SettingsAction::Flashbang)
+    );
     assert!(app.world().resource::<SettingsDirty>().0);
 }
 
@@ -325,4 +376,5 @@ fn every_bindable_key_has_a_glyph() {
     assert_eq!(key_label("KeyQ"), "Q");
     assert_eq!(key_label("Digit4"), "4");
     assert_eq!(key_label("Space"), "Space");
+    assert_eq!(key_label("MouseRight"), "MouseRight");
 }

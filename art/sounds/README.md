@@ -47,6 +47,51 @@ from preview times 1.35-3.35 s and 1.65-3.65 s, respectively. The DrFahrts edit 
 reviewed. The shelbyshark crop has not been auditioned or approved. Generation scripts no
 longer make rejected drafts.
 
+## Device sound review
+
+`python3 scripts/generate_device_sounds.py` creates five original mono 48 kHz
+PCM sketches in `generated/candidates/device/`. The detector pickup and nearby
+pulse are approved; byte-identical copies are in `assets/sounds/device/detector/`.
+The pulse should accelerate with monster proximity, slow with distance, and
+never count as a sound the monster hears. Gameplay timing and playback are
+still being implemented; catalog approval and asset copies do not verify them.
+
+The generator's original flashbang pickup, throw, and burst remain off-catalog
+rejected drafts. The user selected the first impact of Avreliy's
+`ThrowGrenadeCloth.ogg` for throw and the last impact for pickup.
+`python3 scripts/render_flashbang_sounds.py` cuts 0.00-0.40 s and 0.85-1.28236 s
+from the 1.28 s preview, adds 5 ms fade-in and 35 ms fade-out, and renders
+48 kHz mono PCM. The user approved both cuts; the resulting
+`generated/device/flashbang/throw.wav` and `pickup.wav` have byte-identical
+runtime copies in `assets/sounds/device/flashbang/`. Playback wiring and
+in-game mix are not yet verified. Original preview SHA-256 is
+`3967aad53f59e2992a22b9daee05336567d797e86940e575251634a30295d1cf`.
+Source: Avreliy, https://freesound.org/people/Avreliy/sounds/611613/ . The
+item page displays CC0 1.0 and describes clothing noise during a throw; source
+ownership and rights are not independently verified. The original preview is
+retained for reproducibility.
+
+The two modusmogulus burst previews were rejected as too bomb-like and are off
+catalog. Their source pages are https://freesound.org/people/modusmogulus/sounds/734095/
+and https://freesound.org/people/modusmogulus/sounds/752628/ ; both display CC0
+1.0, but ownership/rights are not independently verified. The PeteBarry and
+adilbek_sounds previews were also rejected and removed from the source folder.
+Use a safe listening volume, especially with headphones.
+
+`generated/device/flashbang/burst-original.wav` is the user-approved,
+project-generated burst with a low-frequency impact at the start. Its original
+`generated/candidates/device/flashbang/burst-original.wav` remains as the
+reproducible generator output. `python3 scripts/generate_flashbang_burst.py`
+reproduces it from seeded noise and oscillators; it reads no external audio.
+The approved copy is byte-identical to `assets/sounds/device/flashbang/burst-original.wav`.
+The reference was GFX Sounds' 3.43 s "Flashbang explosion & ears ringing"
+MP3 downloaded from https://uppbeat.io/sfx/flashbang-explosion-ears-ringing/167222/58864 .
+Inspection suggests a brief broadband impact, a noisy decay, and a sustained
+high ring over a muffled tail. No samples or exact timing were copied into the
+candidate. Uppbeat returned HTTP 429 during terms inspection, so no reuse
+license or permission for the reference was verified; the MP3 stays outside
+this repository. Gameplay playback and in-game mix remain unreviewed. Listen at a low volume.
+
 ## Flashlight review sounds
 
 `python3 scripts/generate_flashlight_sounds.py` creates three original,

@@ -23,6 +23,8 @@ fn saves_and_loads_player_settings() {
     settings.mouse_sensitivity = 0.004;
     settings.graphics = GraphicsQuality::Low;
     settings.keys.forward = "ArrowUp".into();
+    settings.keys.flashlight = "MouseMiddle".into();
+    settings.keys.flashbang = "KeyQ".into();
     settings.save(&path).unwrap();
     assert_eq!(GameSettings::load(&path).unwrap(), settings);
     fs::remove_dir_all(folder).unwrap();
@@ -35,6 +37,18 @@ fn corrupt_values_cannot_break_input_or_volume() {
     assert_eq!(settings.master, 0.0);
     assert_eq!(settings.sfx, 1.0);
     assert_eq!(settings.keys, MovementKeys::default());
+    settings.keys.forward = "MouseLeft".into();
+    settings.sanitize();
+    assert_eq!(settings.keys, MovementKeys::default());
+    settings.keys.flashbang = "MouseLeft".into();
+    settings.sanitize();
+    assert_eq!(settings.keys, MovementKeys::default());
+    assert_eq!(
+        game_settings::parse_binding("MouseRight"),
+        Some(game_settings::InputBinding::Mouse(
+            bevy::prelude::MouseButton::Right
+        ))
+    );
     assert_eq!(settings.mouse_sensitivity, game_settings::MIN_SENSITIVITY);
     assert_eq!(parse_key("Escape"), None);
     assert!(DEFAULT_SENSITIVITY > 0.0);

@@ -5762,6 +5762,7 @@ dependencies = [
  "bevy_enhanced_input",
  "capture",
  "game_audio",
+ "game_settings",
  "gameplay",
  "serde",
  "serde_json",

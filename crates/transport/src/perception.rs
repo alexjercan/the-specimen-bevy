@@ -10,7 +10,7 @@ use gameplay::{
     controller::{door_frames, door_panel, wall_obstacles, Flashlight, PlayerController},
     levels::{
         Door, DoorOf, DoorRef, DoorState, DoorSwing, Doors, ExitDoor, FacilityPower, FusePanel,
-        FusePickup, HidingSpot, Monster, Passage, Prop, PropCollider, Room, FUSE_TABLES,
+        HidingSpot, Monster, Passage, PickupKind, Prop, PropCollider, Room, FUSE_TABLES,
     },
 };
 use serde::Serialize;
@@ -130,6 +130,7 @@ enum Thing {
     Door { id: u64, open: bool },
     FuseCandidate { candidate: usize, has_fuse: bool },
     FusePanel { id: u64, installed: usize },
+    Device { id: u64, device: &'static str },
     Prop { id: u64, module: String },
     Monster { id: u64 },
 }
@@ -343,9 +344,12 @@ fn visible(world: &mut World, pose: &Transform, flashlight: bool, power_on: bool
         ));
     }
     let fuses: Vec<usize> = world
-        .query::<&FusePickup>()
+        .query::<&PickupKind>()
         .iter(world)
-        .map(|fuse| fuse.slot)
+        .filter_map(|pickup| match pickup {
+            PickupKind::Fuse { slot } => Some(*slot),
+            PickupKind::Flashbang | PickupKind::Detector => None,
+        })
         .collect();
     for (candidate, table) in FUSE_TABLES.iter().enumerate() {
         targets.push((
@@ -366,6 +370,23 @@ fn visible(world: &mut World, pose: &Transform, flashlight: bool, power_on: bool
                 installed: panel.installed,
             },
             transform.translation,
+        ));
+    }
+    for (entity, pickup, transform) in world
+        .query::<(Entity, &PickupKind, &Transform)>()
+        .iter(world)
+    {
+        let device = match pickup {
+            PickupKind::Flashbang => "flashbang",
+            PickupKind::Detector => "detector",
+            PickupKind::Fuse { .. } => continue,
+        };
+        targets.push((
+            Thing::Device {
+                id: entity.to_bits(),
+                device,
+            },
+            transform.translation + Vec3::Y * 0.06,
         ));
     }
     for (entity, transform) in world
@@ -575,6 +596,11 @@ fn sound_name(sound: Sound) -> Option<&'static str> {
         Sound::FuseSlot(_) => "fuse_slot",
         Sound::FuseComplete => "fuse_complete",
         Sound::FlashlightClick => "flashlight_click",
+        Sound::DetectorPickup => "detector_pickup",
+        Sound::DetectorNearby => "detector_nearby",
+        Sound::FlashbangPickup => "flashbang_pickup",
+        Sound::FlashbangThrow => "flashbang_throw",
+        Sound::FlashbangBurst => "flashbang_burst",
         Sound::SprintExhausted => "sprint_exhausted",
         Sound::PowerDown => "power_down",
         Sound::BreakerTrip => "breaker_trip",

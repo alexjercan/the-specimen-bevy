@@ -3,7 +3,7 @@ use game_assets::{GameAssetsState, UiAssets};
 use game_settings::GameSettings;
 use gameplay::{
     controller::PlayerController,
-    levels::{DoorState, FuseInventory, Hidden, InteractTarget, InteractTargets},
+    levels::{DoorState, FuseInventory, Hidden, InteractTarget, InteractTargets, PickupKind},
 };
 
 const DOOR_HINT_WIDTH: f32 = 130.0;
@@ -11,7 +11,9 @@ const FUSE_HINT_WIDTH: f32 = 160.0;
 const PANEL_HINT_WIDTH: f32 = 172.0;
 const BOILER_HINT_WIDTH: f32 = 184.0;
 const HIDING_HINT_WIDTH: f32 = 130.0;
-const LEAVE_HINT_MARGIN: f32 = 80.0;
+const FLASHBANG_HINT_WIDTH: f32 = 208.0;
+const DETECTOR_HINT_WIDTH: f32 = 196.0;
+const LEAVE_HINT_TOP: f32 = 80.0;
 
 #[derive(Component)]
 struct InteractionHint;
@@ -106,9 +108,14 @@ fn update_hint(
             Some(DoorState::Open) => ("CLOSE", DOOR_HINT_WIDTH),
             None => return,
         },
-        InteractTarget::Fuse(_) => ("PICK UP FUSE", FUSE_HINT_WIDTH),
         InteractTarget::Panel(_) => ("INSTALL FUSES", PANEL_HINT_WIDTH),
         InteractTarget::Boiler(_) => ("RESTORE POWER", BOILER_HINT_WIDTH),
+        InteractTarget::Pickup(entity) => match targets.pickup(entity) {
+            Some(PickupKind::Fuse { .. }) => ("PICK UP FUSE", FUSE_HINT_WIDTH),
+            Some(PickupKind::Flashbang) => ("PICK UP FLASHBANG", FLASHBANG_HINT_WIDTH),
+            Some(PickupKind::Detector) => ("PICK UP DETECTOR", DETECTOR_HINT_WIDTH),
+            None => return,
+        },
         InteractTarget::Hide(_) => ("HIDE", HIDING_HINT_WIDTH),
         InteractTarget::Leave(_) => ("LEAVE", HIDING_HINT_WIDTH),
     };
@@ -116,7 +123,7 @@ fn update_hint(
         return;
     };
     let point = if let InteractTarget::Leave(_) = target {
-        Vec2::new(viewport.center().x, viewport.max.y - LEAVE_HINT_MARGIN)
+        leave_hint_position(viewport)
     } else {
         let Some(anchor) = targets.anchor(target) else {
             return;
@@ -157,8 +164,32 @@ fn update_hint(
     *visibility = Visibility::Visible;
 }
 
+fn leave_hint_position(viewport: Rect) -> Vec2 {
+    Vec2::new(viewport.center().x, viewport.min.y + LEAVE_HINT_TOP)
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn leave_hint_stays_above_bottom_center_detector() {
+        let viewport = Rect::from_corners(Vec2::ZERO, Vec2::new(1280.0, 720.0));
+        let position = leave_hint_position(viewport);
+        assert_eq!(position.x, viewport.center().x);
+        assert_eq!(position.y, viewport.min.y + LEAVE_HINT_TOP);
+        let mut app = App::new();
+        app.world_mut().spawn(game_ui::detector_readout());
+        let mut tracker = app
+            .world_mut()
+            .query_filtered::<&Node, With<game_ui::DetectorReadout>>();
+        let node = tracker.single(app.world()).unwrap();
+        let (Val::Px(bottom), Val::Px(height)) = (node.bottom, node.height) else {
+            panic!("detector dimensions must be in pixels");
+        };
+        let hint_bottom = position.y + 19.0;
+        let tracker_top = viewport.max.y - bottom - height;
+        assert!(hint_bottom < tracker_top);
+    }
+
     use super::*;
 
     #[test]

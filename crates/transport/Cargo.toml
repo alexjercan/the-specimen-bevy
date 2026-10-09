@@ -8,6 +8,7 @@ license.workspace = true
 bevy.workspace = true
 capture.workspace = true
 game_audio.workspace = true
+game_settings.workspace = true
 gameplay = { path = "../gameplay" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

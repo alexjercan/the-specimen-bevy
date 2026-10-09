@@ -9,7 +9,7 @@ use crate::levels::{
     Passage, PropCollider, Room,
 };
 use game_audio::{PlaySound, Sound};
-use game_settings::{parse_key, GameSettings, MovementKeys};
+use game_settings::{parse_binding, parse_key, GameSettings, InputBinding, MovementKeys};
 
 use super::{
     collision, flashlight,
@@ -59,6 +59,10 @@ struct Look;
 #[derive(InputAction)]
 #[action_output(bool)]
 pub struct Interact;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct UseFlashbang;
 
 pub struct PlayerControllerPlugin {
     camera: bool,
@@ -117,6 +121,13 @@ impl Plugin for PlayerControllerPlugin {
     }
 }
 
+fn action_binding(name: &str) -> Binding {
+    match parse_binding(name).expect("sanitized player binding") {
+        InputBinding::Key(key) => key.into(),
+        InputBinding::Mouse(button) => button.into(),
+    }
+}
+
 fn input_actions(keys: &MovementKeys) -> impl Bundle {
     actions!(PlayerController[
         (
@@ -131,7 +142,8 @@ fn input_actions(keys: &MovementKeys) -> impl Bundle {
         (Action::<Run>::new(), bindings![KeyCode::ShiftLeft]),
         (Action::<Look>::new(), bindings![Binding::mouse_motion()]),
         (Action::<Interact>::new(), bindings![parse_key(&keys.interact).unwrap()]),
-        (Action::<flashlight::ToggleFlashlight>::new(), bindings![MouseButton::Left]),
+        (Action::<flashlight::ToggleFlashlight>::new(), bindings![action_binding(&keys.flashlight)]),
+        (Action::<UseFlashbang>::new(), bindings![action_binding(&keys.flashbang)]),
     ])
 }
 

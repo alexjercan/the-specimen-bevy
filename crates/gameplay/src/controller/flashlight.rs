@@ -4,6 +4,7 @@ use bevy_enhanced_input::prelude::*;
 use super::player::{PlayerController, PlayerControlsEnabled};
 use crate::levels::Caught;
 use game_audio::{PlaySound, Sound};
+use game_settings::{parse_binding, GameSettings, InputBinding};
 
 pub const DRAIN_SECONDS: f32 = 15.0;
 pub const RECHARGE_SECONDS: f32 = 10.0;
@@ -55,24 +56,41 @@ pub(super) struct WaitForFlashlightRelease;
 #[action_output(bool)]
 pub(super) struct ToggleFlashlight;
 
+fn toggle_held(
+    settings: Option<&GameSettings>,
+    buttons: &ButtonInput<MouseButton>,
+    keys: &ButtonInput<KeyCode>,
+) -> bool {
+    let binding = settings.map_or("MouseLeft", |settings| settings.keys.flashlight.as_str());
+    match parse_binding(binding) {
+        Some(InputBinding::Key(key)) => keys.pressed(key),
+        Some(InputBinding::Mouse(button)) => buttons.pressed(button),
+        None => false,
+    }
+}
+
 pub(super) fn attach(
     added: On<Add, PlayerController>,
     buttons: Res<ButtonInput<MouseButton>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    settings: Option<Res<GameSettings>>,
     mut commands: Commands,
 ) {
     let mut player = commands.entity(added.entity);
     player.insert(Flashlight::default());
-    if buttons.pressed(MouseButton::Left) {
+    if toggle_held(settings.as_deref(), &buttons, &keys) {
         player.insert(WaitForFlashlightRelease);
     }
 }
 
 pub(super) fn arm_after_release(
     buttons: Res<ButtonInput<MouseButton>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    settings: Option<Res<GameSettings>>,
     waiting: Query<Entity, With<WaitForFlashlightRelease>>,
     mut commands: Commands,
 ) {
-    if !buttons.pressed(MouseButton::Left) {
+    if !toggle_held(settings.as_deref(), &buttons, &keys) {
         for entity in &waiting {
             commands.entity(entity).remove::<WaitForFlashlightRelease>();
         }

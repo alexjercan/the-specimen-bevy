@@ -93,6 +93,17 @@ at `assets/sounds/flashlight/click-ralph0o7.ogg`. The item page's license
 label does not independently verify uploader ownership or original-file terms.
 The retained source preview and hash are recorded in `art/sounds/README.md`.
 
+## Edited flashbang handling sounds
+
+Avreliy, [ThrowGrenadeCloth](https://freesound.org/people/Avreliy/sounds/611613/):
+the opening impact of the low-quality preview was edited into
+`assets/sounds/device/flashbang/throw.wav`, and the final impact into
+`assets/sounds/device/flashbang/pickup.wav`. The retained preview and exact cut
+ranges are documented in `art/sounds/README.md` and
+`scripts/render_flashbang_sounds.py`. The item page displays CC0 1.0, but
+uploader ownership, original-download terms, and recording provenance have
+not been independently verified.
+
 ## Edited Freesound ambience previews
 
 The following Freesound pages display [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).

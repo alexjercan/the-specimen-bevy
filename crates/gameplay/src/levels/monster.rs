@@ -11,8 +11,10 @@ use crate::controller::{
 };
 
 use super::{
-    interaction::StructuralSight, Door, DoorLock, DoorOf, DoorRef, DoorState, DoorSwing, Doors,
-    Escaped, Hidden, HidingMotion, HidingPhase, Passage, PropCollider, Room, ToggleDoor,
+    devices::{unseen, Flashed},
+    interaction::StructuralSight,
+    Door, DoorLock, DoorOf, DoorRef, DoorState, DoorSwing, Doors, Escaped, Hidden, HidingMotion,
+    HidingPhase, Passage, PropCollider, Room, ToggleDoor,
 };
 
 const SPEED: f32 = 0.51;
@@ -133,6 +135,7 @@ impl Plugin for MonsterPlugin {
                 Update,
                 (sense_player, manage_doors, patrol, catch_player)
                     .chain()
+                    .after(super::devices::tick_flash)
                     .before(apply_input),
             );
     }
@@ -401,6 +404,7 @@ fn sense_player(
             &Stamina,
             Option<&Hidden>,
             Option<&WitnessedHiding>,
+            Option<&Flashed>,
         ),
         (With<PlayerController>, Without<Escaped>, Without<Caught>),
     >,
@@ -413,27 +417,31 @@ fn sense_player(
     }
     for (entity, transform, mut monster) in &mut monsters {
         let position = transform.translation.xz();
-        let sensed = players
-            .iter()
-            .find_map(|(player, input, stamina, hidden, witness)| {
-                if let Some(hidden) = hidden {
-                    return (witness.is_some_and(|witness| witness.monster == entity))
-                        .then(|| spots.get(hidden.spot).ok())
-                        .flatten()
-                        .map(|(kind, place)| kind.exit(place));
-                }
-                let target = player.translation.xz();
-                let distance = position.distance(target);
-                let visible = sees_player(transform, target, &sight);
-                let heard = input.movement.length_squared() > 0.01
-                    && distance
-                        <= if stamina.sprinting {
-                            RUN_HEARING
-                        } else {
-                            WALK_HEARING
-                        };
-                (visible || (heard && sight.clear_sight(position, target))).then_some(target)
-            });
+        let sensed =
+            players
+                .iter()
+                .find_map(|(player, input, stamina, hidden, witness, flashed)| {
+                    if unseen(flashed) {
+                        return None;
+                    }
+                    if let Some(hidden) = hidden {
+                        return (witness.is_some_and(|witness| witness.monster == entity))
+                            .then(|| spots.get(hidden.spot).ok())
+                            .flatten()
+                            .map(|(kind, place)| kind.exit(place));
+                    }
+                    let target = player.translation.xz();
+                    let distance = position.distance(target);
+                    let visible = sees_player(transform, target, &sight);
+                    let heard = input.movement.length_squared() > 0.01
+                        && distance
+                            <= if stamina.sprinting {
+                                RUN_HEARING
+                            } else {
+                                WALK_HEARING
+                            };
+                    (visible || (heard && sight.clear_sight(position, target))).then_some(target)
+                });
         if let Some(target) = sensed {
             if let Some(mut pursuit) = monster.pursuit {
                 if pursuit.searching {
@@ -481,6 +489,7 @@ pub(super) fn catch_player(
             Option<&mut Hidden>,
             Option<&WitnessedHiding>,
             Option<&mut Caught>,
+            Option<&Flashed>,
         ),
         (With<PlayerController>, Without<Escaped>),
     >,
@@ -499,7 +508,7 @@ pub(super) fn catch_player(
     }
     let delta = time.delta_secs();
     let mut staged = false;
-    for (_, mut view, _, _, caught) in &mut players {
+    for (_, mut view, _, _, caught, _) in &mut players {
         let Some(mut caught) = caught else {
             continue;
         };
@@ -530,7 +539,10 @@ pub(super) fn catch_player(
         }
         let Some((player, hiding_spot)) = players
             .iter()
-            .find(|(_, view, hidden, witness, _)| {
+            .find(|(_, view, hidden, witness, _, flashed)| {
+                if unseen(*flashed) {
+                    return false;
+                }
                 let target = if let Some(hidden) = hidden {
                     if !witness.is_some_and(|witness| witness.monster == monster_entity) {
                         return false;
@@ -545,12 +557,12 @@ pub(super) fn catch_player(
                 pose.translation.xz().distance(target) <= ATTACK_REACH
                     && sight.clear_sight(pose.translation.xz(), target)
             })
-            .map(|(player, _, hidden, _, _)| (player, hidden.map(|hidden| hidden.spot)))
+            .map(|(player, _, hidden, _, _, _)| (player, hidden.map(|hidden| hidden.spot)))
         else {
             continue;
         };
         if hiding_spot.is_some() {
-            if let Ok((_, view, Some(mut hidden), _, _)) = players.get_mut(player) {
+            if let Ok((_, view, Some(mut hidden), _, _, _)) = players.get_mut(player) {
                 if !matches!(hidden.phase, HidingPhase::Leaving(_)) {
                     hidden.phase = HidingPhase::Leaving(HidingMotion::from(&view));
                 }

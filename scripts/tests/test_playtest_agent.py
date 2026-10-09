@@ -29,6 +29,23 @@ class ProtocolTests(unittest.TestCase):
         )
         self.assertEqual(playtest.command({"frames": 1}, 12, 13, 120), {"tick": 13, "input": {}})
 
+    def test_flashbang_control_and_device_progress(self):
+        self.assertEqual(playtest.command({"frames": 1, "input": {"flashbang": True}}, 0, 10, 120),
+                         {"tick": 1, "input": {"flashbang": True}})
+        self.assertEqual(playtest.command({"frames": 1, "input": {"flashbang": False}}, 1, 10, 120),
+                         {"tick": 2, "input": {"flashbang": False}})
+        held = set()
+        self.assertEqual(playtest.progress_input({"flashbang": True}, held), "press flashbang")
+        self.assertEqual(playtest.progress_input({}, held), "keep held controls")
+        self.assertEqual(playtest.progress_input({"flashbang": False}, held), "release flashbang")
+        snapshot = {"tick": 1, "player": {"position": [0, 1.6, 0], "flashbangs": 1,
+                     "flash_remaining": 4.5, "has_detector": True,
+                     "detector": {"distance_m": 12.3, "bearing_deg": -20}}, "visible": [], "heard": []}
+        self.assertIn("flashbangs=1 flash_remaining=4.5s detector=12.3m/-20deg",
+                      playtest.progress_snapshot(snapshot))
+        snapshot["player"]["detector"] = None
+        self.assertIn("detector=no signal", playtest.progress_snapshot(snapshot))
+
     def test_rejects_bad_actions(self):
         bad = (
             {}, {"frames": True}, {"frames": 0}, {"frames": 121},
@@ -142,6 +159,8 @@ for line in sys.stdin:
     request = json.loads(line)
     print(json.dumps({'type':'response','id':request['id'],'success':True,'data':{'text':'{"intent":"Explore ahead","frames":1,"input":{"w":true}}'}}), flush=True)
     if request['type'] == 'prompt':
+        assert '"flashbang":true/false' in request['message']
+        assert 'has_detector' in request['message']
         print(json.dumps({'type':'agent_settled'}), flush=True)
 """)
             agent.chmod(0o755)

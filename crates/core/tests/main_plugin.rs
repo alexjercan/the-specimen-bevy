@@ -3,7 +3,7 @@ use game_core::{AppBuilder, CoreState, GameState};
 use gameplay::{
     controller::PlayerController,
     levels::{
-        select_fuse_slots, FuseInventory, FusePickup, FuseSeed, Room, FUSE_COUNT, FUSE_TABLES,
+        select_fuse_slots, FuseInventory, FuseSeed, PickupKind, Room, FUSE_COUNT, FUSE_TABLES,
     },
 };
 use std::io::Cursor;
@@ -112,8 +112,14 @@ fn headless_builder_spawns_logical_fuses_and_player_inventory() {
     app.finish();
     app.cleanup();
     app.update();
-    let mut fuses = app.world_mut().query::<&FusePickup>();
-    assert_eq!(fuses.iter(app.world()).count(), FUSE_COUNT);
+    let mut pickups = app.world_mut().query::<&PickupKind>();
+    assert_eq!(
+        pickups
+            .iter(app.world())
+            .filter(|kind| matches!(kind, PickupKind::Fuse { .. }))
+            .count(),
+        FUSE_COUNT
+    );
     let mut players = app
         .world_mut()
         .query_filtered::<&FuseInventory, With<PlayerController>>();
@@ -123,9 +129,12 @@ fn headless_builder_spawns_logical_fuses_and_player_inventory() {
 fn fuse_slots(app: &mut App) -> Vec<usize> {
     let mut slots: Vec<usize> = app
         .world_mut()
-        .query::<&FusePickup>()
+        .query::<&PickupKind>()
         .iter(app.world())
-        .map(|fuse| fuse.slot)
+        .filter_map(|kind| match kind {
+            PickupKind::Fuse { slot } => Some(*slot),
+            PickupKind::Flashbang | PickupKind::Detector => None,
+        })
         .collect();
     slots.sort_unstable();
     slots

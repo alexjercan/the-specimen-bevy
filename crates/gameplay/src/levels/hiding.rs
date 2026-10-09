@@ -8,6 +8,7 @@ use crate::controller::player::{
 
 use super::{
     builder::Prop,
+    devices::{unseen, Flashed},
     doors::box_hit,
     fuses::FuseInventory,
     interaction::{InteractTarget, InteractTargets},
@@ -220,6 +221,7 @@ fn toggle_hiding(
             &mut PlayerInput,
             Option<&mut Hidden>,
             Option<&WitnessedHiding>,
+            Option<&Flashed>,
         ),
         (With<PlayerController>, Without<Caught>),
     >,
@@ -230,13 +232,13 @@ fn toggle_hiding(
 ) {
     let mut occupied: Vec<Entity> = players
         .iter()
-        .filter_map(|(_, _, hidden, _)| hidden.map(|hidden| hidden.spot))
+        .filter_map(|(_, _, hidden, _, _)| hidden.map(|hidden| hidden.spot))
         .collect();
     for &UseHidingSpot { player, spot } in uses.read() {
         let Ok(kind) = spots.get(spot) else {
             continue;
         };
-        let Ok((transform, mut input, hidden, witnessed)) = players.get_mut(player) else {
+        let Ok((transform, mut input, hidden, witnessed, flashed)) = players.get_mut(player) else {
             continue;
         };
         let motion = HidingMotion::from(transform);
@@ -259,9 +261,13 @@ fn toggle_hiding(
             }
             None if !occupied.contains(&spot) => {
                 let start = transform.translation.xz();
-                let witness = monsters.iter().find_map(|(monster, pose)| {
-                    sees_player(pose, start, &sight).then_some(WitnessedHiding { monster })
-                });
+                let witness = (!unseen(flashed))
+                    .then(|| {
+                        monsters.iter().find_map(|(monster, pose)| {
+                            sees_player(pose, start, &sight).then_some(WitnessedHiding { monster })
+                        })
+                    })
+                    .flatten();
                 commands.entity(player).insert(Hidden {
                     spot,
                     height: transform.translation.y,

@@ -142,6 +142,7 @@ impl AppBuilder {
                 gameplay::levels::PropSoundsPlugin,
                 gameplay::levels::PropLightsPlugin,
                 gameplay::levels::MonsterPlugin,
+                gameplay::levels::DevicePlugin,
             ));
             if self.transport {
                 app.add_plugins(transport::TransportPlugin);
@@ -177,12 +178,14 @@ impl AppBuilder {
                     gameplay::levels::PropSoundsPlugin,
                     gameplay::levels::PropLightsPlugin,
                     gameplay::levels::MonsterPlugin,
+                    gameplay::levels::DevicePlugin,
                 ))
                 .add_plugins((
                     glue::InteractionHintPlugin,
                     glue::FuseHudPlugin,
                     glue::FlashlightHudPlugin,
                     glue::StaminaHudPlugin,
+                    glue::DeviceHudPlugin,
                 ))
                 .add_plugins((game_audio::GameAudioPlugin, glue::SoundGluePlugin));
             if let Some(path) = self.recording {

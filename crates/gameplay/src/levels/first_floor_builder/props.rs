@@ -2,11 +2,11 @@ use std::f32::consts::{FRAC_PI_2, PI};
 
 use crate::levels::{
     builder::prop,
-    devices::DevicePlaceholder,
     module_names::{
         BOILER_UNIT, CONCEPT_CONTAINMENT_TANK, CONCEPT_LOCKER, CONCEPT_TABLE, PIPE_MANIFOLD,
         WALL_VENT,
     },
+    pickups::PickupKind,
 };
 use bevy::prelude::*;
 
@@ -603,13 +603,13 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
 
 pub(super) fn spawn_devices(commands: &mut Commands) {
     commands.spawn((
-        Name::new("flashbang placeholder"),
-        DevicePlaceholder::Flashbang,
+        Name::new("flashbang"),
+        PickupKind::Flashbang,
         Transform::from_xyz(7.2, 0.7, -15.5).with_rotation(Quat::from_rotation_y(0.5)),
     ));
     commands.spawn((
-        Name::new("detector placeholder"),
-        DevicePlaceholder::Detector,
+        Name::new("detector"),
+        PickupKind::Detector,
         Transform::from_xyz(-2.0, 1.0, 3.5).with_rotation(Quat::from_rotation_y(PI - 0.3)),
     ));
 }

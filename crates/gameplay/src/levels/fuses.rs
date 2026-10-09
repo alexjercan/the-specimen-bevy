@@ -11,20 +11,14 @@ use super::{
     hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
     monster::Caught,
+    pickups::PickupPlugin,
 };
 
 pub const FUSE_COUNT: usize = 3;
 pub const FUSE_MODULE: &str = "fuse_pickup";
 pub(crate) const FUSE_RADIUS: f32 = 0.03;
 pub(crate) const FUSE_LENGTH: f32 = 0.2;
-pub(crate) const FUSE_AIM_RADIUS: f32 = 0.15;
 pub(crate) const FUSE_PANEL_AIM_RADIUS: f32 = 0.5;
-
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
-#[require(Transform, Visibility)]
-pub struct FusePickup {
-    pub slot: usize,
-}
 
 #[derive(Component, Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FuseInventory(pub usize);
@@ -48,10 +42,13 @@ pub struct FusePlugin;
 
 impl Plugin for FusePlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<PickupPlugin>() {
+            app.add_plugins(PickupPlugin);
+        }
         app.add_message::<InstallFuses>()
             .add_message::<PlaySound>()
             .add_observer(attach_inventory)
-            .add_observer(use_fuses)
+            .add_observer(use_panel)
             .add_systems(Update, install_fuses);
     }
 }
@@ -62,49 +59,24 @@ fn attach_inventory(added: On<Add, PlayerController>, mut commands: Commands) {
         .insert_if_new(FuseInventory::default());
 }
 
-fn use_fuses(
+fn use_panel(
     _: On<Start<Interact>>,
     enabled: Res<PlayerControlsEnabled>,
     targets: InteractTargets,
-    mut players: Query<
-        (Entity, &Transform, &mut FuseInventory, Option<&Hidden>),
+    players: Query<
+        (Entity, &Transform, &FuseInventory, Option<&Hidden>),
         (With<PlayerController>, Without<Caught>),
     >,
     mut installs: MessageWriter<InstallFuses>,
-    mut sounds: MessageWriter<PlaySound>,
-    mut commands: Commands,
 ) {
     if !enabled.0 {
         return;
     }
-    let mut taken = Vec::new();
-    for (entity, player, mut inventory, hidden) in &mut players {
-        match targets.aimed(player, Some(&*inventory), hidden) {
-            Some(InteractTarget::Fuse(fuse)) => {
-                if taken.contains(&fuse) || inventory.0 >= FUSE_COUNT {
-                    continue;
-                }
-                taken.push(fuse);
-                inventory.0 += 1;
-                sounds.write(PlaySound {
-                    sound: Sound::FuseSlot(inventory.0),
-                    position: None,
-                });
-                commands.entity(fuse).despawn();
-            }
-            Some(InteractTarget::Panel(panel)) => {
-                installs.write(InstallFuses {
-                    player: entity,
-                    panel,
-                });
-            }
-            Some(
-                InteractTarget::Door(_)
-                | InteractTarget::Boiler(_)
-                | InteractTarget::Hide(_)
-                | InteractTarget::Leave(_),
-            )
-            | None => {}
+    for (player, transform, inventory, hidden) in &players {
+        if let Some(InteractTarget::Panel(panel)) =
+            targets.aimed(transform, Some(inventory), hidden)
+        {
+            installs.write(InstallFuses { player, panel });
         }
     }
 }
@@ -145,19 +117,11 @@ pub(crate) fn run_seed(seed: Option<&FuseSeed>) -> u64 {
         .unwrap_or_else(|| ChaCha8Rng::default().next_u64())
 }
 
-pub(crate) fn fuse_center(transform: &Transform) -> Vec3 {
-    transform.translation + Vec3::Y * FUSE_RADIUS
-}
-
-pub(crate) fn fuse_hit(origin: Vec3, forward: Vec3, center: Vec3) -> Option<f32> {
-    aim_hit(origin, forward, center, FUSE_AIM_RADIUS)
-}
-
 pub(crate) fn fuse_panel_hit(origin: Vec3, forward: Vec3, center: Vec3) -> Option<f32> {
     aim_hit(origin, forward, center, FUSE_PANEL_AIM_RADIUS)
 }
 
-fn aim_hit(origin: Vec3, forward: Vec3, center: Vec3, radius: f32) -> Option<f32> {
+pub(crate) fn aim_hit(origin: Vec3, forward: Vec3, center: Vec3, radius: f32) -> Option<f32> {
     let offset = origin - center;
     let b = offset.dot(forward);
     let c = offset.length_squared() - radius * radius;
