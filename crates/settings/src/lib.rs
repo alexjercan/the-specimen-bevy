@@ -226,7 +226,30 @@ pub fn default_path() -> Option<PathBuf> {
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))?;
-    Some(root.join("horror-game-bevy").join("settings.json"))
+    Some(root.join("the-specimen-bevy").join("settings.json"))
+}
+
+pub fn load_or_migrate(path: &Path) -> std::io::Result<GameSettings> {
+    match GameSettings::load(path) {
+        Ok(settings) => Ok(settings),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let Some(root) = path.parent().and_then(Path::parent) else {
+                return Err(error);
+            };
+            let old_path = root.join("horror-game-bevy/settings.json");
+            match GameSettings::load(&old_path) {
+                Ok(settings) => {
+                    if let Err(save_error) = settings.save(path) {
+                        warn!("settings migration save failed: {save_error}");
+                    }
+                    Ok(settings)
+                }
+                Err(old_error) if old_error.kind() == std::io::ErrorKind::NotFound => Err(error),
+                Err(old_error) => Err(old_error),
+            }
+        }
+        Err(error) => Err(error),
+    }
 }
 
 #[derive(Resource, Default)]
@@ -242,7 +265,7 @@ pub struct GameSettingsPlugin {
 impl Plugin for GameSettingsPlugin {
     fn build(&self, app: &mut App) {
         let path = if self.persist { default_path() } else { None };
-        let settings = path.as_deref().map(GameSettings::load).transpose();
+        let settings = path.as_deref().map(load_or_migrate).transpose();
         let settings = match settings {
             Ok(Some(settings)) => settings,
             Ok(None) => GameSettings::default(),

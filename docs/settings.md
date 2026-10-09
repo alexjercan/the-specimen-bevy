@@ -13,8 +13,8 @@ binding; Escape or Back closes the panel. Movement uses five distinct keys
 supported binding choices are A-Z, arrow keys, and Space; Escape stays reserved
 for Pause. A duplicate binding is ignored.
 
-The menu writes JSON to `$XDG_CONFIG_HOME/horror-game-bevy/settings.json`, or
-`$HOME/.config/horror-game-bevy/settings.json` when XDG_CONFIG_HOME is unset.
+The menu writes JSON to `$XDG_CONFIG_HOME/the-specimen-bevy/settings.json`, or
+`$HOME/.config/the-specimen-bevy/settings.json` when XDG_CONFIG_HOME is unset. If the new file is absent, existing settings from `horror-game-bevy/settings.json` are copied to the new location on first load.
 Writes use a temporary file followed by rename. Invalid or missing files fall
 back to defaults; invalid volume, sensitivity, or key values are clamped or
 reset. Only the normal windowed game reads and writes this file. Headless,

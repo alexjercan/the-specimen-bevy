@@ -1,6 +1,6 @@
 [package]
-name = "horror_game_bevy"
-description = "Extremely shitty horror game made with bevy and slop"
+name = "the-specimen-bevy"
+description = "The Specimen, a facility horror game built with Bevy"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

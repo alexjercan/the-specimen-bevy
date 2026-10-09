@@ -1,9 +1,9 @@
-# horror_game_bevy
+# The Specimen
 
-Extremely shitty horror game made with bevy and slop
+A facility horror game built with Bevy.
 
 ## Quickstart
 
 ```bash
-cargo run
+cargo run -p the-specimen-bevy
 ```

@@ -1,5 +1,5 @@
 {
-  description = "Small Bevy game starter";
+  description = "The Specimen, a facility horror game built with Bevy";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
@@ -36,23 +36,23 @@
           ]);
 
           unwrapped =
-            config.rust-project.crates.horror_game_bevy.crane.outputs.drv.crate;
+            config.rust-project.crates."the-specimen-bevy".crane.outputs.drv.crate;
 
-          assets = builtins.path { path = ./assets; name = "horror_game_bevy-assets"; };
-          credits = builtins.path { path = ./credits; name = "horror_game_bevy-credits"; };
+          assets = builtins.path { path = ./assets; name = "the-specimen-bevy-assets"; };
+          credits = builtins.path { path = ./credits; name = "the-specimen-bevy-credits"; };
 
           game = pkgs.stdenvNoCC.mkDerivation {
-            pname = "horror_game_bevy";
+            pname = "the-specimen-bevy";
             inherit (unwrapped) version;
             dontUnpack = true;
             nativeBuildInputs = [ pkgs.makeWrapper ];
             installPhase = ''
-              mkdir -p $out/bin $out/share/horror_game_bevy
-              ln -s ${assets} $out/share/horror_game_bevy/assets
-              ln -s ${credits} $out/share/horror_game_bevy/credits
-              ln -s ${./LICENSE} $out/share/horror_game_bevy/LICENSE
-              makeWrapper ${unwrapped}/bin/horror_game_bevy $out/bin/horror_game_bevy \
-                --set-default BEVY_ASSET_ROOT $out/share/horror_game_bevy \
+              mkdir -p $out/bin $out/share/the-specimen-bevy
+              ln -s ${assets} $out/share/the-specimen-bevy/assets
+              ln -s ${credits} $out/share/the-specimen-bevy/credits
+              ln -s ${./LICENSE} $out/share/the-specimen-bevy/LICENSE
+              makeWrapper ${unwrapped}/bin/the-specimen-bevy $out/bin/the-specimen-bevy \
+                --set-default BEVY_ASSET_ROOT $out/share/the-specimen-bevy \
                 --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath gameLibs}
             '';
           };
@@ -60,26 +60,26 @@
           rust-project = {
             toolchain = rustToolchain;
             crates = lib.mkForce {
-              horror_game_bevy = {
+              "the-specimen-bevy" = {
                 path = ./.;
                 autoWire = [];
                 crane.args = {
                   buildInputs = gameLibs;
                   doCheck = false;
                 };
-                crane.extraBuildArgs.cargoExtraArgs = "--locked -p horror_game_bevy";
+                crane.extraBuildArgs.cargoExtraArgs = "--locked -p the-specimen-bevy";
               };
             };
           };
 
           packages = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
             default = game;
-            horror_game_bevy = game;
-            horror_game_bevy-unwrapped = unwrapped;
+            "the-specimen-bevy" = game;
+            "the-specimen-bevy-unwrapped" = unwrapped;
           };
 
           apps = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-            default = { type = "app"; program = "${game}/bin/horror_game_bevy"; };
+            default = { type = "app"; program = "${game}/bin/the-specimen-bevy"; };
           };
 
           checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {

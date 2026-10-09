@@ -4,7 +4,7 @@ use std::{
 };
 
 fn game(args: &[&str], input: &str) -> Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_horror_game_bevy"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_the-specimen-bevy"))
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -36,7 +36,12 @@ fn non_numeric_seed_is_rejected() {
 #[test]
 fn headless_transport_runs_with_a_seed() {
     let output = game(
-        &["--norender", "--transport", "--seed", "18446744073709551615"],
+        &[
+            "--norender",
+            "--transport",
+            "--seed",
+            "18446744073709551615",
+        ],
         "{\"tick\":1,\"input\":{}}\n",
     );
     assert!(output.status.success());

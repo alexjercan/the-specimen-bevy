@@ -1,6 +1,6 @@
-# Horror Game Bevy
+# The Specimen
 
-Horror Game Bevy is a horror game written in Rust using the Bevy game engine.
+The Specimen is a horror game written in Rust using the Bevy game engine.
 This is a `nix` based project.
 
 ## Agent instructions

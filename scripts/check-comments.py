@@ -4,7 +4,7 @@ import re
 import sys
 
 root = pathlib.Path(__file__).resolve().parent.parent
-allowed = re.compile(r"(?:NOTE:|XXX:|WTF:|TODO\(horror_game_bevy\):)")
+allowed = re.compile(r"(?:NOTE:|XXX:|WTF:|TODO\(the-specimen-bevy\):)")
 extensions = {".rs", ".sh", ".py", ".nix", ".toml", ".yml", ".yaml", ".wgsl"}
 errors = []
 

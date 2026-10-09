@@ -14,12 +14,12 @@ jobs:
         run: |
           nix build --print-build-logs --print-out-paths > store-path.txt
           nix-store -qR "$(readlink -f result)" |
-            xargs nix-store --export | gzip -1 > horror_game_bevy-linux.nar.gz
+            xargs nix-store --export | gzip -1 > the-specimen-bevy-linux.nar.gz
       - uses: actions/upload-artifact@v4
         with:
-          name: horror_game_bevy-linux
+          name: the-specimen-bevy-linux
           path: |
-            horror_game_bevy-linux.nar.gz
+            the-specimen-bevy-linux.nar.gz
             store-path.txt
   windows:
     runs-on: windows-latest
@@ -29,18 +29,18 @@ jobs:
       - name: Install the pinned toolchain
         run: rustup toolchain install
       - name: Build native release
-        run: cargo build --locked --release -p horror_game_bevy
+        run: cargo build --locked --release -p the-specimen-bevy
       - name: Package release
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path package | Out-Null
-          Copy-Item target/release/horror_game_bevy.exe package/
+          Copy-Item target/release/the-specimen-bevy.exe package/
           Copy-Item -Recurse assets package/assets
           Copy-Item -Recurse credits package/credits
           Copy-Item LICENSE package/
-          Compress-Archive -Path package/* -DestinationPath horror_game_bevy-windows.zip
+          Compress-Archive -Path package/* -DestinationPath the-specimen-bevy-windows.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: horror_game_bevy-windows
-          path: horror_game_bevy-windows.zip
+          name: the-specimen-bevy-windows
+          path: the-specimen-bevy-windows.zip
           if-no-files-found: error

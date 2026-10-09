@@ -35,6 +35,32 @@ fn saves_and_loads_player_settings() {
 }
 
 #[test]
+fn old_settings_are_copied_only_when_new_settings_are_missing() {
+    let folder = std::env::temp_dir().join(format!(
+        "specimen-settings-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let old_path = folder.join("horror-game-bevy/settings.json");
+    let new_path = folder.join("the-specimen-bevy/settings.json");
+    let mut old = GameSettings::default();
+    old.master = 0.3;
+    old.save(&old_path).unwrap();
+    let loaded = game_settings::load_or_migrate(&new_path).unwrap();
+    assert_eq!(loaded, old);
+    assert_eq!(GameSettings::load(&old_path).unwrap(), old);
+    assert_eq!(GameSettings::load(&new_path).unwrap(), old);
+    let mut updated = old.clone();
+    updated.master = 0.8;
+    updated.save(&new_path).unwrap();
+    assert_eq!(game_settings::load_or_migrate(&new_path).unwrap(), updated);
+    fs::remove_dir_all(folder).unwrap();
+}
+
+#[test]
 fn corrupt_values_cannot_break_input_or_volume() {
     let mut settings: GameSettings = serde_json::from_str(r#"{"master":-3,"sfx":2,"music":0.4,"mouse_sensitivity":-1,"keys":{"forward":"KeyA","left":"KeyA","backward":"KeyS","right":"KeyD","interact":"KeyF"}}"#).unwrap();
     settings.sanitize();

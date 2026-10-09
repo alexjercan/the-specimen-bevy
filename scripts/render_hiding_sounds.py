@@ -20,7 +20,7 @@ CUES = (
 
 
 def render(output=OUTPUT):
-    request = urllib.request.Request(SOURCE_URL, headers={"User-Agent": "horror-game-bevy/audio-review"})
+    request = urllib.request.Request(SOURCE_URL, headers={"User-Agent": "the-specimen-bevy/audio-review"})
     with tempfile.TemporaryDirectory() as folder:
         folder = pathlib.Path(folder)
         archive_path = folder / "source.zip"
