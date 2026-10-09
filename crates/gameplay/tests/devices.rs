@@ -8,7 +8,7 @@ use gameplay::{
     levels::{
         detector_reading, pulse_interval, Caught, Detector, DevicePlugin, DoorPlugin, Flashbangs,
         Flashed, FuseInventory, FusePlugin, Monster, PickupKind, Room, DETECTOR_RANGE,
-        FLASHBANG_DURATION, PULSE_FAST, PULSE_NEAR, PULSE_SLOW,
+        FLASHBANG_BURST_DELAY, FLASHBANG_DURATION, PULSE_FAST, PULSE_NEAR, PULSE_SLOW,
     },
 };
 
@@ -543,14 +543,16 @@ fn flashbang_burst_plays_once_at_detonation_after_the_throw() {
         .into_iter()
         .filter(|sound| matches!(sound, Sound::FlashbangThrow | Sound::FlashbangBurst))
         .collect();
-    assert_eq!(
-        detonation,
-        vec![Sound::FlashbangThrow, Sound::FlashbangBurst]
-    );
+    assert_eq!(detonation, vec![Sound::FlashbangThrow]);
     app.world_mut()
         .resource_mut::<ButtonInput<MouseButton>>()
         .release(MouseButton::Right);
+    for _ in 1..(FLASHBANG_BURST_DELAY * 10.0) as usize - 1 {
+        app.update();
+    }
+    assert_eq!(cues(&mut app, Sound::FlashbangBurst), 0);
     app.update();
+    assert_eq!(cues(&mut app, Sound::FlashbangBurst), 1);
     click(&mut app, MouseButton::Right);
     for _ in 0..60 {
         app.update();

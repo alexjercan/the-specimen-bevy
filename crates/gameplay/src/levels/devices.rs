@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
+use game_assets::FacilityAssets;
 use game_audio::{PlaySound, Sound};
 
 use crate::controller::player::{
@@ -13,6 +14,7 @@ use super::{
 };
 
 pub const FLASHBANG_DURATION: f32 = 5.0;
+pub const FLASHBANG_BURST_DELAY: f32 = 0.6;
 pub const DETECTOR_RANGE: f32 = 25.0;
 pub const PULSE_NEAR: f32 = 2.0;
 pub const PULSE_FAST: f32 = 0.2;
@@ -55,6 +57,15 @@ pub struct DetectorReading {
 #[derive(Component, Default)]
 pub(crate) struct PulseClock(f32);
 
+#[derive(Component, Clone, Copy, Debug)]
+struct PendingBurst(f32);
+
+#[derive(Component, Clone, Copy, Debug, Default)]
+pub(crate) struct ThrownFlashbang {
+    pub elapsed: f32,
+    pub landing_y: f32,
+}
+
 pub struct DevicePlugin;
 
 impl Plugin for DevicePlugin {
@@ -68,6 +79,7 @@ impl Plugin for DevicePlugin {
                 Update,
                 (
                     tick_flash.before(apply_input),
+                    tick_burst,
                     (read_detector, pulse_detector).chain().after(apply_input),
                 ),
             );
@@ -78,29 +90,63 @@ fn use_flashbang(
     _: On<Start<UseFlashbang>>,
     enabled: Res<PlayerControlsEnabled>,
     mut players: Query<
-        (Entity, &mut Flashbangs),
+        (Entity, &Transform, &mut Flashbangs),
         (With<PlayerController>, Without<Caught>, Without<Escaped>),
     >,
     mut sounds: MessageWriter<PlaySound>,
+    assets: Option<Res<FacilityAssets>>,
     mut commands: Commands,
 ) {
     if !enabled.0 {
         return;
     }
-    for (player, mut flashbangs) in &mut players {
+    for (player, transform, mut flashbangs) in &mut players {
         if flashbangs.0 == 0 {
             continue;
         }
         flashbangs.0 -= 1;
-        commands.entity(player).insert(Flashed::default());
+        commands
+            .entity(player)
+            .insert((Flashed::default(), PendingBurst(0.0)));
+        if assets.is_some() {
+            commands.entity(player).with_children(|children| {
+                children.spawn((
+                    Name::new("Thrown flashbang"),
+                    ThrownFlashbang {
+                        elapsed: 0.0,
+                        landing_y: 0.08 - transform.translation.y,
+                    },
+                    Transform::from_xyz(0.18, -0.2, -0.35),
+                    Visibility::default(),
+                ));
+            });
+        }
         sounds.write(PlaySound {
             sound: Sound::FlashbangThrow,
             position: None,
         });
-        sounds.write(PlaySound {
-            sound: Sound::FlashbangBurst,
-            position: None,
-        });
+    }
+}
+
+fn tick_burst(
+    time: Res<Time>,
+    enabled: Option<Res<PlayerControlsEnabled>>,
+    mut players: Query<(Entity, &mut PendingBurst)>,
+    mut sounds: MessageWriter<PlaySound>,
+    mut commands: Commands,
+) {
+    if enabled.is_some_and(|enabled| !enabled.0) {
+        return;
+    }
+    for (player, mut burst) in &mut players {
+        burst.0 += time.delta_secs();
+        if burst.0 >= FLASHBANG_BURST_DELAY {
+            sounds.write(PlaySound {
+                sound: Sound::FlashbangBurst,
+                position: None,
+            });
+            commands.entity(player).remove::<PendingBurst>();
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
+use game_assets::FacilityAssets;
 use game_audio::{PlaySound, Sound};
 
 use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
@@ -42,6 +43,12 @@ impl PickupKind {
     }
 }
 
+#[derive(Component, Clone, Copy, Debug)]
+pub(crate) struct PickupMotion {
+    pub from: Vec3,
+    pub elapsed: f32,
+}
+
 pub struct PickupPlugin;
 
 impl Plugin for PickupPlugin {
@@ -54,7 +61,8 @@ fn pick_up(
     _: On<Start<Interact>>,
     enabled: Res<PlayerControlsEnabled>,
     targets: InteractTargets,
-    pickups: Query<&PickupKind>,
+    pickups: Query<(&PickupKind, &Transform)>,
+    assets: Option<Res<FacilityAssets>>,
     mut players: Query<
         (
             Entity,
@@ -78,7 +86,7 @@ fn pick_up(
         else {
             continue;
         };
-        let Ok(&kind) = pickups.get(pickup) else {
+        let Ok((&kind, pickup_transform)) = pickups.get(pickup) else {
             continue;
         };
         if taken.contains(&pickup) {
@@ -119,6 +127,16 @@ fn pick_up(
             }
         }
         taken.push(pickup);
-        commands.entity(pickup).despawn();
+        if assets.is_some() {
+            commands
+                .entity(pickup)
+                .remove::<PickupKind>()
+                .insert(PickupMotion {
+                    from: pickup_transform.translation,
+                    elapsed: 0.0,
+                });
+        } else {
+            commands.entity(pickup).despawn();
+        }
     }
 }

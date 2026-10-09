@@ -283,6 +283,7 @@ pub(crate) fn apply_input(
             &mut PlayerInput,
             &mut Stamina,
             Option<&Hidden>,
+            Option<&crate::levels::InstallingFuses>,
         ),
         (With<PlayerController>, Without<Caught>),
     >,
@@ -290,13 +291,18 @@ pub(crate) fn apply_input(
     mut sounds: MessageWriter<PlaySound>,
 ) {
     if !enabled.0 {
-        for (_, mut input, mut stamina, _) in &mut players {
+        for (_, mut input, mut stamina, _, _) in &mut players {
             *input = PlayerInput::default();
             stamina.sprinting = false;
         }
         return;
     }
-    for (mut transform, mut input, mut stamina, hidden) in &mut players {
+    for (mut transform, mut input, mut stamina, hidden, installing) in &mut players {
+        if installing.is_some() {
+            *input = PlayerInput::default();
+            stamina.advance(false, false, time.delta_secs());
+            continue;
+        }
         if hidden.is_some_and(|hidden| !hidden.settled()) {
             *input = PlayerInput::default();
             stamina.advance(false, false, time.delta_secs());

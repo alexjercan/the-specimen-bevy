@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use bevy_rand::prelude::ChaCha8Rng;
@@ -15,6 +17,8 @@ use super::{
 };
 
 pub const FUSE_COUNT: usize = 3;
+pub(crate) const INSERT_SECS_PER_FUSE: f32 = 0.4;
+pub(crate) const INSERT_SECS: f32 = INSERT_SECS_PER_FUSE * FUSE_COUNT as f32;
 pub const FUSE_MODULE: &str = "fuse_pickup";
 pub(crate) const FUSE_RADIUS: f32 = 0.03;
 pub(crate) const FUSE_LENGTH: f32 = 0.2;
@@ -28,6 +32,15 @@ pub struct FuseInventory(pub usize);
 pub struct FusePanel {
     pub installed: usize,
 }
+
+#[derive(Component, Clone, Copy, Debug)]
+pub struct FuseInstallation {
+    pub player: Entity,
+    pub elapsed: f32,
+}
+
+#[derive(Component)]
+pub struct InstallingFuses;
 
 #[derive(Message, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InstallFuses {
@@ -49,7 +62,7 @@ impl Plugin for FusePlugin {
             .add_message::<PlaySound>()
             .add_observer(attach_inventory)
             .add_observer(use_panel)
-            .add_systems(Update, install_fuses);
+            .add_systems(Update, (install_fuses, advance_installation).chain());
     }
 }
 
@@ -65,7 +78,7 @@ fn use_panel(
     targets: InteractTargets,
     players: Query<
         (Entity, &Transform, &FuseInventory, Option<&Hidden>),
-        (With<PlayerController>, Without<Caught>),
+        (With<PlayerController>, Without<Caught>, Without<InstallingFuses>),
     >,
     mut installs: MessageWriter<InstallFuses>,
 ) {
@@ -84,15 +97,17 @@ fn use_panel(
 fn install_fuses(
     mut installs: MessageReader<InstallFuses>,
     mut players: Query<&mut FuseInventory, Without<Caught>>,
-    mut panels: Query<&mut FusePanel>,
-    exits: Query<Entity, (With<ExitDoor>, With<DoorLock>)>,
-    mut sounds: MessageWriter<PlaySound>,
+    panels: Query<(Entity, &FusePanel), Without<FuseInstallation>>,
     mut commands: Commands,
 ) {
+    let mut started = HashSet::new();
     for install in installs.read() {
-        let (Ok(mut inventory), Ok(mut panel)) = (
+        if !started.insert(install.panel) {
+            continue;
+        }
+        let (Ok(mut inventory), Ok((panel_entity, panel))) = (
             players.get_mut(install.player),
-            panels.get_mut(install.panel),
+            panels.get(install.panel),
         ) else {
             continue;
         };
@@ -100,7 +115,29 @@ fn install_fuses(
             continue;
         }
         inventory.0 -= FUSE_COUNT;
+        commands.entity(panel_entity).insert(FuseInstallation {
+            player: install.player,
+            elapsed: 0.0,
+        });
+        commands.entity(install.player).insert(InstallingFuses);
+    }
+}
+
+fn advance_installation(
+    time: Res<Time>,
+    mut panels: Query<(Entity, &mut FusePanel, &mut FuseInstallation)>,
+    exits: Query<Entity, (With<ExitDoor>, With<DoorLock>)>,
+    mut sounds: MessageWriter<PlaySound>,
+    mut commands: Commands,
+) {
+    for (entity, mut panel, mut installation) in &mut panels {
+        installation.elapsed = (installation.elapsed + time.delta_secs()).min(INSERT_SECS);
+        if installation.elapsed < INSERT_SECS {
+            continue;
+        }
         panel.installed = FUSE_COUNT;
+        commands.entity(entity).remove::<FuseInstallation>();
+        commands.entity(installation.player).remove::<InstallingFuses>();
         sounds.write(PlaySound {
             sound: Sound::FuseComplete,
             position: None,

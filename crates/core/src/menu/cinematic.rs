@@ -7,6 +7,10 @@ pub(super) const TITLE_AT: f32 = 2.5;
 pub(super) const TITLE_FADE: f32 = 1.0;
 pub(super) const REVEAL_AT: f32 = 4.0;
 const SHADE: Color = Color::srgb(0.004, 0.003, 0.004);
+const DEATH_SHADE: Color = Color::srgb(0.25, 0.005, 0.008);
+
+#[derive(Component)]
+pub(super) struct DeathTint;
 
 #[derive(Component)]
 pub(super) struct Cinematic {
@@ -129,13 +133,14 @@ pub(super) fn overlay(
 
 fn advance(
     time: Res<Time>,
-    mut screens: Query<(&mut Cinematic, &mut BackgroundColor)>,
+    mut screens: Query<(&mut Cinematic, &mut BackgroundColor, Has<DeathTint>)>,
     mut titles: Query<&mut TextColor, With<CinematicTitle>>,
 ) {
-    for (mut cinematic, mut background) in &mut screens {
+    for (mut cinematic, mut background, death) in &mut screens {
         cinematic.elapsed += time.delta_secs();
         let shade = (cinematic.elapsed / cinematic.shade_secs).clamp(0.0, 1.0);
-        background.0 = SHADE.with_alpha(cinematic.shade * shade);
+        let color = if death { DEATH_SHADE } else { SHADE };
+        background.0 = color.with_alpha(cinematic.shade * shade);
         let title = ((cinematic.elapsed - TITLE_AT) / TITLE_FADE).clamp(0.0, 1.0);
         for mut color in &mut titles {
             color.0 = theme::ACCENT.with_alpha(title);

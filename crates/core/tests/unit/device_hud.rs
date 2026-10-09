@@ -95,8 +95,19 @@ fn flash_overlay_tracks_elapsed_and_hides_when_absent() {
     {
         let mut huds = app.world_mut().query::<(&FlashOverlay, &Visibility)>();
         let (overlay, visibility) = huds.single(app.world()).unwrap();
+        assert_eq!(*visibility, Visibility::Hidden);
+        assert_eq!(overlay.elapsed, 0.0);
+    }
+
+    app.world_mut()
+        .entity_mut(player)
+        .insert(Flashed { remaining: 4.25 });
+    app.update();
+    {
+        let mut huds = app.world_mut().query::<(&FlashOverlay, &Visibility)>();
+        let (overlay, visibility) = huds.single(app.world()).unwrap();
         assert_eq!(*visibility, Visibility::Inherited);
-        assert_eq!(overlay.elapsed, 0.25);
+        assert!((overlay.elapsed - 0.15).abs() < 1e-5);
     }
 
     app.world_mut()
@@ -107,7 +118,7 @@ fn flash_overlay_tracks_elapsed_and_hides_when_absent() {
         let mut huds = app.world_mut().query::<(&FlashOverlay, &Visibility)>();
         let (overlay, visibility) = huds.single(app.world()).unwrap();
         assert_eq!(*visibility, Visibility::Hidden);
-        assert_eq!(overlay.elapsed, 2.0);
+        assert!((overlay.elapsed - 1.4).abs() < 1e-5);
     }
 
     app.world_mut().entity_mut(player).remove::<Flashed>();

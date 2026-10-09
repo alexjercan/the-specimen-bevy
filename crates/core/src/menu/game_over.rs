@@ -6,14 +6,15 @@ use gameplay::{
 };
 
 use super::{
-    cinematic::{self, CinematicCamera},
+    cinematic::{self, CinematicCamera, DeathTint},
     release_cursor, GameState,
 };
 
-const PUSH_IN: f32 = 0.35;
-const PUSH_SECS: f32 = 5.0;
-const SHADE: f32 = 0.94;
-const SHADE_SECS: f32 = 3.0;
+const FALL_SECS: f32 = 1.1;
+const FALL_HEIGHT: f32 = 0.35;
+const FALL_ROLL: f32 = 0.45;
+const SHADE: f32 = 0.97;
+const SHADE_SECS: f32 = 2.4;
 const GLOW: Color = Color::srgb(0.75, 0.08, 0.05);
 
 #[derive(Component)]
@@ -23,6 +24,15 @@ pub(super) struct GameOverScreen;
 pub(super) struct CaughtShot {
     pub(super) view: Transform,
     pub(super) monster: Option<Transform>,
+}
+
+#[cfg(test)]
+#[path = "../../tests/unit/death_view.rs"]
+mod tests;
+
+fn fallen_view(view: Transform) -> Transform {
+    view.with_translation(view.translation.with_y(FALL_HEIGHT))
+        .with_rotation(view.rotation * Quat::from_rotation_z(FALL_ROLL))
 }
 
 pub(super) fn plugin(app: &mut App) {
@@ -52,12 +62,10 @@ fn finish_run(
 fn spawn_game_over(mut commands: Commands, assets: Res<UiAssets>, shot: Option<Res<CaughtShot>>) {
     let view = shot.as_ref().map_or(Transform::IDENTITY, |shot| shot.view);
     let camera = cinematic::spawn_cameras(&mut commands, GameState::GameOver, view);
-    let forward = view.forward() * PUSH_IN;
-    commands.entity(camera).insert(CinematicCamera::new(
-        view,
-        view.with_translation(view.translation + forward),
-        PUSH_SECS,
-    ));
+    let fallen = fallen_view(view);
+    commands
+        .entity(camera)
+        .insert(CinematicCamera::new(view, fallen, FALL_SECS));
     if let Some(monster) = shot.as_ref().and_then(|shot| shot.monster) {
         commands.spawn((
             Name::new("Caught figure"),
@@ -81,6 +89,7 @@ fn spawn_game_over(mut commands: Commands, assets: Res<UiAssets>, shot: Option<R
     commands.remove_resource::<CaughtShot>();
     commands.spawn((
         GameOverScreen,
+        DeathTint,
         cinematic::overlay(
             GameState::GameOver,
             "Game over screen",

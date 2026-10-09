@@ -8,17 +8,20 @@ use bevy::{
 };
 use game_assets::FacilityAssets;
 
+use crate::controller::{PlayerController, PlayerControlsEnabled};
+
 use super::builder::{
     Ceiling, Door, DoorOf, DoorRef, Doors, Floor, LightEffect, LightIntensity, Passage, Prop, Room,
     Walls,
 };
 use super::{
     animation::DoorSwing,
+    devices::{ThrownFlashbang, FLASHBANG_BURST_DELAY},
     doors::{panel_transform, DoorPanel},
-    fuses::{FUSE_LENGTH, FUSE_MODULE, FUSE_RADIUS},
+    fuses::{FuseInstallation, FusePanel, FUSE_COUNT, FUSE_LENGTH, FUSE_MODULE, FUSE_RADIUS, INSERT_SECS_PER_FUSE},
     menu_background::MenuBackground,
     module_names::{BOILER_UNIT, EXIT_SIGN, WALL_LAMP_RED},
-    pickups::PickupKind,
+    pickups::{PickupKind, PickupMotion},
     power::FacilityPower,
 };
 
@@ -42,6 +45,15 @@ const DETECTOR_SIZE: Vec3 = Vec3::new(0.16, 0.07, 0.1);
 const DETECTOR_BODY: Color = Color::srgb(0.32, 0.33, 0.34);
 const DETECTOR_FACE: Color = Color::srgb(1.0, 0.62, 0.18);
 const DETECTOR_FACE_SIZE: Vec3 = Vec3::new(0.1, 0.004, 0.06);
+const PICKUP_MOTION_SECS: f32 = 0.55;
+const PICKUP_ARC_HEIGHT: f32 = 0.15;
+const THROW_SECS: f32 = FLASHBANG_BURST_DELAY;
+const THROW_DISTANCE: f32 = 3.8;
+const THROW_HEIGHT: f32 = 0.9;
+const THROW_SPIN_RATE: f32 = 9.0;
+const BURST_INTENSITY: f32 = 9_000_000.0;
+const BURST_DECAY: f32 = 8.0;
+const BURST_LIFETIME: f32 = 0.7;
 
 pub struct LevelRenderPlugin;
 
@@ -67,6 +79,19 @@ struct PendingPropRender;
 struct PendingPickupRender;
 
 #[derive(Component)]
+struct FlashbangBurstLight;
+
+#[derive(Component)]
+struct PanelFuseVisual {
+    slot: usize,
+    from: Vec3,
+}
+
+const PANEL_FUSE_SPACING: f32 = 0.16;
+const PANEL_FUSE_DEPTH: f32 = -0.13;
+const PANEL_FUSE_START_HEIGHT: f32 = -0.15;
+
+#[derive(Component)]
 struct GlowSurface {
     effect: Option<LightEffect>,
     base: LinearRgba,
@@ -80,6 +105,9 @@ fn needs_mains_power(module: &str) -> bool {
 #[cfg(test)]
 #[path = "../../tests/unit/level_render_power.rs"]
 mod power_tests;
+#[cfg(test)]
+#[path = "../../tests/unit/presentation.rs"]
+mod presentation_tests;
 
 type PendingRooms<'w, 's> = Query<
     'w,
@@ -102,6 +130,8 @@ impl Plugin for LevelRenderPlugin {
             .add_observer(mark_door_for_render)
             .add_observer(mark_prop_for_render)
             .add_observer(mark_pickup_for_render)
+            .add_observer(attach_throw_visual)
+            .add_observer(attach_panel_fuses)
             .add_observer(attach_prop_glow)
             .add_systems(
                 PostUpdate,
@@ -113,7 +143,16 @@ impl Plugin for LevelRenderPlugin {
                     render_devices,
                 ),
             )
-            .add_systems(Update, (animate_lights, animate_surfaces));
+            .add_systems(
+                Update,
+                (
+                    animate_lights,
+                    animate_surfaces,
+                    animate_pickups,
+                    animate_throws,
+                    animate_panel_fuses,
+                ),
+            );
     }
 }
 
@@ -131,6 +170,177 @@ fn mark_prop_for_render(added: On<Add, Prop>, mut commands: Commands) {
 
 fn mark_pickup_for_render(added: On<Add, PickupKind>, mut commands: Commands) {
     commands.entity(added.entity).insert(PendingPickupRender);
+}
+
+fn attach_throw_visual(
+    added: On<Add, ThrownFlashbang>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut commands: Commands,
+) {
+    let mesh = meshes.add(Cylinder::new(FLASHBANG_RADIUS, FLASHBANG_LENGTH));
+    let material = materials.add(StandardMaterial {
+        base_color: FLASHBANG_BODY,
+        perceptual_roughness: 0.6,
+        ..default()
+    });
+    commands.entity(added.entity).with_children(|children| {
+        children.spawn((
+            Mesh3d(mesh),
+            MeshMaterial3d(material),
+            Transform::from_xyz(0.0, FLASHBANG_LENGTH / 2.0, 0.0),
+        ));
+        children.spawn((
+            FlashbangBurstLight,
+            PointLight {
+                intensity: 0.0,
+                range: 8.0,
+                shadow_maps_enabled: false,
+                ..default()
+            },
+            Transform::IDENTITY,
+        ));
+    });
+}
+
+fn panel_fuse_destination(slot: usize) -> Vec3 {
+    Vec3::new((slot as f32 - 1.0) * PANEL_FUSE_SPACING, 0.0, PANEL_FUSE_DEPTH)
+}
+
+fn panel_fuse_position(from: Vec3, slot: usize, elapsed: f32) -> Vec3 {
+    let progress = ((elapsed - slot as f32 * INSERT_SECS_PER_FUSE) / INSERT_SECS_PER_FUSE)
+        .clamp(0.0, 1.0);
+    from.lerp(panel_fuse_destination(slot), progress * progress * (3.0 - 2.0 * progress))
+}
+
+fn attach_panel_fuses(
+    added: On<Add, FuseInstallation>,
+    panels: Query<(&FusePanel, &FuseInstallation, &Transform)>,
+    players: Query<&Transform, With<PlayerController>>,
+    assets: Option<Res<FacilityAssets>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut commands: Commands,
+) {
+    let Ok((panel, installation, transform)) = panels.get(added.entity) else { return };
+    if panel.installed != 0 {
+        return;
+    }
+    let Ok(player) = players.get(installation.player) else { return };
+    let hand = player.translation + player.forward() * 0.3 - player.up() * 0.2;
+    let from = transform.rotation.inverse() * (hand - transform.translation)
+        + Vec3::Y * PANEL_FUSE_START_HEIGHT;
+    let module = assets.as_ref().and_then(|assets| assets.module(FUSE_MODULE));
+    let fallback = module.is_none().then(|| {
+        (
+            meshes.add(Cylinder::new(FUSE_RADIUS, FUSE_LENGTH)),
+            materials.add(StandardMaterial {
+                base_color: FUSE_PLACEHOLDER,
+                ..default()
+            }),
+        )
+    });
+    commands.entity(added.entity).with_children(|children| {
+        for slot in 0..FUSE_COUNT {
+            let fuse = children.spawn((
+                Name::new(format!("panel fuse {}", slot + 1)),
+                PanelFuseVisual { slot, from },
+                Transform::from_translation(from),
+                Visibility::Hidden,
+            )).id();
+            if let Some(module) = module {
+                children.spawn((WorldAssetRoot(module.clone()), Transform::IDENTITY, ChildOf(fuse)));
+            } else if let Some((mesh, material)) = &fallback {
+                children.spawn((
+                    Mesh3d(mesh.clone()),
+                    MeshMaterial3d(material.clone()),
+                    Transform::from_rotation(Quat::from_rotation_z(FRAC_PI_2)),
+                    ChildOf(fuse),
+                ));
+            }
+        }
+    });
+}
+
+fn animate_panel_fuses(
+    panels: Query<(Option<&FuseInstallation>, &FusePanel)>,
+    mut visuals: Query<(&PanelFuseVisual, &ChildOf, &mut Transform, &mut Visibility)>,
+) {
+    for (visual, parent, mut transform, mut visibility) in &mut visuals {
+        let Ok((installation, panel)) = panels.get(parent.parent()) else { continue };
+        let elapsed = installation.map_or_else(
+            || if panel.installed == FUSE_COUNT { INSERT_SECS_PER_FUSE * FUSE_COUNT as f32 } else { 0.0 },
+            |installation| installation.elapsed,
+        );
+        if elapsed < visual.slot as f32 * INSERT_SECS_PER_FUSE {
+            continue;
+        }
+        *visibility = Visibility::Visible;
+        transform.translation = panel_fuse_position(visual.from, visual.slot, elapsed);
+    }
+}
+
+fn pickup_position(from: Vec3, hand: Vec3, elapsed: f32) -> Vec3 {
+    let u = (elapsed / PICKUP_MOTION_SECS).clamp(0.0, 1.0);
+    from.lerp(hand, u) + Vec3::Y * PICKUP_ARC_HEIGHT * (u * PI).sin()
+}
+
+fn animate_pickups(
+    time: Res<Time>,
+    enabled: Option<Res<PlayerControlsEnabled>>,
+    player: Query<&Transform, (With<PlayerController>, Without<PickupMotion>)>,
+    mut pickups: Query<(Entity, &mut Transform, &mut PickupMotion)>,
+    mut commands: Commands,
+) {
+    if enabled.is_some_and(|enabled| !enabled.0) {
+        return;
+    }
+    let Ok(player) = player.single() else { return };
+    let hand = player.translation + player.forward() * 0.35 - player.up() * 0.22;
+    for (entity, mut transform, mut motion) in &mut pickups {
+        motion.elapsed += time.delta_secs();
+        if motion.elapsed >= PICKUP_MOTION_SECS {
+            commands.entity(entity).despawn();
+            continue;
+        }
+        transform.translation = pickup_position(motion.from, hand, motion.elapsed);
+    }
+}
+
+fn throw_position(elapsed: f32, landing_y: f32) -> Vec3 {
+    let u = (elapsed / THROW_SECS).clamp(0.0, 1.0);
+    Vec3::new(0.18, -0.2, -0.35).lerp(Vec3::new(0.0, landing_y, -THROW_DISTANCE), u)
+        + Vec3::Y * (THROW_HEIGHT * 4.0 * u * (1.0 - u))
+}
+
+fn animate_throws(
+    time: Res<Time>,
+    enabled: Option<Res<PlayerControlsEnabled>>,
+    mut throws: Query<(Entity, &mut ThrownFlashbang, &mut Transform, &Children)>,
+    mut lights: Query<&mut PointLight, With<FlashbangBurstLight>>,
+    mut commands: Commands,
+) {
+    if enabled.is_some_and(|enabled| !enabled.0) {
+        return;
+    }
+    for (entity, mut thrown, mut transform, children) in &mut throws {
+        thrown.elapsed += time.delta_secs();
+        transform.translation = throw_position(thrown.elapsed, thrown.landing_y);
+        transform.rotation = Quat::from_rotation_x(thrown.elapsed * THROW_SPIN_RATE);
+        for child in children.iter() {
+            if let Ok(mut light) = lights.get_mut(child) {
+                let since = thrown.elapsed - THROW_SECS;
+                light.intensity = if since >= 0.0 {
+                    BURST_INTENSITY * (-BURST_DECAY * since).exp()
+                } else {
+                    0.0
+                };
+            }
+        }
+        if thrown.elapsed >= THROW_SECS + BURST_LIFETIME {
+            commands.entity(entity).despawn();
+        }
+    }
 }
 
 fn render_devices(

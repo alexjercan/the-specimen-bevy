@@ -6,7 +6,7 @@ use game_ui::{
 };
 use gameplay::{
     controller::PlayerController,
-    levels::{Detector, Flashbangs, Flashed, DETECTOR_RANGE},
+    levels::{Detector, Flashbangs, Flashed, DETECTOR_RANGE, FLASHBANG_BURST_DELAY},
 };
 
 pub struct DeviceHudPlugin;
@@ -96,13 +96,18 @@ fn sync_flash_overlay(
 ) {
     let flashed = players.iter().next().flatten();
     let elapsed = flashed.map_or(0.0, |flashed| flashed.elapsed());
+    let burst = elapsed - FLASHBANG_BURST_DELAY;
     for (mut overlay, mut visibility) in &mut huds {
-        visibility.set_if_neq(if flashed.is_some() && flash_alpha(elapsed) > 0.0 {
-            Visibility::Inherited
-        } else {
-            Visibility::Hidden
+        visibility.set_if_neq(
+            if flashed.is_some() && burst >= 0.0 && flash_alpha(burst) > 0.0 {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            },
+        );
+        overlay.set_if_neq(FlashOverlay {
+            elapsed: burst.max(0.0),
         });
-        overlay.set_if_neq(FlashOverlay { elapsed });
     }
 }
 
