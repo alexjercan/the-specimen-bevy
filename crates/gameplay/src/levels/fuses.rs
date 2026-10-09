@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use bevy_rand::prelude::ChaCha8Rng;
 use game_audio::{PlaySound, Sound};
-use rand_core::{Rng, SeedableRng};
+use rand_core::Rng;
 
 use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
 
@@ -138,20 +138,6 @@ fn install_fuses(
         }
         info!("fuses installed; exit unlocked");
     }
-}
-
-pub fn select_fuse_slots(seed: u64, pool: usize) -> [usize; FUSE_COUNT] {
-    assert!(pool >= FUSE_COUNT, "fuse pool is smaller than {FUSE_COUNT}");
-    let mut rng = ChaCha8Rng::seed_from_u64(seed);
-    let mut indices: Vec<usize> = (0..pool).collect();
-    let mut slots = [0; FUSE_COUNT];
-    for (index, slot) in slots.iter_mut().enumerate() {
-        let pick = index + (rng.next_u64() % (pool - index) as u64) as usize;
-        indices.swap(index, pick);
-        *slot = indices[index];
-    }
-    slots.sort_unstable();
-    slots
 }
 
 pub(crate) fn run_seed(seed: Option<&FuseSeed>) -> u64 {

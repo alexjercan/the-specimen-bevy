@@ -7,7 +7,7 @@ use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{
         build_first_floor, select_fuse_slots, Door, DoorPlugin, DoorState, FuseInventory,
-        FusePickup, FusePlugin, FuseSeed, Prop, Room, FUSE_COUNT, FUSE_TABLES,
+        FusePickup, FusePlugin, FuseSeed, FuseZone, Prop, Room, FUSE_COUNT, FUSE_TABLES,
     },
 };
 
@@ -86,10 +86,28 @@ fn exists(app: &App, entity: Entity) -> bool {
 }
 
 #[test]
-fn eligible_tables_are_five_or_six_distinct_rooms_on_table_tops() {
-    assert!((5..=6).contains(&FUSE_TABLES.len()));
+fn eligible_tables_are_six_distinct_rooms_on_table_tops() {
+    assert_eq!(FUSE_TABLES.len(), 6);
     let rooms: HashSet<_> = FUSE_TABLES.iter().map(|table| table.room).collect();
     assert_eq!(rooms.len(), FUSE_TABLES.len());
+    for zone in [FuseZone::Far, FuseZone::Middle, FuseZone::Exit] {
+        assert_eq!(
+            FUSE_TABLES
+                .iter()
+                .filter(|table| table.zone == zone)
+                .count(),
+            2,
+            "expected two eligible rooms in {zone:?}"
+        );
+    }
+    assert!(FUSE_TABLES
+        .iter()
+        .filter(|table| table.zone == FuseZone::Far)
+        .all(|table| table.position.z >= -8.75));
+    assert!(FUSE_TABLES
+        .iter()
+        .filter(|table| table.zone == FuseZone::Exit)
+        .all(|table| table.position.z <= -16.25));
 
     let mut app = first_floor(0);
     let world = app.world_mut();
@@ -156,13 +174,18 @@ fn eligible_tables_are_five_or_six_distinct_rooms_on_table_tops() {
 fn seed_selects_three_distinct_reproducible_slots_covering_every_combination() {
     let mut combinations = HashSet::new();
     for seed in 0..500 {
-        let slots = select_fuse_slots(seed, FUSE_TABLES.len());
-        assert_eq!(slots, select_fuse_slots(seed, FUSE_TABLES.len()));
+        let slots = select_fuse_slots(seed);
+        assert_eq!(slots, select_fuse_slots(seed));
         assert!(slots.windows(2).all(|pair| pair[0] < pair[1]));
         assert!(slots.iter().all(|&slot| slot < FUSE_TABLES.len()));
+        let zones: HashSet<_> = slots.iter().map(|&slot| FUSE_TABLES[slot].zone).collect();
+        assert_eq!(
+            zones,
+            HashSet::from([FuseZone::Far, FuseZone::Middle, FuseZone::Exit])
+        );
         combinations.insert(slots);
     }
-    assert_eq!(combinations.len(), 10);
+    assert_eq!(combinations.len(), 8);
 }
 
 #[test]
@@ -170,7 +193,7 @@ fn first_floor_spawns_three_logical_fuses_at_the_seeded_tables() {
     let mut app = first_floor(42);
     let placements = fuse_placements(&mut app);
     assert_eq!(placements.len(), FUSE_COUNT);
-    let expected = select_fuse_slots(42, FUSE_TABLES.len());
+    let expected = select_fuse_slots(42);
     for ((slot, position), expected) in placements.iter().zip(expected) {
         assert_eq!(*slot, expected);
         assert_eq!(*position, FUSE_TABLES[expected].position);

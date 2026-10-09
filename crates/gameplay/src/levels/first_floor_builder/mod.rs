@@ -19,7 +19,7 @@ use super::{
 const EYE_HEIGHT: f32 = 1.6;
 const MONSTER_SEED_SALT: u64 = 0x4d4f_4e53_5445_5201;
 
-pub use fuse_tables::{FuseTable, FUSE_TABLES};
+pub use fuse_tables::{select_fuse_slots, FuseTable, FuseZone, FUSE_TABLES};
 
 pub fn build_first_floor(mut commands: Commands, seed: Option<Res<FuseSeed>>) {
     rooms::spawn(&mut commands);

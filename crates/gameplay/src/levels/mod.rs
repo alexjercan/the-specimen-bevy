@@ -22,11 +22,12 @@ pub use builder::{
 pub use doors::{panel_center, panel_top, DoorLock, DoorPanel, DoorPlugin, ExitDoor, ToggleDoor};
 pub(crate) use doors::{PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH};
 pub use first_floor_builder::{
-    build_first_floor, spawn_first_floor_actors, FuseTable, FUSE_TABLES,
+    build_first_floor, select_fuse_slots, spawn_first_floor_actors, FuseTable, FuseZone,
+    FUSE_TABLES,
 };
 pub use fuses::{
-    select_fuse_slots, FuseInventory, FusePanel, FusePickup, FusePlugin, FuseSeed, InstallFuses,
-    FUSE_COUNT, FUSE_MODULE,
+    FuseInventory, FusePanel, FusePickup, FusePlugin, FuseSeed, InstallFuses, FUSE_COUNT,
+    FUSE_MODULE,
 };
 pub use hiding::{
     Hidden, HidingMotion, HidingPhase, HidingPlugin, HidingSpot, UseHidingSpot, HIDING_TRANSITION,

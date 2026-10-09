@@ -8,7 +8,7 @@ use gameplay::{
     levels::{
         build_first_floor, select_fuse_slots, Door, DoorOf, DoorPlugin, DoorRef, DoorState,
         FacilityPower, FacilityPowerPlugin, FuseSeed, HidingPlugin, Monster, MonsterPlugin, Prop,
-        Room, ToggleDoor, FUSE_TABLES,
+        Room, ToggleDoor,
     },
 };
 use serde_json::Value;
@@ -106,7 +106,7 @@ fn map_appears_once_and_describes_the_first_floor() {
     assert_eq!(map["rooms"].as_array().unwrap().len(), 18);
     assert_eq!(map["doors"].as_array().unwrap().len(), 18);
     assert_eq!(map["passages"].as_array().unwrap().len(), 10);
-    assert_eq!(map["fuse_candidates"].as_array().unwrap().len(), 5);
+    assert_eq!(map["fuse_candidates"].as_array().unwrap().len(), 6);
     assert!(map["doors"]
         .as_array()
         .unwrap()
@@ -173,9 +173,7 @@ fn monster_is_dynamic_and_only_seen_in_the_view_cone() {
 fn candidates_are_not_leaked_when_out_of_view_regardless_of_seed() {
     let (seed_a, seed_b) = (0u64..)
         .zip(1u64..)
-        .find(|&(a, b)| {
-            select_fuse_slots(a, FUSE_TABLES.len()) != select_fuse_slots(b, FUSE_TABLES.len())
-        })
+        .find(|&(a, b)| select_fuse_slots(a) != select_fuse_slots(b))
         .expect("two adjacent seeds with different fuse slots");
 
     let position = Vec3::new(-10.0, 1.6, 2.0);
@@ -212,12 +210,12 @@ fn candidates_are_not_leaked_when_out_of_view_regardless_of_seed() {
 fn candidate_has_fuse_reflects_whether_the_seed_selected_that_slot() {
     for selected in [true, false] {
         let seed = (0u64..)
-            .find(|&seed| select_fuse_slots(seed, FUSE_TABLES.len()).contains(&0) == selected)
+            .find(|&seed| select_fuse_slots(seed).contains(&0) == selected)
             .unwrap();
         let mut output = Vec::new();
         assert_eq!(
             run(
-                first_floor_app(seed, Vec3::new(8.8, 1.6, 3.0)),
+                first_floor_app(seed, Vec3::new(12.5, 1.6, 2.5)),
                 Cursor::new("{\"tick\":1}\n"),
                 &mut output,
             ),
@@ -228,10 +226,9 @@ fn candidate_has_fuse_reflects_whether_the_seed_selected_that_slot() {
             .as_array()
             .unwrap()
             .iter()
-            .filter(|seen| seen["kind"] == "fuse_candidate")
+            .filter(|seen| seen["kind"] == "fuse_candidate" && seen["candidate"] == 0)
             .collect();
         assert_eq!(candidates.len(), 1);
-        assert_eq!(candidates[0]["candidate"], 0);
         assert_eq!(candidates[0]["has_fuse"], selected);
     }
 }

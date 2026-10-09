@@ -139,10 +139,7 @@ fn builder_seed_places_fuses_at_the_seeded_tables() {
         app.finish();
         app.cleanup();
         app.update();
-        assert_eq!(
-            fuse_slots(&mut app),
-            select_fuse_slots(seed, FUSE_TABLES.len())
-        );
+        assert_eq!(fuse_slots(&mut app), select_fuse_slots(seed));
     }
 }
 
@@ -159,9 +156,7 @@ fn builder_without_seed_leaves_fuse_seed_unset() {
 #[test]
 fn headless_transport_snapshots_do_not_depend_on_the_fuse_seed() {
     let other = (0..)
-        .find(|&seed| {
-            select_fuse_slots(seed, FUSE_TABLES.len()) != select_fuse_slots(0, FUSE_TABLES.len())
-        })
+        .find(|&seed| select_fuse_slots(seed) != select_fuse_slots(0))
         .unwrap();
     let outputs: Vec<Vec<u8>> = [0, other]
         .into_iter()
