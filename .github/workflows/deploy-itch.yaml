@@ -8,7 +8,6 @@ on:
         type: string
 permissions:
   contents: read
-  actions: read
 concurrency:
   group: itch-production
   cancel-in-progress: false
@@ -35,17 +34,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
-      - name: Download successful tagged release builds
+      - name: Download published GitHub Release builds
         shell: bash
         run: |
           set -euo pipefail
-          sha="$(git rev-parse HEAD)"
-          run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yaml --commit "$sha" --event push --status success --limit 100 --json databaseId,headBranch | jq -r --arg tag "$RELEASE_TAG" '[.[] | select(.headBranch == $tag) | .databaseId][0] // empty')"
-          test -n "$run_id" || { echo "No successful release workflow run for $RELEASE_TAG at $sha" >&2; exit 1; }
+          test "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = false || { echo "GitHub Release $RELEASE_TAG is still a draft" >&2; exit 1; }
           mkdir -p downloads
           for platform in linux-x86_64 windows-x86_64 html5; do
             name="the-specimen-bevy-${platform}"
-            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "downloads/$name"
+            case "$platform" in linux-x86_64) extension=tar.gz ;; *) extension=zip ;; esac
+            archive="the-specimen-bevy-${RELEASE_TAG}-${platform}.${extension}"
+            gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$archive" --dir "downloads/$name"
           done
           test -f "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz"
           test -f "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip"

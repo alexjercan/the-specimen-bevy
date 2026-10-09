@@ -2,10 +2,17 @@ name: release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to publish from a successful tagged build
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
   linux:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -28,6 +35,7 @@ jobs:
           path: the-specimen-bevy-*-linux-x86_64.tar.gz
           if-no-files-found: error
   web:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -47,6 +55,7 @@ jobs:
           path: the-specimen-bevy-*-html5.zip
           if-no-files-found: error
   windows:
+    if: github.event_name == 'push'
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -67,3 +76,77 @@ jobs:
           name: the-specimen-bevy-windows-x86_64
           path: the-specimen-bevy-*-windows-x86_64.zip
           if-no-files-found: error
+  publish:
+    needs: [linux, web, windows]
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' || (needs.linux.result == 'success' && needs.web.result == 'success' && needs.windows.result == 'success')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Download all builds for this tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must have the form vX.Y.Z" >&2; exit 1; }
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            sha="$(git rev-parse HEAD)"
+            run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yaml --commit "$sha" --event push --status success --limit 100 --json databaseId,headBranch | jq -r --arg tag "$RELEASE_TAG" '[.[] | select(.headBranch == $tag) | .databaseId][0] // empty')"
+            test -n "$run_id" || { echo "No successful tagged build for $RELEASE_TAG at $sha" >&2; exit 1; }
+          else
+            run_id="$GITHUB_RUN_ID"
+          fi
+          mkdir -p downloads
+          for platform in linux-x86_64 windows-x86_64 html5; do
+            name="the-specimen-bevy-${platform}"
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "downloads/$name"
+          done
+          test -f "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz"
+          test -f "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip"
+          test -f "downloads/the-specimen-bevy-html5/the-specimen-bevy-${RELEASE_TAG}-html5.zip"
+      - name: Prepare release notes from tagged changelog
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          version = os.environ['RELEASE_TAG'].removeprefix('v')
+          heading = f'## [{version}]'
+          notes = []
+          recording = False
+          for line in Path('CHANGELOG.md').read_text().splitlines():
+              if line.startswith('## '):
+                  if recording:
+                      break
+                  recording = line.startswith(heading + ' ')
+              elif recording:
+                  notes.append(line)
+          content = '\n'.join(notes).strip()
+          if not content:
+              raise SystemExit(f'Missing release notes for {version} in CHANGELOG.md')
+          Path('release-notes.md').write_text(content + '\n')
+          PY
+      - name: Create GitHub Release with all three archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "GitHub Release $RELEASE_TAG already exists; refusing to overwrite it" >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" \
+            "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz" \
+            "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip" \
+            "downloads/the-specimen-bevy-html5/the-specimen-bevy-${RELEASE_TAG}-html5.zip" \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "$RELEASE_TAG" --notes-file release-notes.md
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | LC_ALL=C sort > release-assets.txt
+          for platform in linux-x86_64 windows-x86_64 html5; do
+            grep -qx "the-specimen-bevy-${RELEASE_TAG}-${platform}.$([[ "$platform" == linux-x86_64 ]] && echo tar.gz || echo zip)" release-assets.txt
+          done

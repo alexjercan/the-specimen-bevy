@@ -1,6 +1,6 @@
 # Prepare The Specimen itch.io page copy and images
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 0
 - TAGS: backlog
 
@@ -14,7 +14,7 @@
 ## Agent findings
 
 - content-machine has a 25-second trailer at `media/the-specimen-bevy-poc/final.mp4` and a current gallery of 1920x1080 PNGs: `assembly-stalker.png`, `fuse-table.png`, `hide-prompt.png`, `exit-locked.png`, and `lab-blackout.png`. The gallery also has `locker-watch.gif`, `boiler-restore.gif`, and `fuse-install.gif`. The user will upload selected media to itch.io.
-- Older `art/visuals/screenshots/` files include prototype material. The current page workflow uploads HTML5 only.
+- Older `art/visuals/screenshots/` files include prototype material. The manual deploy-itch workflow now reuses the tagged release's HTML5, Windows, and Linux archives.
 
 ## Decisions
 
@@ -23,11 +23,11 @@
 ## Delivery
 
 - Add `art/content/itch.html` with accurate gameplay copy and `https://img.itch.zone/` placeholders for `assembly-stalker.png`, `fuse-table.png`, `hide-prompt.png`, `exit-locked.png`, `locker-watch.gif`, `boiler-restore.gif`, and `fuse-install.gif`. Copy five screenshots to `art/content/screenshots/`, three GIFs to `art/content/gifs/`, and the trailer to `art/content/trailer.mp4`. Preserve user authorship and avoid promises about unverified browser behavior.
-- Recommend a complete palette and presentation settings in the response.
+- Keep the upload checklist, image-placeholder mapping, palette, and presentation settings in `art/content/README.md` for use during manual page setup.
 
 ## Verification
 
-- Gallery captures and GIFs were inspected; selected placeholders correspond to copied media. All seven HTML image `src` values begin with `https://img.itch.zone/` and need real URLs after manual upload. Suggested palette foreground/background contrast ratios exceed 9:1.
+- Gallery captures and GIFs were inspected; selected placeholders correspond to copied media. All seven HTML image `src` values begin with `https://img.itch.zone/` and need real URLs after manual upload. Suggested palette foreground/background contrast ratios exceed 9:1. `art/content/README.md` records the actual colors and media mapping.
 - Placeholder URLs are intentionally not valid hosted images. itch.io HTML editor rendering is not verified; use source/HTML mode, replace placeholders, and preview before publishing.
 - The supplied stalker URL ending `/250x600/%2F%2F2xU3.png` returns a 250x140 PNG. Changing that URL to `/original/`, `/1280x720/`, or other guessed size paths returned HTTP 404. Keep the stalker placeholder until a verified full-resolution itch.io image URL is available; do not upscale the thumbnail.
 
