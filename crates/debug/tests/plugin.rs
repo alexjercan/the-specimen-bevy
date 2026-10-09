@@ -2,6 +2,7 @@ use bevy::pbr::wireframe::{WireframeConfig, WireframePlugin};
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use debug::{fps_label, DebugPlugin, DebugSettings, FpsText, INSPECTOR_TOGGLE_KEY};
+use game_settings::GameSettings;
 
 fn app() -> App {
     let mut app = App::new();
@@ -40,6 +41,23 @@ fn fps_overlay_spawns_once_with_label() {
     let texts: Vec<_> = texts.iter(app.world()).collect();
     assert_eq!(texts.len(), 1);
     assert!(texts[0].0.starts_with("FPS "));
+}
+
+#[test]
+fn persisted_fps_setting_controls_overlay_visibility() {
+    let mut app = app();
+    app.insert_resource(GameSettings::default());
+    app.update();
+    let mut texts = app.world_mut().query_filtered::<&Visibility, With<FpsText>>();
+    assert_eq!(*texts.single(app.world()).unwrap(), Visibility::Visible);
+
+    app.world_mut().resource_mut::<GameSettings>().fps_overlay = false;
+    app.update();
+    assert_eq!(*texts.single(app.world()).unwrap(), Visibility::Hidden);
+
+    app.world_mut().resource_mut::<GameSettings>().fps_overlay = true;
+    app.update();
+    assert_eq!(*texts.single(app.world()).unwrap(), Visibility::Visible);
 }
 
 #[test]

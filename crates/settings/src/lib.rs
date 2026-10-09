@@ -165,6 +165,7 @@ pub struct GameSettings {
     pub keys: MovementKeys,
     pub graphics: GraphicsQuality,
     pub display_mode: DisplayMode,
+    pub fps_overlay: bool,
 }
 
 impl Default for GameSettings {
@@ -177,6 +178,7 @@ impl Default for GameSettings {
             keys: MovementKeys::default(),
             graphics: GraphicsQuality::High,
             display_mode: DisplayMode::Fullscreen,
+            fps_overlay: true,
         }
     }
 }

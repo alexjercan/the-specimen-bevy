@@ -4,7 +4,7 @@ mod menu;
 use std::{path::PathBuf, time::Duration};
 
 #[cfg(feature = "debug")]
-use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
+use bevy::window::{CursorGrabMode, CursorOptions};
 use bevy::{
     app::ScheduleRunnerPlugin,
     audio::{GlobalVolume, Volume},

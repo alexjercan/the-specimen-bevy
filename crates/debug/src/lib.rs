@@ -10,6 +10,7 @@ use bevy_egui::{
     EguiPrimaryContextPass, PrimaryEguiContext,
 };
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
+use game_settings::GameSettings;
 
 #[cfg(test)]
 #[path = "../tests/unit/context.rs"]
@@ -57,6 +58,7 @@ impl Plugin for DebugPlugin {
                 (
                     toggle_inspector.run_if(input_just_pressed(INSPECTOR_TOGGLE_KEY)),
                     update_fps_text,
+                    sync_fps_visibility,
                     sync_wireframe.run_if(
                         resource_exists::<WireframeConfig>
                             .and_then(resource_changed::<DebugSettings>),
@@ -76,6 +78,7 @@ pub fn fps_label(fps: Option<f64>) -> String {
 fn spawn_fps_text(mut commands: Commands) {
     commands.spawn((
         FpsText,
+        Visibility::Visible,
         Text::new(fps_label(None)),
         TextFont::from_font_size(16.0),
         TextColor(Color::srgb(0.4, 1.0, 0.4)),
@@ -87,6 +90,20 @@ fn spawn_fps_text(mut commands: Commands) {
         },
         GlobalZIndex(i32::MAX),
     ));
+}
+
+fn sync_fps_visibility(
+    settings: Option<Res<GameSettings>>,
+    mut texts: Query<&mut Visibility, With<FpsText>>,
+) {
+    let visible = settings.is_none_or(|settings| settings.fps_overlay);
+    for mut visibility in &mut texts {
+        *visibility = if visible {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+    }
 }
 
 fn update_fps_text(diagnostics: Res<DiagnosticsStore>, mut texts: Query<&mut Text, With<FpsText>>) {

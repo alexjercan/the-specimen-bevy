@@ -2602,6 +2602,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_egui",
+ "game_settings",
 ]
 
 [[package]]

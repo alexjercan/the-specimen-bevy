@@ -25,6 +25,7 @@ fn saves_and_loads_player_settings() {
     settings.mouse_sensitivity = 0.004;
     settings.graphics = GraphicsQuality::Low;
     settings.display_mode = DisplayMode::Windowed;
+    settings.fps_overlay = false;
     settings.keys.forward = "ArrowUp".into();
     settings.keys.flashlight = "MouseMiddle".into();
     settings.keys.flashbang = "KeyQ".into();
@@ -66,4 +67,5 @@ fn missing_fields_keep_defaults() {
     assert_eq!(settings.music, 1.0);
     assert_eq!(settings.keys, MovementKeys::default());
     assert_eq!(settings.display_mode, DisplayMode::Fullscreen);
+    assert!(settings.fps_overlay);
 }

@@ -211,7 +211,9 @@ fn settings_tabs_switch_pages_and_hold_labeled_groups() {
                 tabs += 1;
                 None
             }
-            SettingsAction::Graphics | SettingsAction::DisplayMode => Some(SettingsGroup::Quality),
+            SettingsAction::Graphics
+            | SettingsAction::DisplayMode
+            | SettingsAction::FpsOverlay => Some(SettingsGroup::Quality),
             SettingsAction::Interact | SettingsAction::Flashlight | SettingsAction::Flashbang => {
                 Some(SettingsGroup::Interaction)
             }

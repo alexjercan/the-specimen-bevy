@@ -21,3 +21,26 @@ jobs:
           path: |
             horror_game_bevy-linux.nar.gz
             store-path.txt
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+      - name: Build native release
+        run: cargo build --locked --release -p horror_game_bevy
+      - name: Package release
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path package | Out-Null
+          Copy-Item target/release/horror_game_bevy.exe package/
+          Copy-Item -Recurse assets package/assets
+          Copy-Item -Recurse credits package/credits
+          Copy-Item LICENSE package/
+          Compress-Archive -Path package/* -DestinationPath horror_game_bevy-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: horror_game_bevy-windows
+          path: horror_game_bevy-windows.zip
+          if-no-files-found: error

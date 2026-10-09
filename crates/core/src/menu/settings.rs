@@ -62,6 +62,7 @@ pub(super) enum SettingsAction {
     Tab(SettingsTab),
     Graphics,
     DisplayMode,
+    FpsOverlay,
     Forward,
     Left,
     Backward,
@@ -76,6 +77,7 @@ impl SettingsAction {
         match self {
             Self::Graphics => "Quality preset",
             Self::DisplayMode => "Display mode",
+            Self::FpsOverlay => "FPS overlay",
             Self::Forward => "Forward",
             Self::Left => "Left",
             Self::Backward => "Backward",
@@ -145,6 +147,7 @@ impl SettingsGroup {
             Self::Quality => &[
                 Row::Choice(SettingsAction::Graphics),
                 Row::Choice(SettingsAction::DisplayMode),
+                Row::Choice(SettingsAction::FpsOverlay),
             ],
         }
     }
@@ -391,6 +394,9 @@ fn spawn_row(
     settings: &GameSettings,
     assets: &UiAssets,
 ) {
+    if matches!(item, Row::Choice(SettingsAction::FpsOverlay)) && !cfg!(feature = "debug") {
+        return;
+    }
     let font = assets.font.clone();
     match *item {
         Row::Slider(field) => {
@@ -428,6 +434,7 @@ fn choice_value(action: SettingsAction, settings: &GameSettings) -> String {
     match action {
         SettingsAction::Graphics => format!("{:?}", settings.graphics),
         SettingsAction::DisplayMode => format!("{:?}", settings.display_mode),
+        SettingsAction::FpsOverlay => if settings.fps_overlay { "On" } else { "Off" }.into(),
         _ => unreachable!(),
     }
 }
@@ -693,6 +700,10 @@ fn activate(
             }
             SettingsAction::DisplayMode => {
                 settings.display_mode = settings.display_mode.next();
+                dirty.0 = true;
+            }
+            SettingsAction::FpsOverlay => {
+                settings.fps_overlay = !settings.fps_overlay;
                 dirty.0 = true;
             }
             key @ (SettingsAction::Forward
