@@ -10,7 +10,7 @@ use gameplay::{
     controller::{door_frames, door_panel, wall_obstacles, Flashlight, PlayerController},
     levels::{
         Door, DoorOf, DoorRef, DoorState, DoorSwing, Doors, ExitDoor, FacilityPower, FusePanel,
-        FusePickup, HidingSpot, Passage, Prop, PropCollider, Room, FUSE_TABLES,
+        FusePickup, HidingSpot, Monster, Passage, Prop, PropCollider, Room, FUSE_TABLES,
     },
 };
 use serde::Serialize;
@@ -22,7 +22,6 @@ const VIEW_RANGE: f32 = 15.0;
 const FLASHLIGHT_HALF_ANGLE: f32 = 0.47;
 const FLASHLIGHT_RANGE: f32 = 10.0;
 const DARK_RANGE: f32 = 2.0;
-const HEARING_RANGE: f32 = 20.0;
 const OCCLUSION_MARGIN: f32 = 0.2;
 const DOOR_HEIGHT: f32 = 1.1;
 const FUSE_HEIGHT: f32 = 0.05;
@@ -132,6 +131,7 @@ enum Thing {
     FuseCandidate { candidate: usize, has_fuse: bool },
     FusePanel { id: u64, installed: usize },
     Prop { id: u64, module: String },
+    Monster { id: u64 },
 }
 
 #[derive(Serialize)]
@@ -368,6 +368,17 @@ fn visible(world: &mut World, pose: &Transform, flashlight: bool, power_on: bool
             transform.translation,
         ));
     }
+    for (entity, transform) in world
+        .query_filtered::<(Entity, &Transform), With<Monster>>()
+        .iter(world)
+    {
+        targets.push((
+            Thing::Monster {
+                id: entity.to_bits(),
+            },
+            transform.translation + Vec3::Y * 1.1,
+        ));
+    }
     for (entity, prop) in world.query::<(Entity, &Prop)>().iter(world) {
         targets.push((
             Thing::Prop {
@@ -536,18 +547,19 @@ fn listen(
         return;
     }
     for (sound, source, position, ranged) in noises {
-        let Some(sound) = sound_name(sound) else {
+        let Some(name) = sound_name(sound) else {
             continue;
         };
         if ranged
-            && position
-                .is_none_or(|position| position.distance(listener.translation) > HEARING_RANGE)
+            && position.is_none_or(|position| {
+                position.distance(listener.translation) >= sound.audible_range()
+            })
         {
             continue;
         }
         perception.heard.push(Noise {
             tick,
-            sound,
+            sound: name,
             source,
             position,
         });
@@ -574,6 +586,11 @@ fn sound_name(sound: Sound) -> Option<&'static str> {
         Sound::LockerClose => "locker_close",
         Sound::TableEnter => "table_enter",
         Sound::TableLeave => "table_leave",
+        Sound::MonsterPresence => "monster_presence",
+        Sound::MonsterStep(_) => "monster_step",
+        Sound::MonsterDetected => "monster_detected",
+        Sound::MonsterAttack => "monster_attack",
+        Sound::MonsterHeartbeat => "monster_heartbeat",
         Sound::Step(_)
         | Sound::UiBack
         | Sound::UiConfirm

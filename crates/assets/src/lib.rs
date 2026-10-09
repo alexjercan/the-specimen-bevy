@@ -260,7 +260,37 @@ impl UiAssets {
 }
 
 #[derive(AssetCollection, Resource)]
+pub struct MonsterAssets {
+    #[asset(path = "monster/human_deer_animated.glb#Scene0")]
+    pub scene: Handle<WorldAsset>,
+    #[asset(path = "monster/human_deer_animated.glb#Animation0")]
+    pub idle: Handle<AnimationClip>,
+    #[asset(path = "monster/human_deer_animated.glb#Animation1")]
+    pub walk: Handle<AnimationClip>,
+}
+
+#[derive(AssetCollection, Resource)]
 pub struct SoundAssets {
+    #[asset(path = "sounds/monster/amb/metal-footsteps-gristi.ogg")]
+    pub monster_presence: Handle<AudioSource>,
+    #[asset(path = "sounds/monster/detected/growl-jofae.wav")]
+    pub monster_detected: Handle<AudioSource>,
+    #[asset(path = "sounds/monster/attack/roar-jofae.wav")]
+    pub monster_attack: Handle<AudioSource>,
+    #[asset(path = "sounds/monster/chase/heartbeat-under-the-hood.wav")]
+    pub monster_heartbeat: Handle<AudioSource>,
+    #[asset(path = "sounds/monster/step/crawl-a.wav")]
+    pub monster_step_a: Handle<AudioSource>,
+    #[asset(path = "sounds/monster/step/crawl-b.wav")]
+    pub monster_step_b: Handle<AudioSource>,
+    #[asset(path = "sounds/monster/step/crawl-c.wav")]
+    pub monster_step_c: Handle<AudioSource>,
+    #[asset(path = "sounds/monster/step/crawl-d.wav")]
+    pub monster_step_d: Handle<AudioSource>,
+    #[asset(path = "sounds/monster/step/crawl-e.wav")]
+    pub monster_step_e: Handle<AudioSource>,
+    #[asset(path = "sounds/monster/step/crawl-f.wav")]
+    pub monster_step_f: Handle<AudioSource>,
     #[asset(path = "sounds/amb/furnace/burning.wav")]
     pub furnace: Handle<AudioSource>,
     #[asset(path = "sounds/amb/water/faucet.wav")]
@@ -351,6 +381,7 @@ impl Plugin for GameAssetsPlugin {
                     .continue_to_state(GameAssetsState::Ready)
                     .on_failure_continue_to_state(GameAssetsState::Failed)
                     .load_collection::<FacilityAssets>()
+                    .load_collection::<MonsterAssets>()
                     .load_collection::<UiAssets>()
                     .load_collection::<SoundAssets>(),
             )

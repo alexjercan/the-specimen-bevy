@@ -23,6 +23,21 @@ The UI font source and its required license notice are recorded in
 `credits/CREDITS.md`. Recorded footstep and door source credits are there too;
 see `art/sounds/README.md` for source hashes and edits.
 
+## Human Deer monster
+
+`assets/monster/human_deer_animated.glb` is a byte-identical copy of the
+project-animated output at `art/visuals/generated/monster/human_deer_animated.glb`.
+Its original rig and artwork came from ceeleste's Sketchfab "The Human Deer"
+(https://sketchfab.com/3d-models/the-human-deer-7644694337404bb18eb68e6b637740a1).
+The original glTF and bundled license are retained at
+`art/visuals/sources/sketchfab/the_human_deer/`; the bundled credit notice is
+also copied to `credits/licenses/The-Human-Deer-source-license.txt`. The bundled
+files state CC-BY-4.0; these rights/provenance claims are not independently
+verified. Changes add the project-authored WALK, CHASE and ATTACK animations
+alongside the retained source animation. The exact required credit is in
+`credits/CREDITS.md`; generation and checksums are documented at
+`art/visuals/generated/monster/README.md`.
+
 ## Facility modular kit
 
 The 51 GLBs and manifest under `assets/facility/modules/` are copies of the

@@ -8,6 +8,7 @@ mod interaction;
 mod lights;
 mod menu_background;
 pub(crate) mod module_names;
+mod monster;
 mod objective;
 mod power;
 mod render;
@@ -20,7 +21,9 @@ pub use builder::{
 };
 pub use doors::{panel_center, panel_top, DoorLock, DoorPanel, DoorPlugin, ExitDoor, ToggleDoor};
 pub(crate) use doors::{PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH};
-pub use first_floor_builder::{build_first_floor, FuseTable, FUSE_TABLES};
+pub use first_floor_builder::{
+    build_first_floor, spawn_first_floor_actors, FuseTable, FUSE_TABLES,
+};
 pub use fuses::{
     select_fuse_slots, FuseInventory, FusePanel, FusePickup, FusePlugin, FuseSeed, InstallFuses,
     FUSE_COUNT, FUSE_MODULE,
@@ -32,6 +35,7 @@ pub use interaction::{InteractTarget, InteractTargets};
 pub use lights::{LightConfig, PropLightsPlugin};
 pub use menu_background::build_main_menu_background;
 pub use module_names::BOILER_UNIT;
+pub use monster::{Monster, MonsterPlugin, MonsterRenderPlugin};
 pub use objective::{Escaped, ObjectivePlugin};
 pub use power::{FacilityPower, FacilityPowerPlugin, MAX_OUTAGE_DELAY_SECS, MIN_OUTAGE_DELAY_SECS};
 pub use render::{LevelRenderPlugin, RenderCeilings};

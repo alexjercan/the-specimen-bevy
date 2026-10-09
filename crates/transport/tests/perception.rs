@@ -7,8 +7,8 @@ use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin},
     levels::{
         build_first_floor, select_fuse_slots, Door, DoorOf, DoorPlugin, DoorRef, DoorState,
-        FacilityPower, FacilityPowerPlugin, FuseSeed, HidingPlugin, Prop, Room, ToggleDoor,
-        FUSE_TABLES,
+        FacilityPower, FacilityPowerPlugin, FuseSeed, HidingPlugin, Monster, MonsterPlugin, Prop,
+        Room, ToggleDoor, FUSE_TABLES,
     },
 };
 use serde_json::Value;
@@ -27,6 +27,10 @@ fn spawn_player(position: Vec3) -> impl Fn(Commands, ResMut<TransportTimeline>) 
         commands.spawn((PlayerController, Transform::from_translation(position)));
         timeline.ready();
     }
+}
+
+fn spawn_test_monster(mut commands: Commands) {
+    commands.spawn((Monster::default(), Transform::from_xyz(-2.5, 0.0, 0.0)));
 }
 
 fn player_only_app() -> App {
@@ -111,6 +115,58 @@ fn map_appears_once_and_describes_the_first_floor() {
     let props = map["props"].as_array().unwrap();
     assert!(props.iter().any(|prop| prop["hiding"] == "table"));
     assert!(props.iter().any(|prop| prop["hiding"] == "locker"));
+}
+
+#[test]
+fn monster_is_dynamic_and_only_seen_in_the_view_cone() {
+    let mut app = player_only_app();
+    app.add_plugins(MonsterPlugin).add_systems(
+        Startup,
+        (spawn_test_monster, spawn_player(Vec3::new(0.0, 1.6, 5.0))).chain(),
+    );
+    let mut output = Vec::new();
+    assert_eq!(
+        run(app, Cursor::new("{\"tick\":1}\n"), &mut output),
+        AppExit::Success
+    );
+    let responses = lines(output);
+    assert!(responses[0]["map"].to_string().contains("rooms"));
+    assert!(!responses[0]["map"].to_string().contains("monster"));
+    assert!(responses[0]["visible"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|seen| seen["kind"] == "monster"));
+    assert!(responses[1]["visible"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|seen| seen["kind"] == "monster"));
+
+    let mut away = player_only_app();
+    away.add_plugins(MonsterPlugin).add_systems(
+        Startup,
+        (
+            spawn_test_monster,
+            spawn_player(Vec3::new(0.0, 1.6, 5.0)),
+            |mut players: Query<&mut Transform, With<PlayerController>>| {
+                for mut transform in &mut players {
+                    transform.rotation = Quat::from_rotation_y(std::f32::consts::PI);
+                }
+            },
+        )
+            .chain(),
+    );
+    let mut output = Vec::new();
+    assert_eq!(
+        run(away, Cursor::new("{\"tick\":1}\n"), &mut output),
+        AppExit::Success
+    );
+    assert!(lines(output).iter().all(|snapshot| snapshot["visible"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|seen| seen["kind"] != "monster")));
 }
 
 #[test]
@@ -433,6 +489,38 @@ fn door_sounds_beyond_hearing_range_are_not_heard() {
     assert!(responses
         .iter()
         .all(|response| response["heard"].as_array().unwrap().is_empty()));
+}
+
+#[test]
+fn monster_hearing_uses_the_same_ranges_as_playback() {
+    let mut app = player_only_app();
+    app.add_message::<PlaySound>()
+        .add_systems(Startup, spawn_player(Vec3::ZERO))
+        .add_systems(Update, |mut sounds: MessageWriter<PlaySound>| {
+            for (sound, distance) in [
+                (Sound::MonsterStep(0), 15.0),
+                (Sound::MonsterStep(1), 17.0),
+                (Sound::MonsterPresence, 30.0),
+                (Sound::MonsterPresence, 33.0),
+            ] {
+                sounds.write(PlaySound {
+                    sound,
+                    position: Some(Vec3::new(distance, 0.0, 0.0)),
+                });
+            }
+        });
+    let mut output = Vec::new();
+    assert_eq!(
+        run(app, Cursor::new("{\"tick\":1}\n"), &mut output),
+        AppExit::Success,
+    );
+    let responses = lines(output);
+    let heard = responses[1]["heard"].as_array().unwrap();
+    assert_eq!(heard.len(), 2);
+    assert!(heard.iter().any(|noise| noise["sound"] == "monster_step"));
+    assert!(heard
+        .iter()
+        .any(|noise| noise["sound"] == "monster_presence"));
 }
 
 #[test]

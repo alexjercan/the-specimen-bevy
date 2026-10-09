@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 use game_assets::{FacilityAssets, UiAssets};
 use game_ui::{menu_button, text, theme};
+use gameplay::controller::PlayerController;
 use gameplay::levels::{
-    build_first_floor, Door, DoorRef, FusePanel, FusePickup, LevelRoot, Passage, Prop, Room,
+    build_first_floor, spawn_first_floor_actors, Door, DoorRef, FusePanel, FusePickup, LevelRoot,
+    Monster, Passage, Prop, Room,
 };
 
 use super::{background, release_cursor, screen_camera, GameState, MenuAction, TITLE};
@@ -90,6 +92,11 @@ fn enter_world(world: &mut World) {
         error!("first floor build failed: {error}");
         return;
     }
+    let spawn_actors = world.register_system_cached(spawn_first_floor_actors);
+    if let Err(error) = world.run_system(spawn_actors) {
+        error!("first floor actor spawn failed: {error}");
+        return;
+    }
     let roots: Vec<Entity> = world
         .query_filtered::<Entity, (
             Without<ChildOf>,
@@ -102,6 +109,8 @@ fn enter_world(world: &mut World) {
                 With<Prop>,
                 With<FusePanel>,
                 With<FusePickup>,
+                With<Monster>,
+                With<PlayerController>,
             )>,
         )>()
         .iter(world)
@@ -111,5 +120,4 @@ fn enter_world(world: &mut World) {
             .entity_mut(entity)
             .insert(DespawnOnExit(GameState::Playing));
     }
-    world.spawn((crate::player(), DespawnOnExit(GameState::Playing)));
 }

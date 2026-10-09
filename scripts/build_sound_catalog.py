@@ -37,8 +37,29 @@ APPROVED_FILES = {
     *{f"art/sounds/generated/amb/{name}.wav" for name in (
         "furnace/burning", "water/faucet", "vent/wind",
     )},
+    "art/sounds/sources/freesound/monster/step/metal-footsteps-gristi.ogg",
+    *{f"art/sounds/generated/monster/{name}.wav" for name in (
+        "detected/growl-jofae", "attack/roar-jofae", "chase/heartbeat-under-the-hood",
+        *(f"step/crawl-{letter}" for letter in "abcdef"),
+    )},
+}
+MONSTER_CANDIDATES = {
+    "step/metal-footsteps-gristi": ("gristi", 562195, "Monster presence ambience during patrol; not a timed footstep."),
+    "detected/growl-jofae": ("Jofae", 366837, "First growl cut before the pause; loaded for later detection behavior."),
+    "attack/roar-jofae": ("Jofae", 366837, "Second roar after the pause; loaded for later attack behavior."),
+    "chase/heartbeat-under-the-hood": ("under_the_hood", 455440, "Eight-second crossfaded loop loaded for later chase behavior."),
+    **{f"step/crawl-{letter}": ("Ultra-Edward", 795872, "Isolated crawl impact used as a timed patrol step.") for letter in "abcdef"},
 }
 REVIEW_FILES = set()
+MONSTER_SOURCES = {
+    f"art/sounds/sources/freesound/monster/{name}.ogg" for name in (
+        "idle/growls-lori-mortimer", "attack/growl-roar-jofae",
+        "detected/spooky-sting-nomiqbomi", "chase/heartbeat-under-the-hood",
+        "relief/sigh-marilenatip", "vent/crawl-ultra-edward",
+        "vent/ventilation-rattle-heckfricker", "claw/metal-scratch-rubberduck9999",
+        "claw/wood-scratching-wigglesworth",
+    )
+}
 SOURCE_FILES = {
     *{f"art/sounds/sources/freesound/amb/{name}.ogg" for name in (
         "water/faucet-willstepp", "furnace/furnace-iankath", "vent/wind-dblover",
@@ -56,6 +77,7 @@ CATEGORIES = {
     "hiding": "G. Hiding (bus world)",
     "flashlight": "A. Player self (bus self)",
     "self": "A. Player self (bus self)",
+    "monster": "F. Monster and threat cues",
 }
 STEP_CREDIT = ('GboxMikeFozzy, "Footsteps" (CC0 1.0)', "https://opengameart.org/content/footsteps-0")
 METAL_WOOD_CREDIT = ('rubberduck, "100 CC0 metal and wood SFX" (CC0 1.0)', "https://opengameart.org/content/100-cc0-metal-and-wood-sfx")
@@ -85,6 +107,14 @@ RECORDED_PATHS["art/sounds/generated/door/locked-rattle.wav"] = (
     "DrFahrts (Freesound preview, page-labeled CC0 1.0; edited by this project)",
     "https://freesound.org/people/DrFahrts/sounds/727791/",
 )
+for name, (creator, sound_id, _) in MONSTER_CANDIDATES.items():
+    origin = "sources/freesound" if name == "step/metal-footsteps-gristi" else "generated"
+    extension = "ogg" if origin == "sources/freesound" else "wav"
+    edit = "" if origin == "sources/freesound" else "; edited by this project"
+    RECORDED_PATHS[f"art/sounds/{origin}/monster/{name}.{extension}"] = (
+        f"{creator} (Freesound low-quality preview, item page displays CC0 1.0; provenance unverified{edit})",
+        f"https://freesound.org/people/{creator}/sounds/{sound_id}/",
+    )
 for filename, creator, sound_id in (
     ("click-ralph0o7", "Ralph0o7", 690300),
     ("thumb-switch-lunardrive", "Lunardrive", 48979),
@@ -175,6 +205,7 @@ def build(paths, output=OUTPUT):
         cards = []
         for path in sounds:
             relative = path.relative_to(ROOT)
+            part = sound_parts(path)
             href = quote(pathlib.Path(os.path.relpath(path, output.parent)).as_posix())
             name = "/".join((*relative.parts[2:-1], path.stem)).replace("_", " ")
             searchable = f"{category} {name} {relative.as_posix()}".lower()
@@ -182,10 +213,12 @@ def build(paths, output=OUTPUT):
             source = (f'<small>Source: <a href="{html.escape(credit[1], quote=True)}">{html.escape(credit[0])}</a></small>'
                       if credit else '<small>Original project-generated sound</small>')
             review = relative.as_posix() in REVIEW_FILES
+            note = MONSTER_CANDIDATES.get("/".join(part[1:]).rsplit(".", 1)[0]) if part and part[0] == "monster" else None
             cards.append(
                 f'<article class="{"review" if review else "approved"}" data-search="{html.escape(searchable, quote=True)}">'
                 f'<strong>{html.escape(name)}</strong><small>{html.escape(relative.as_posix())}</small>{source}'
                 f'{"<small>For review - not in game</small>" if review else ""}'
+                f'{"<small>Role: " + html.escape(note[2]) + "</small>" if note else ""}'
                 f'{waveform(path)}<audio controls preload="none" src="{html.escape(href, quote=True)}"></audio></article>'
             )
         sections.append(f'<section><h2>{html.escape(category)}</h2>{"".join(cards)}</section>')

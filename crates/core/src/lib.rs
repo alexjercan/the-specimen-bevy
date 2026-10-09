@@ -18,10 +18,9 @@ use bevy_rand::prelude::{ChaCha8Rng, EntropyPlugin};
 use game_assets::GameAssetsState;
 use game_settings::{GameSettings, GameSettingsPlugin, GraphicsQuality};
 #[cfg(feature = "debug")]
-use gameplay::controller::PlayerControlsEnabled;
-use gameplay::{
-    controller::PlayerController,
-    levels::{build_first_floor, FacilityPower, FuseSeed, LightIntensity},
+use gameplay::controller::{PlayerController, PlayerControlsEnabled};
+use gameplay::levels::{
+    build_first_floor, spawn_first_floor_actors, FacilityPower, FuseSeed, LightIntensity,
 };
 
 pub use menu::{GameState, MenuPlugin, PauseState};
@@ -31,7 +30,6 @@ pub use menu::{GameState, MenuPlugin, PauseState};
 mod debug_controls_tests;
 
 const LOG_FILTER: &str = "wgpu=error,naga=warn,bevy_ecs=warn,bevy_time=warn";
-const EYE_HEIGHT: f32 = 1.6;
 const WINDOWED_AMBIENT_BRIGHTNESS: f32 = 6.0;
 const WINDOWED_LIGHT_SCALE: f32 = 0.45;
 
@@ -125,6 +123,14 @@ impl AppBuilder {
             .add_plugins(logging)
             .add_plugins((InputPlugin, StatesPlugin))
             .insert_state(CoreState::Ready)
+            .add_plugins(match self.seed {
+                Some(seed) => {
+                    let mut bytes = [0; 32];
+                    bytes[..8].copy_from_slice(&seed.to_le_bytes());
+                    EntropyPlugin::<ChaCha8Rng>::with_seed(bytes)
+                }
+                None => EntropyPlugin::<ChaCha8Rng>::default(),
+            })
             .add_plugins(EnhancedInputPlugin)
             .add_plugins(gameplay::controller::PlayerControllerPlugin::default().without_camera())
             .add_plugins((
@@ -135,6 +141,7 @@ impl AppBuilder {
                 gameplay::levels::FacilityPowerPlugin,
                 gameplay::levels::PropSoundsPlugin,
                 gameplay::levels::PropLightsPlugin,
+                gameplay::levels::MonsterPlugin,
             ));
             if self.transport {
                 app.add_plugins(transport::TransportPlugin);
@@ -155,6 +162,7 @@ impl AppBuilder {
                 .add_plugins((
                     game_assets::GameAssetsPlugin,
                     gameplay::levels::LevelRenderPlugin,
+                    gameplay::levels::MonsterRenderPlugin,
                 ))
                 .add_systems(OnEnter(GameAssetsState::Ready), core_ready)
                 .add_systems(OnEnter(GameAssetsState::Failed), core_failed)
@@ -168,6 +176,7 @@ impl AppBuilder {
                     gameplay::levels::FacilityPowerPlugin,
                     gameplay::levels::PropSoundsPlugin,
                     gameplay::levels::PropLightsPlugin,
+                    gameplay::levels::MonsterPlugin,
                 ))
                 .add_plugins((
                     glue::InteractionHintPlugin,
@@ -221,8 +230,10 @@ struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_controller)
-            .add_systems(OnEnter(CoreState::Ready), build_first_floor);
+        app.add_systems(
+            OnEnter(CoreState::Ready),
+            (build_first_floor, spawn_first_floor_actors).chain(),
+        );
     }
 }
 
@@ -299,14 +310,6 @@ fn core_failed(mut exit: MessageWriter<AppExit>) {
 
 fn transport_ready(mut timeline: ResMut<transport::TransportTimeline>) {
     timeline.ready();
-}
-
-fn player() -> impl Bundle {
-    (PlayerController, Transform::from_xyz(0.0, EYE_HEIGHT, -5.0))
-}
-
-fn spawn_controller(mut commands: Commands) {
-    commands.spawn(player());
 }
 
 #[cfg(test)]

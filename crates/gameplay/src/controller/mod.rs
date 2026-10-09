@@ -1,4 +1,4 @@
-mod collision;
+pub(crate) mod collision;
 mod flashlight;
 pub mod player;
 mod stamina;

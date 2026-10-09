@@ -33,6 +33,11 @@ pub enum Sound {
     TableEnter,
     TableLeave,
     Step(usize),
+    MonsterPresence,
+    MonsterStep(usize),
+    MonsterDetected,
+    MonsterAttack,
+    MonsterHeartbeat,
     UiBack,
     UiConfirm,
     UiDenied,
@@ -76,6 +81,31 @@ mod tests;
 impl Sound {
     pub fn requires_power(self) -> bool {
         matches!(self, Self::BoilerTick)
+    }
+
+    pub fn audible_range(self) -> f32 {
+        match self {
+            Self::MonsterStep(_) => 16.0,
+            Self::MonsterPresence => 32.0,
+            _ => 25.0,
+        }
+    }
+
+    fn spatial_gain(self, distance: f32) -> f32 {
+        match self {
+            Self::MonsterStep(_) | Self::MonsterPresence => {
+                let fade = (1.0 - distance / self.audible_range()).max(0.0);
+                0.8 * fade * fade
+            }
+            _ => 0.6 / (1.0 + 0.06 * distance * distance),
+        }
+    }
+
+    fn spatial_scale(self) -> SpatialScale {
+        match self {
+            Self::MonsterStep(_) | Self::MonsterPresence => SpatialScale::new(0.12),
+            _ => SpatialScale::new(0.3),
+        }
     }
 }
 
@@ -197,6 +227,18 @@ fn sound_handle(sound: Sound, assets: &SoundAssets) -> Option<&Handle<AudioSourc
             1 => &assets.step_02,
             _ => &assets.step_04,
         },
+        Sound::MonsterPresence => &assets.monster_presence,
+        Sound::MonsterDetected => &assets.monster_detected,
+        Sound::MonsterAttack => &assets.monster_attack,
+        Sound::MonsterHeartbeat => &assets.monster_heartbeat,
+        Sound::MonsterStep(index) => match index % 6 {
+            0 => &assets.monster_step_a,
+            1 => &assets.monster_step_b,
+            2 => &assets.monster_step_c,
+            3 => &assets.monster_step_d,
+            4 => &assets.monster_step_e,
+            _ => &assets.monster_step_f,
+        },
         Sound::UiBack => &assets.ui_back,
         Sound::UiConfirm => &assets.ui_confirm,
         Sound::UiDenied => &assets.ui_denied,
@@ -231,10 +273,10 @@ fn play_source_sounds(
         };
         let position = source.transform_point(cue.offset);
         let distance = listener.translation().distance(position);
-        if distance > 25.0 {
+        if distance >= cue.sound.audible_range() {
             continue;
         }
-        let gain = 0.6 / (1.0 + 0.06 * distance * distance);
+        let gain = cue.sound.spatial_gain(distance);
         if let Ok(mut parent) = commands.get_entity(cue.source) {
             parent.with_children(|children| {
                 children.spawn((
@@ -244,7 +286,7 @@ fn play_source_sounds(
                     PlaybackSettings::DESPAWN
                         .with_volume(volume(settings.as_deref(), gain))
                         .with_spatial(true)
-                        .with_spatial_scale(SpatialScale::new(0.3)),
+                        .with_spatial_scale(cue.sound.spatial_scale()),
                     Transform::from_translation(cue.offset),
                 ));
             });
@@ -299,6 +341,11 @@ fn play_sounds(
                 | Sound::TableEnter
                 | Sound::TableLeave
                 | Sound::Step(_)
+                | Sound::MonsterStep(_)
+                | Sound::MonsterPresence
+                | Sound::MonsterDetected
+                | Sound::MonsterAttack
+                | Sound::MonsterHeartbeat
                 | Sound::SprintExhausted
         );
         if paused.0 && world_sound {
@@ -312,10 +359,10 @@ fn play_sounds(
                 continue;
             };
             let distance = listener.translation().distance(position);
-            if distance > 25.0 {
+            if distance >= cue.sound.audible_range() {
                 continue;
             }
-            let gain = 0.6 / (1.0 + 0.06 * distance * distance);
+            let gain = cue.sound.spatial_gain(distance);
             commands.spawn((
                 WorldAudio,
                 AudioGain(gain),
@@ -323,7 +370,7 @@ fn play_sounds(
                 PlaybackSettings::DESPAWN
                     .with_volume(volume(settings.as_deref(), gain))
                     .with_spatial(true)
-                    .with_spatial_scale(SpatialScale::new(0.3)),
+                    .with_spatial_scale(cue.sound.spatial_scale()),
                 Transform::from_translation(position),
             ));
         } else if world_sound {

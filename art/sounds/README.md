@@ -19,7 +19,16 @@ synthesized ambience, including `generated/amb/pressure/low.wav`.
 Freesound edits from their retained low-quality previews.
 `python3 scripts/build_sound_catalog.py` builds `art/sounds/catalog.html`.
 Yellow cards are catalog-only; other cards have runtime copies. ffmpeg is
-needed for rendering previews and drawing OGG waveforms.
+needed for rendering previews and drawing OGG waveforms. Selected monster
+source previews are in `sources/freesound/monster/`; `python3
+scripts/render_monster_sounds.py` makes approved edits in `generated/monster/`.
+Item links, hashes, licensing caveats, and cut choices are in
+[`monster/README.md`](sources/freesound/monster/README.md). The selected
+metal-floor recording and edited growl, heartbeat, and crawl clips have runtime
+copies and approved catalog cards. Patrol currently plays the metal recording
+as occasional presence and six crawl impacts as timed walking steps; detection,
+attack, and chase audio are loaded for later behavior but not triggered yet.
+Rejected previews remain off-catalog.
 
 The rejected `_stubb` handle-rattle edit, synthetic locked-door rattle and
 open-door stop are not in the catalog or runtime assets. DrFahrts's selected

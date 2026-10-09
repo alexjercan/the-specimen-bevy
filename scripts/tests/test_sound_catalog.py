@@ -1,3 +1,4 @@
+import html
 import pathlib
 import re
 import sys
@@ -11,6 +12,7 @@ import generate_sounds as synth
 import generate_ambience_review as ambience
 import generate_boiler_outage_sounds as boiler_outage
 import generate_flashlight_sounds as flashlight
+import render_monster_sounds as monster
 
 
 class SoundCatalogTests(unittest.TestCase):
@@ -97,16 +99,48 @@ class SoundCatalogTests(unittest.TestCase):
             finally:
                 ambience.OUT = old_out
 
+    def test_monster_edits_are_reproducible_and_sources_are_retained(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output = pathlib.Path(folder)
+            first = monster.generate(output)
+            self.assertEqual(len(first), 9)
+            originals = {path.name: path.read_bytes() for path in first}
+            self.assertEqual(first, monster.generate(output))
+            for path in first:
+                self.assertEqual(path.read_bytes(), originals[path.name])
+                with wave.open(str(path)) as audio:
+                    self.assertEqual(audio.getframerate(), 48_000)
+                    self.assertEqual(audio.getnchannels(), 1)
+                    self.assertEqual(audio.getsampwidth(), 2)
+                    self.assertGreater(audio.getnframes(), 0)
+                self.assertIn("<svg", catalog.waveform(path))
+                with wave.open(str(path)) as audio:
+                    frames = audio.readframes(audio.getnframes())
+                import array
+                samples = array.array("h")
+                samples.frombytes(frames)
+                self.assertLess(abs(samples[0] - samples[-1]), 1200, path)
+        self.assertEqual(
+            {path.name for path in first if path.parent.name == "step"},
+            {f"crawl-{letter}.wav" for letter in "abcdef"},
+        )
+        for path in catalog.MONSTER_SOURCES:
+            self.assertTrue((catalog.ROOT / path).is_file(), path)
+
     def test_catalog_only_lists_approved_and_review_audio(self):
         selected = {path.relative_to(catalog.ROOT).as_posix() for path in catalog.collect()}
         self.assertEqual(selected, catalog.APPROVED_FILES | catalog.REVIEW_FILES)
         self.assertEqual(
-            {path for path in selected if "/step/" in path},
+            {path for path in selected if "/opengameart/step/" in path},
             {f"art/sounds/sources/opengameart/step/subway/subway-step-{letter}.ogg" for letter in "abc"},
         )
         self.assertEqual(len([path for path in selected if "/door/" in path]), 4)
         breath = "art/sounds/sources/opengameart/self/breathing-tired-mikeask.wav"
-        self.assertEqual(catalog.REVIEW_FILES, set())
+        self.assertFalse(catalog.REVIEW_FILES)
+        self.assertTrue(catalog.MONSTER_SOURCES.isdisjoint(selected))
+        monster_paths = {path for path in selected if "/monster/" in path}
+        self.assertEqual(len(monster_paths), 10)
+        self.assertTrue(monster_paths <= catalog.APPROVED_FILES)
         breaker = "art/sounds/sources/opengameart/amb/boiler/switch-off-cleytonkauffman.wav"
         self.assertIn(breaker, catalog.APPROVED_FILES)
         self.assertIn("art/sounds/generated/amb/boiler/reset.wav", catalog.APPROVED_FILES)
@@ -118,6 +152,8 @@ class SoundCatalogTests(unittest.TestCase):
         self.assertNotIn("art/sounds/generated/candidates/door/locked/rattling-locked-door-shelbyshark.wav", selected)
         self.assertEqual(len([path for path in selected if "Freesound preview" in catalog.RECORDED_PATHS.get(path, ("", ""))[0]]), 4)
         self.assertTrue(catalog.SOURCE_FILES.isdisjoint(selected))
+        for path in monster_paths:
+            self.assertIn("<svg", catalog.waveform(catalog.ROOT / path))
         hiding = {path for path in selected if "/hiding/" in path}
         self.assertEqual(len(hiding), 4)
         for path in hiding:
@@ -134,6 +170,7 @@ class SoundCatalogTests(unittest.TestCase):
                 "thumb-switch-lunardrive", "spring-switch-eskildnp",
             )},
             *catalog.REVIEW_FILES,
+            *catalog.MONSTER_SOURCES,
             *{f"art/sounds/generated/candidates/amb/boiler/{cue}.wav" for cue in (
                 "breaker-trip", "power-down", "reset", "restart",
             )},
@@ -171,6 +208,14 @@ class SoundCatalogTests(unittest.TestCase):
                     self.assertIn("CleytonKauffman", card)
                     self.assertIn("opengameart.org/content/sfx-circuit-breaker", card)
                     self.assertNotIn("For review - not in game", card)
+                elif "/monster/" in path:
+                    name = path.split("/monster/", 1)[1].rsplit(".", 1)[0]
+                    creator, sound_id, note = catalog.MONSTER_CANDIDATES[name]
+                    self.assertIn(creator, card)
+                    self.assertIn(f"/sounds/{sound_id}/", card)
+                    self.assertIn(html.escape(note), card)
+                    self.assertIn("provenance unverified", card)
+                    self.assertNotIn("For review - not in game", card)
                 elif "/generated/door/" in path or "/generated/hiding/" in path:
                     self.assertIn("rubberduck", card)
                     self.assertNotIn("GboxMikeFozzy", card)
@@ -191,6 +236,14 @@ class SoundCatalogTests(unittest.TestCase):
                     self.assertIn("opengameart.org/content/breathing-tired", matching[0])
                     self.assertIn("page-labeled CC0 1.0", matching[0])
                     self.assertNotIn("Original project-generated sound", matching[0])
+                elif "/monster/" in path:
+                    name = path.split("/monster/", 1)[1].rsplit(".", 1)[0]
+                    creator, sound_id, note = catalog.MONSTER_CANDIDATES[name]
+                    self.assertIn(creator, matching[0])
+                    self.assertIn(f"/sounds/{sound_id}/", matching[0])
+                    self.assertIn(html.escape(note), matching[0])
+                    self.assertIn("provenance unverified", matching[0])
+                    self.assertNotIn("Original project-generated sound", matching[0])
                 elif "/sources/freesound/flashlight/" in path:
                     self.assertIn("Freesound low-quality preview", matching[0])
                     self.assertIn("freesound.org/people/", matching[0])
@@ -203,9 +256,12 @@ class SoundCatalogTests(unittest.TestCase):
             self.assertIn("<h2>A. Player self (bus self)</h2>", page)
             self.assertIn("<h2>B. Doors (bus world)</h2>", page)
             self.assertIn("<h2>E. UI and front end (bus ui)</h2>", page)
+            self.assertIn("<h2>F. Monster and threat cues</h2>", page)
             self.assertEqual(page.count('class="review"'), len(catalog.REVIEW_FILES))
             self.assertEqual(page.count('Freesound preview'), 4)
-            self.assertEqual(page.count('Freesound low-quality preview'), 1)
+            self.assertEqual(page.count('Freesound low-quality preview'), 11)
+            for path in catalog.MONSTER_SOURCES:
+                self.assertNotIn(f"<small>{path}</small>", page)
             for filename in ("thumb-switch-lunardrive", "spring-switch-eskildnp", "switch-on.wav", "switch-off.wav", "battery-empty.wav"):
                 self.assertNotIn(f"<strong>{filename}</strong>", page)
             self.assertNotIn("<strong>candidates/amb/boiler/breaker-trip</strong>", page)
@@ -226,6 +282,8 @@ class SoundCatalogTests(unittest.TestCase):
                 runtime = catalog.ROOT / path.replace("art/sounds/sources/opengameart/", "assets/sounds/")
             elif path.endswith("/flashlight/click-ralph0o7.ogg"):
                 runtime = catalog.ROOT / "assets/sounds/flashlight/click-ralph0o7.ogg"
+            elif path.endswith("/monster/step/metal-footsteps-gristi.ogg"):
+                runtime = catalog.ROOT / "assets/sounds/monster/amb/metal-footsteps-gristi.ogg"
             else:
                 self.fail(f"unhandled source origin: {path}")
             self.assertEqual(art.read_bytes(), runtime.read_bytes(), path)

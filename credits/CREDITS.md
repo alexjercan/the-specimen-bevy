@@ -25,6 +25,14 @@ CC0 does not require attribution; this is a courtesy credit. License text:
 `credits/licenses/FREE-Input-Prompts_CC0-1.0.md`. Copied files and source
 commits are in `credits/ASSET-SOURCES.md`.
 
+## The Human Deer
+
+"The Human Deer" by ceeleste, https://sketchfab.com/3d-models/the-human-deer-7644694337404bb18eb68e6b637740a1 , licensed under CC-BY-4.0 according to its bundled license. Required credit: This work is based on "The Human Deer" (https://sketchfab.com/3d-models/the-human-deer-7644694337404bb18eb68e6b637740a1) by ceeleste (https://sketchfab.com/ceeleste) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). The runtime `assets/monster/human_deer_animated.glb` is copied from `art/visuals/generated/monster/`. WALK, CHASE, and ATTACK animations were added and IDLE was resampled; see its README and the bundled source notice copied to `credits/licenses/The-Human-Deer-source-license.txt`. License and provenance are source-provided claims, not independently verified.
+
+## Monster patrol recordings
+
+Gristi, [snd_footsteps_metal_floor_inside.wav](https://freesound.org/people/gristi/sounds/562195/): the low-quality preview at `assets/sounds/monster/amb/metal-footsteps-gristi.ogg` is used for occasional monster presence. Ultra-Edward, [Crawling Through a Vent](https://freesound.org/people/Ultra-Edward/sounds/795872/): six edited step clips at `assets/sounds/monster/step/` derive from its preview. The pages display CC0; preview terms and uploader rights have not been independently verified. Jofae, [Growl and Roar](https://freesound.org/people/Jofae/sounds/366837/): detection and attack edits are retained at `assets/sounds/monster/detected/` and `assets/sounds/monster/attack/`. under_the_hood, [Real heartbeat sound fastest](https://freesound.org/people/under_the_hood/sounds/455440/): an edited loop is at `assets/sounds/monster/chase/`. These three cues are loaded but not played by patrol. All four source pages display CC0; preview terms and uploader rights have not been independently verified. Source hashes and edit details are in `art/sounds/sources/freesound/monster/README.md`.
+
 ## Recorded footsteps
 
 GboxMikeFozzy, [Footsteps](https://opengameart.org/content/footsteps-0),

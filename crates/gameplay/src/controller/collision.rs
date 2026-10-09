@@ -132,6 +132,13 @@ impl Obstacle {
     }
 }
 
+pub(crate) fn clear_for_player(point: Vec2, obstacles: &[(Vec2, Vec2, f32)]) -> bool {
+    obstacles.iter().all(|&(center, half, angle)| {
+        let local = Obstacle::new(center, half, angle).to_local(point);
+        (local - local.clamp(-half, half)).length_squared() >= PLAYER_RADIUS * PLAYER_RADIUS
+    })
+}
+
 pub(crate) fn move_player(start: Vec2, delta: Vec2, obstacles: &[(Vec2, Vec2, f32)]) -> Vec2 {
     let obstacles = obstacles
         .iter()
@@ -325,7 +332,7 @@ fn merge_walls(mut walls: Vec<(bool, f32, f32, f32)>) -> Vec<(Vec2, Vec2, f32)> 
         .collect()
 }
 
-fn rotate(point: Vec2, angle: f32) -> Vec2 {
+pub(crate) fn rotate(point: Vec2, angle: f32) -> Vec2 {
     let (s, c) = angle.sin_cos();
     Vec2::new(c * point.x + s * point.y, -s * point.x + c * point.y)
 }

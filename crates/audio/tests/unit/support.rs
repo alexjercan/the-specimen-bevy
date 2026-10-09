@@ -9,6 +9,16 @@ pub(crate) fn sound_assets() -> SoundAssets {
         Handle::<AudioSource>::Uuid(Uuid::from_u128(next), default())
     };
     SoundAssets {
+        monster_presence: handle(),
+        monster_detected: handle(),
+        monster_attack: handle(),
+        monster_heartbeat: handle(),
+        monster_step_a: handle(),
+        monster_step_b: handle(),
+        monster_step_c: handle(),
+        monster_step_d: handle(),
+        monster_step_e: handle(),
+        monster_step_f: handle(),
         furnace: handle(),
         faucet: handle(),
         vent_wind: handle(),

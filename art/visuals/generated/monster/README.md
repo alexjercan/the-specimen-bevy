@@ -1,7 +1,8 @@
 # Human Deer animation prototype (task #227)
 
-Status: prototype for review. Not shipped. Not in `credits/`. Used only by the review example
-`examples/human_deer_viewer.rs`, not gameplay. The example starts on IDLE;
+Status: approved monster model, shipped as an unchanged copy of this animated GLB at
+`assets/monster/human_deer_animated.glb` for the initial patrol. The viewer also
+loads this generated copy. See `credits/CREDITS.md` for distribution attribution. The example starts on IDLE;
 Left/Right arrows (or < and >) cycle clips and show the selected name on screen.
 
 ## Attribution

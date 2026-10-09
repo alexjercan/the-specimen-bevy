@@ -174,6 +174,88 @@ fn authored_source_cue_plays_only_its_own_sound() {
 }
 
 #[test]
+fn monster_cues_fade_across_distinct_room_distances() {
+    let step = Sound::MonsterStep(0);
+    let presence = Sound::MonsterPresence;
+    assert_eq!(step.audible_range(), 16.0);
+    assert_eq!(presence.audible_range(), 32.0);
+    assert_eq!(Sound::DoorShut.audible_range(), 25.0);
+    assert!(step.spatial_gain(10.0) > step.spatial_gain(15.0));
+    assert!(presence.spatial_gain(20.0) > presence.spatial_gain(30.0));
+    assert!(presence.spatial_gain(30.0) > 0.0);
+    assert_eq!(presence.spatial_gain(32.0), 0.0);
+
+    let mut app = playback_app(Some(Vec3::ZERO));
+    app.add_plugins(TransformPlugin)
+        .add_message::<PlaySoundFrom>()
+        .add_systems(Update, play_source_sounds);
+    let monster = app
+        .world_mut()
+        .spawn(Transform::from_xyz(20.0, 0.0, 0.0))
+        .id();
+    app.update();
+    for sound in [step, presence] {
+        app.world_mut().write_message(PlaySoundFrom {
+            sound,
+            source: monster,
+            offset: Vec3::ZERO,
+        });
+    }
+    app.update();
+    let voices = app.world().get::<Children>(monster).unwrap();
+    assert_eq!(voices.len(), 1);
+    let voice = voices[0];
+    assert_eq!(
+        app.world().get::<AudioPlayer>(voice).unwrap().0,
+        test_support::sound_assets().monster_presence
+    );
+    assert!(
+        (app.world().get::<AudioGain>(voice).unwrap().0 - presence.spatial_gain(20.0)).abs()
+            < 0.001
+    );
+}
+
+#[test]
+fn monster_patrol_steps_and_presence_use_source_attached_clips() {
+    let mut app = playback_app(Some(Vec3::ZERO));
+    app.add_message::<PlaySourceSound>()
+        .add_message::<PlaySoundFrom>()
+        .add_systems(Update, (play_authored_sounds, play_source_sounds).chain());
+    let monster = app
+        .world_mut()
+        .spawn((
+            Transform::from_xyz(2.0, 0.0, 0.0),
+            SourceSounds(vec![
+                (Sound::MonsterStep(4), Vec3::Y),
+                (Sound::MonsterPresence, Vec3::Y),
+            ]),
+        ))
+        .id();
+    for sound in [Sound::MonsterStep(4), Sound::MonsterPresence] {
+        app.world_mut().write_message(PlaySourceSound {
+            source: monster,
+            sound,
+        });
+    }
+    app.update();
+    let children = app.world().get::<Children>(monster).unwrap();
+    assert_eq!(children.len(), 2);
+    let actual: Vec<_> = children
+        .iter()
+        .map(|child| app.world().get::<AudioPlayer>(child).unwrap().0.clone())
+        .collect();
+    let assets = test_support::sound_assets();
+    assert!(actual.contains(&assets.monster_step_e));
+    assert!(actual.contains(&assets.monster_presence));
+    for child in children.iter() {
+        assert_eq!(
+            app.world().get::<Transform>(child).unwrap().translation,
+            Vec3::Y
+        );
+    }
+}
+
+#[test]
 fn source_cues_require_a_near_listener_and_unpaused_world() {
     let mut app = playback_app(None);
     app.add_message::<PlaySoundFrom>()
