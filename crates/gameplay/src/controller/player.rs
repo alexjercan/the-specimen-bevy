@@ -1,5 +1,4 @@
 use bevy::{
-    audio::SpatialListener,
     prelude::*,
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
@@ -169,7 +168,7 @@ fn refresh_input_bindings(
 fn attach_audio(added: On<Add, PlayerController>, mut commands: Commands) {
     commands
         .entity(added.entity)
-        .insert(SpatialListener::new(0.18))
+        .insert(game_audio::spatial_listener(0.18))
         .with_children(|children| {
             children.spawn((
                 AmbientSource {

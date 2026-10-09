@@ -1,4 +1,5 @@
 use bevy::audio::PlaybackMode;
+use rodio::source::{SineWave, Spatial};
 
 use super::*;
 
@@ -30,6 +31,39 @@ fn settings_scale_new_ui_and_spatial_cues_without_changing_base_gain() {
     }
 }
 
+#[test]
+fn distant_spatial_cues_pan_toward_the_source_for_both_listener_orientations() {
+    for yaw in [0.0, std::f32::consts::FRAC_PI_2] {
+        let transform = Transform::from_rotation(Quat::from_rotation_y(yaw));
+        let listener = spatial_listener(0.18);
+        let left_ear = transform
+            .transform_point(listener.left_ear_offset)
+            .to_array();
+        let right_ear = transform
+            .transform_point(listener.right_ear_offset)
+            .to_array();
+        for (side, left_should_be_louder) in [(-1.0, true), (1.0, false)] {
+            let source = transform.transform_point(Vec3::new(side * 12.0, 0.0, 0.0));
+            let samples: Vec<f32> =
+                Spatial::new(SineWave::new(440.0), source.to_array(), left_ear, right_ear)
+                    .take(2048)
+                    .collect();
+            let left_energy: f32 = samples
+                .iter()
+                .step_by(2)
+                .map(|sample| sample * sample)
+                .sum();
+            let right_energy: f32 = samples
+                .iter()
+                .skip(1)
+                .step_by(2)
+                .map(|sample| sample * sample)
+                .sum();
+            assert_eq!(left_energy > right_energy, left_should_be_louder);
+        }
+    }
+}
+
 fn playback_app(listener: Option<Vec3>) -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
@@ -39,7 +73,7 @@ fn playback_app(listener: Option<Vec3>) -> App {
         .add_systems(Update, play_sounds);
     if let Some(position) = listener {
         app.world_mut().spawn((
-            SpatialListener::new(0.18),
+            spatial_listener(0.18),
             GlobalTransform::from_translation(position),
         ));
     }
@@ -270,7 +304,7 @@ fn source_cues_require_a_near_listener_and_unpaused_world() {
     app.update();
     assert!(app.world().get::<Children>(boiler).is_none());
     app.world_mut()
-        .spawn((SpatialListener::new(0.18), GlobalTransform::IDENTITY));
+        .spawn((spatial_listener(0.18), GlobalTransform::IDENTITY));
     app.world_mut().resource_mut::<AudioPaused>().0 = true;
     app.world_mut().write_message(cue);
     app.update();

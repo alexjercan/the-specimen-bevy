@@ -9,3 +9,6 @@ publish = false
 bevy.workspace = true
 game_assets.workspace = true
 game_settings.workspace = true
+
+[dev-dependencies]
+rodio = { version = "0.22.2", default-features = false }

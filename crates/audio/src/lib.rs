@@ -109,6 +109,13 @@ impl Sound {
     }
 }
 
+pub fn spatial_listener(ear_gap: f32) -> SpatialListener {
+    SpatialListener {
+        left_ear_offset: Vec3::X * (ear_gap / 2.0),
+        right_ear_offset: Vec3::NEG_X * (ear_gap / 2.0),
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct AudioPaused(pub bool);
 

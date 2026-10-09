@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use bevy::{
+    audio::SpatialListener,
     input::{mouse::MouseMotion, InputPlugin},
     prelude::*,
     time::TimeUpdateStrategy,
@@ -40,6 +41,9 @@ fn player_spawns_with_camera_and_wasd_input() {
     let (app, player) = app(true);
     assert!(app.world().get::<Camera3d>(player).is_some());
     assert!(app.world().get::<PlayerInput>(player).is_some());
+    let listener = app.world().get::<SpatialListener>(player).unwrap();
+    assert!(listener.left_ear_offset.x > 0.0);
+    assert!(listener.right_ear_offset.x < 0.0);
 }
 
 #[test]
