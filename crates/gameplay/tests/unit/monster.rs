@@ -65,13 +65,17 @@ fn presence_repeats_while_monster_waits_without_a_route() {
     for _ in 0..190 {
         app.update();
     }
+    assert!(app.world().resource::<Heard>().0.is_empty());
+    for _ in 190..500 {
+        app.update();
+    }
     let heard = &app.world().resource::<Heard>().0;
     assert_eq!(
         heard
             .iter()
             .filter(|&&cue| cue == Sound::MonsterPresence)
             .count(),
-        3
+        2
     );
     assert!(!heard.iter().any(|cue| matches!(cue, Sound::MonsterStep(_))));
 }
@@ -134,7 +138,144 @@ fn patrol_path_rejects_a_sealed_wall() {
 }
 
 #[test]
-fn patrol_opens_traverses_and_closes_an_unlocked_door() {
+fn route_through_an_interior_door_is_independent_of_its_open_state() {
+    use crate::levels::{Door, DoorOf, DoorRef, DoorState, DoorSwing, Doors, Passage, Room};
+
+    fn planned_route(
+        rooms: Query<(Entity, &Room)>,
+        walls: Query<(&Room, Option<&Doors>)>,
+        links: Query<(&DoorRef, &DoorOf)>,
+        doors: Query<(&Door, &DoorSwing)>,
+        passages: Query<&Passage>,
+    ) -> Option<std::collections::VecDeque<Vec2>> {
+        let rooms: Vec<_> = rooms
+            .iter()
+            .map(|(entity, room)| (entity, room.0))
+            .collect();
+        let mut blockers =
+            crate::controller::collision::wall_obstacles(&walls, &links, &doors, &passages);
+        for (door, _) in &doors {
+            blockers.extend(crate::controller::collision::door_frames(door));
+        }
+        route(Vec2::new(-2.5, 0.0), Vec2::new(2.5, 0.0), &rooms, &blockers)
+    }
+
+    let mut app = App::new();
+    let door = app
+        .world_mut()
+        .spawn(crate::levels::builder::door(
+            "route door",
+            Vec2::ZERO,
+            std::f32::consts::FRAC_PI_2,
+            "wall_doorway",
+            "door_panel",
+        ))
+        .id();
+    app.world_mut()
+        .spawn(Room(Rect::new(-5.0, -1.25, 0.0, 1.25)))
+        .with_related::<DoorOf>(DoorRef(door));
+    app.world_mut()
+        .spawn(Room(Rect::new(0.0, -1.25, 5.0, 1.25)))
+        .with_related::<DoorOf>(DoorRef(door));
+    let closed = app.world_mut().run_system_cached(planned_route).unwrap();
+    assert!(closed.is_some());
+    app.world_mut().get_mut::<Door>(door).unwrap().state = DoorState::Open;
+    app.world_mut().get_mut::<DoorSwing>(door).unwrap().0 = std::f32::consts::FRAC_PI_2;
+    let open = app.world_mut().run_system_cached(planned_route).unwrap();
+    assert_eq!(closed, open);
+}
+
+#[test]
+fn nearby_monster_opens_unlocked_door_without_a_route_and_leaves_it_open() {
+    use crate::levels::{Door, DoorState, Monster, ToggleDoor};
+
+    #[derive(Resource, Default)]
+    struct Operations(Vec<Entity>);
+
+    fn toggle(
+        mut events: MessageReader<ToggleDoor>,
+        mut doors: Query<&mut Door>,
+        mut operations: ResMut<Operations>,
+    ) {
+        for event in events.read() {
+            operations.0.push(event.0);
+            let mut door = doors.get_mut(event.0).unwrap();
+            door.state = match door.state {
+                DoorState::Closed => DoorState::Open,
+                DoorState::Open => DoorState::Closed,
+            };
+        }
+    }
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .init_resource::<Operations>()
+        .add_plugins(super::MonsterPlugin)
+        .add_systems(PostUpdate, toggle);
+    let door = app
+        .world_mut()
+        .spawn(crate::levels::builder::door(
+            "proximity door",
+            Vec2::ZERO,
+            std::f32::consts::FRAC_PI_2,
+            "wall_doorway",
+            "door_panel",
+        ))
+        .id();
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(0.8, 0.0, 0.0)))
+        .id();
+    app.update();
+    assert_eq!(app.world().resource::<Operations>().0, vec![door]);
+    assert_eq!(
+        app.world().get::<Door>(door).unwrap().state,
+        DoorState::Open
+    );
+    assert!(app
+        .world()
+        .get::<Monster>(monster)
+        .unwrap()
+        .route
+        .is_empty());
+    app.update();
+    assert_eq!(app.world().resource::<Operations>().0.len(), 1);
+    app.world_mut()
+        .get_mut::<Transform>(monster)
+        .unwrap()
+        .translation
+        .x = 2.0;
+    app.update();
+    assert_eq!(app.world().resource::<Operations>().0, vec![door]);
+    assert_eq!(
+        app.world().get::<Door>(door).unwrap().state,
+        DoorState::Open
+    );
+    app.world_mut().get_mut::<Door>(door).unwrap().state = DoorState::Closed;
+    app.update();
+    assert_eq!(app.world().resource::<Operations>().0, vec![door]);
+    app.world_mut().get_mut::<Door>(door).unwrap().state = DoorState::Open;
+    app.world_mut()
+        .get_mut::<Transform>(monster)
+        .unwrap()
+        .translation
+        .x = 0.8;
+    app.update();
+    app.world_mut()
+        .get_mut::<Transform>(monster)
+        .unwrap()
+        .translation
+        .x = 2.0;
+    app.update();
+    assert_eq!(app.world().resource::<Operations>().0, vec![door]);
+    assert_eq!(
+        app.world().get::<Door>(door).unwrap().state,
+        DoorState::Open
+    );
+}
+
+#[test]
+fn patrol_opens_traverses_and_leaves_an_unlocked_door_open() {
     use crate::levels::{Door, DoorOf, DoorRef, DoorState, Monster, Room};
 
     fn toggle(mut toggles: MessageReader<crate::levels::ToggleDoor>, mut doors: Query<&mut Door>) {
@@ -185,22 +326,27 @@ fn patrol_opens_traverses_and_closes_an_unlocked_door() {
         .entity_mut(monster)
         .insert(Transform::from_xyz(-2.5, 0.0, 0.0));
     let mut opened = false;
-    let mut closed_after_crossing = false;
+    let mut crossed = false;
     for _ in 0..1100 {
         app.update();
         let world = app.world_mut();
         let door = world.query::<&Door>().single(world).unwrap();
         let position = world.get::<Transform>(monster).unwrap().translation.x;
         opened |= door.state == DoorState::Open;
-        closed_after_crossing |= opened && position > 1.8 && door.state == DoorState::Closed;
-        if closed_after_crossing {
+        crossed |= opened && position > 1.8;
+        if crossed {
             break;
         }
     }
     assert!(opened, "patrol must open the door");
-    assert!(
-        closed_after_crossing,
-        "patrol must cross and close the door"
+    assert!(crossed, "patrol must cross the door");
+    for _ in 0..100 {
+        app.update();
+    }
+    let world = app.world_mut();
+    assert_eq!(
+        world.query::<&Door>().single(world).unwrap().state,
+        DoorState::Open
     );
 }
 

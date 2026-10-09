@@ -17,9 +17,8 @@ const SPEED: f32 = 0.51;
 const GRID: f32 = 0.5;
 const ARRIVAL: f32 = 0.16;
 const DOOR_APPROACH: f32 = 1.35;
-const DOOR_CLEAR: f32 = 1.8;
 const STEP_PERIOD: f32 = 0.6;
-const PRESENCE_INTERVAL: f32 = 6.0;
+const PRESENCE_INTERVAL: f32 = 24.0;
 const MODEL_SCALE: f32 = 0.42;
 const MODEL_LIFT: f32 = 1.93;
 const MODEL_PIVOT: Vec2 = Vec2::new(0.091, 3.793);
@@ -32,9 +31,7 @@ mod tests;
 
 #[derive(Component)]
 pub struct Monster {
-    room: Option<Entity>,
     route: VecDeque<Vec2>,
-    opened_doors: Vec<(Entity, Vec2)>,
     step_clock: f32,
     presence_clock: f32,
     step_index: usize,
@@ -44,9 +41,7 @@ pub struct Monster {
 impl Default for Monster {
     fn default() -> Self {
         Self {
-            room: None,
             route: VecDeque::new(),
-            opened_doors: Vec::new(),
             step_clock: 0.0,
             presence_clock: 0.0,
             step_index: 0,
@@ -75,7 +70,7 @@ impl Plugin for MonsterPlugin {
         app.add_message::<ToggleDoor>()
             .add_message::<PlaySourceSound>()
             .add_observer(attach_monster_sounds)
-            .add_systems(Update, patrol);
+            .add_systems(Update, (manage_doors, patrol).chain());
     }
 }
 
@@ -257,6 +252,27 @@ fn turn_toward(transform: &mut Transform, direction: Vec2, delta: f32) -> bool {
     (difference - step).abs() <= MOVE_FACING_TOLERANCE
 }
 
+fn manage_doors(
+    enabled: Option<Res<PlayerControlsEnabled>>,
+    doors: Query<(Entity, &Door, Has<DoorLock>)>,
+    monsters: Query<&Transform, With<Monster>>,
+    mut toggles: MessageWriter<ToggleDoor>,
+) {
+    if enabled.is_some_and(|enabled| !enabled.0) {
+        return;
+    }
+    for (entity, door, locked) in &doors {
+        if !locked
+            && door.state == DoorState::Closed
+            && monsters
+                .iter()
+                .any(|monster| monster.translation.xz().distance(door.position) < DOOR_APPROACH)
+        {
+            toggles.write(ToggleDoor(entity));
+        }
+    }
+}
+
 fn patrol(
     time: Res<Time>,
     enabled: Option<Res<PlayerControlsEnabled>>,
@@ -268,9 +284,7 @@ fn patrol(
     door_walls: Query<(&Door, &DoorSwing)>,
     passages: Query<&Passage>,
     props: Query<(&PropCollider, &Transform), (Without<PlayerController>, Without<Monster>)>,
-    players: Query<&Transform, With<PlayerController>>,
     mut monsters: Query<(Entity, &mut Monster, &mut Transform), Without<PlayerController>>,
-    mut toggles: MessageWriter<ToggleDoor>,
     mut sounds: MessageWriter<PlaySourceSound>,
 ) {
     if enabled.is_some_and(|enabled| !enabled.0) {
@@ -307,31 +321,12 @@ fn patrol(
             });
         }
         let position = transform.translation.xz();
-        monster.opened_doors.retain(|&(door_entity, origin)| {
-            let Ok((_, door, _, locked)) = doors.get(door_entity) else {
-                return false;
-            };
-            let normal = (door.rotation * -Vec3::Z).xz();
-            let crossed =
-                (origin - door.position).dot(normal) * (position - door.position).dot(normal) < 0.0;
-            let player_near = players
-                .iter()
-                .any(|player| player.translation.xz().distance(door.position) < DOOR_CLEAR);
-            if !locked && crossed && !player_near && position.distance(door.position) > DOOR_CLEAR {
-                if door.state == DoorState::Open {
-                    toggles.write(ToggleDoor(door_entity));
-                }
-                return false;
-            }
-            true
-        });
         if monster.route.is_empty() && monster.route_retry > 0.0 {
             monster.route_retry -= delta;
             continue;
         }
         if monster.route.is_empty() {
-            monster.room = room_at(position, &rooms_data).or(monster.room);
-            if let Some(room) = monster.room {
+            if let Some(room) = room_at(position, &rooms_data) {
                 let neighbors: Vec<_> = rooms
                     .iter()
                     .filter_map(|(candidate, room_data, links_in_room)| {
@@ -370,11 +365,10 @@ fn patrol(
                         }
                     };
                     let pick = (sample % count) as usize;
-                    let (destination, bounds) = neighbors[pick];
+                    let (_, bounds) = neighbors[pick];
                     let center = (bounds.min + bounds.max) * 0.5;
                     if let Some(path) = route(position, center, &rooms_data, &blockers) {
                         monster.route = path;
-                        monster.room = Some(destination);
                     } else {
                         monster.route_retry = 1.0;
                     }
@@ -390,29 +384,12 @@ fn patrol(
         }
         let forward = (next - position).normalize_or_zero();
         let facing_waypoint = turn_toward(&mut transform, forward, delta);
-        let target_door = doors.iter().find(|(_, door, _, locked)| {
+        if doors.iter().any(|(_, door, swing, locked)| {
             !locked
                 && position.distance(door.position) < DOOR_APPROACH
-                && monster
-                    .route
-                    .iter()
-                    .take(5)
-                    .any(|waypoint| waypoint.distance(door.position) < DOOR_APPROACH)
-        });
-        if let Some((door_entity, door, swing, _)) = target_door {
-            if !monster
-                .opened_doors
-                .iter()
-                .any(|(opened, _)| *opened == door_entity)
-            {
-                if door.state == DoorState::Closed {
-                    toggles.write(ToggleDoor(door_entity));
-                }
-                monster.opened_doors.push((door_entity, position));
-            }
-            if swing.0 < 1.4 {
-                continue;
-            }
+                && (door.state == DoorState::Closed || swing.0 < 1.4)
+        }) {
+            continue;
         }
         if !facing_waypoint {
             continue;
@@ -427,7 +404,6 @@ fn patrol(
         let moved = collision::move_player(position, step, &dynamic);
         if moved.distance(position) < step.length() * 0.15 {
             monster.route.clear();
-            monster.room = room_at(position, &rooms_data);
             monster.route_retry = 1.0;
             continue;
         }
