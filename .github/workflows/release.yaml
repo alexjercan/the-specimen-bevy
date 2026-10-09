@@ -1,36 +1,40 @@
 name: Native release
 on:
-  workflow_dispatch:
   push:
     tags: ["v*"]
+permissions:
+  contents: read
 jobs:
   linux:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v31
-      - name: Build native package and export its Nix closure
+      - name: Install native dependencies
         run: |
-          nix build --print-build-logs --print-out-paths > store-path.txt
-          nix-store -qR "$(readlink -f result)" |
-            xargs nix-store --export | gzip -1 > the-specimen-bevy-linux.nar.gz
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libwayland-dev libxcursor-dev libxi-dev libxrandr-dev libxkbcommon-dev
+      - name: Build release
+        run: cargo build --locked --release -p the-specimen-bevy
+      - name: Package game
+        run: |
+          mkdir -p package
+          install -m 755 target/release/the-specimen-bevy package/the-specimen-bevy
+          cp -r assets credits LICENSE package/
+          tar -czf "the-specimen-bevy-${GITHUB_REF_NAME}-linux-x86_64.tar.gz" -C package .
       - uses: actions/upload-artifact@v4
         with:
-          name: the-specimen-bevy-linux
-          path: |
-            the-specimen-bevy-linux.nar.gz
-            store-path.txt
+          name: the-specimen-bevy-linux-x86_64
+          path: the-specimen-bevy-*-linux-x86_64.tar.gz
+          if-no-files-found: error
   windows:
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - name: Install the pinned toolchain
-        run: rustup toolchain install
-      - name: Build native release
+      - name: Build release
         run: cargo build --locked --release -p the-specimen-bevy
-      - name: Package release
+      - name: Package game
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path package | Out-Null
@@ -38,9 +42,9 @@ jobs:
           Copy-Item -Recurse assets package/assets
           Copy-Item -Recurse credits package/credits
           Copy-Item LICENSE package/
-          Compress-Archive -Path package/* -DestinationPath the-specimen-bevy-windows.zip
+          Compress-Archive -Path package/* -DestinationPath "the-specimen-bevy-${env:GITHUB_REF_NAME}-windows-x86_64.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: the-specimen-bevy-windows
-          path: the-specimen-bevy-windows.zip
+          name: the-specimen-bevy-windows-x86_64
+          path: the-specimen-bevy-*-windows-x86_64.zip
           if-no-files-found: error

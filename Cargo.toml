@@ -77,6 +77,9 @@ autopilot.workspace = true
 capture.workspace = true
 probe.workspace = true
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.4.3", features = ["wasm_js"] }
+
 [[example]]
 name = "facility_gallery"
 path = "examples/facility_gallery.rs"

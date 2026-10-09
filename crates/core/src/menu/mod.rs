@@ -20,7 +20,7 @@ use game_audio::{PlaySound, Sound};
 
 use crate::CoreState;
 
-pub(crate) const TITLE: &str = "HORROR GAME";
+pub(crate) const TITLE: &str = "The Specimen";
 
 #[derive(SubStates, Default, Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[source(CoreState = CoreState::Ready)]
@@ -46,6 +46,7 @@ enum MenuAction {
     Retry,
     Resume,
     MainMenu,
+    #[cfg(not(target_arch = "wasm32"))]
     Quit,
 }
 
@@ -79,7 +80,7 @@ fn activate_buttons(
     overlay: Query<(), With<settings::SettingsOverlay>>,
     mut game: ResMut<NextState<GameState>>,
     mut pause: ResMut<NextState<PauseState>>,
-    mut exit: MessageWriter<AppExit>,
+    #[cfg(not(target_arch = "wasm32"))] mut exit: MessageWriter<AppExit>,
     mut sounds: MessageWriter<PlaySound>,
 ) {
     if !overlay.is_empty() {
@@ -106,6 +107,7 @@ fn activate_buttons(
                 game.set(GameState::MainMenu);
                 Sound::UiBack
             }
+            #[cfg(not(target_arch = "wasm32"))]
             MenuAction::Quit => {
                 exit.write(AppExit::Success);
                 Sound::UiPress

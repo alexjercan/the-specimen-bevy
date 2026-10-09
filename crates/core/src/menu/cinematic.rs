@@ -186,6 +186,7 @@ fn reveal_options(
                     MenuAction::MainMenu,
                     menu_button("Main Menu", font.clone()),
                 ));
+                #[cfg(not(target_arch = "wasm32"))]
                 options.spawn((
                     Name::new("Quit button"),
                     MenuAction::Quit,

@@ -220,6 +220,7 @@ impl Plugin for TransportPlugin {
 pub fn run<R: BufRead, W: Write>(mut app: App, input: R, mut output: W) -> AppExit {
     if app.plugins_state() != PluginsState::Cleaned {
         while app.plugins_state() == PluginsState::Adding {
+            #[cfg(not(target_arch = "wasm32"))]
             bevy::tasks::tick_global_task_pools_on_main_thread();
         }
         app.finish();

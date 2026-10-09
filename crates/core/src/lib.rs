@@ -3,6 +3,10 @@ mod menu;
 
 use std::{path::PathBuf, time::Duration};
 
+#[cfg(target_arch = "wasm32")]
+use bevy::asset::{AssetMetaCheck, AssetPlugin};
+#[cfg(not(target_arch = "wasm32"))]
+use bevy::window::MonitorSelection;
 #[cfg(feature = "debug")]
 use bevy::window::{CursorGrabMode, CursorOptions};
 use bevy::{
@@ -12,7 +16,7 @@ use bevy::{
     log::{Level, LogPlugin},
     prelude::*,
     state::app::StatesPlugin,
-    window::{MonitorSelection, PrimaryWindow, WindowMode, WindowPlugin},
+    window::{PrimaryWindow, WindowMode, WindowPlugin},
 };
 use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_rand::prelude::{ChaCha8Rng, EntropyPlugin};
@@ -150,13 +154,24 @@ impl AppBuilder {
             }
         } else {
             let mut window = Window::default();
+            #[cfg(target_arch = "wasm32")]
+            {
+                window.canvas = Some("#bevy".into());
+                window.fit_canvas_to_parent = true;
+            }
             if menu {
                 window.mode = window_mode(app.world().resource::<GameSettings>().display_mode);
             }
-            app.add_plugins(DefaultPlugins.set(logging).set(WindowPlugin {
+            let plugins = DefaultPlugins.set(logging).set(WindowPlugin {
                 primary_window: Some(window),
                 ..default()
-            }));
+            });
+            #[cfg(target_arch = "wasm32")]
+            let plugins = plugins.set(AssetPlugin {
+                meta_check: AssetMetaCheck::Never,
+                ..default()
+            });
+            app.add_plugins(plugins);
             if self.muted_audio {
                 app.insert_resource(GlobalVolume::new(Volume::Linear(0.0)));
             }
@@ -273,9 +288,17 @@ fn sync_debug_controls(
 }
 
 fn window_mode(mode: DisplayMode) -> WindowMode {
-    match mode {
-        DisplayMode::Windowed => WindowMode::Windowed,
-        DisplayMode::Fullscreen => WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = mode;
+        WindowMode::Windowed
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        match mode {
+            DisplayMode::Windowed => WindowMode::Windowed,
+            DisplayMode::Fullscreen => WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+        }
     }
 }
 

@@ -22,6 +22,10 @@ game_settings.workspace = true
 transport.workspace = true
 debug = { workspace = true, optional = true }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["Document", "Element", "EventTarget", "Window"] }
+
 [dev-dependencies]
 bevy_asset_loader.workspace = true
 serde_json = "1"

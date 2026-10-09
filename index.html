@@ -3,7 +3,30 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bevy game</title>
+    <title>The Specimen</title>
+    <script>
+      const audioContexts = new Set();
+      for (const name of ["AudioContext", "webkitAudioContext"]) {
+        if (!window[name]) continue;
+        window[name] = new Proxy(window[name], {
+          construct(target, args, newTarget) {
+            const context = Reflect.construct(target, args, newTarget);
+            audioContexts.add(context);
+            context.addEventListener("statechange", () => {
+              if (context.state === "closed") audioContexts.delete(context);
+            });
+            return context;
+          },
+        });
+      }
+      const unlockAudio = () => {
+        for (const context of audioContexts) {
+          if (context.state === "suspended") context.resume();
+        }
+      };
+      window.addEventListener("pointerdown", unlockAudio, { capture: true });
+      window.addEventListener("keydown", unlockAudio, { capture: true });
+    </script>
     <link data-trunk rel="rust" data-wasm-opt="0">
     <link data-trunk rel="copy-dir" href="assets">
     <link data-trunk rel="copy-dir" href="credits">

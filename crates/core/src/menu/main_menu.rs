@@ -31,59 +31,65 @@ fn spawn_main_menu(
     } else {
         commands.spawn(screen_camera(GameState::MainMenu));
     }
-    commands.spawn((
-        MainMenu,
-        Name::new("Main menu"),
-        DespawnOnExit(GameState::MainMenu),
-        Node {
-            width: percent(100),
-            height: percent(100),
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Center,
-            padding: UiRect::left(px(96)),
-            row_gap: px(12),
-            ..default()
-        },
-        BackgroundColor(if facility.is_some() {
-            Color::srgba(0.002, 0.004, 0.008, 0.10)
-        } else {
-            theme::BACKGROUND
-        }),
-        children![
-            (
+    let menu = commands
+        .spawn((
+            MainMenu,
+            Name::new("Main menu"),
+            DespawnOnExit(GameState::MainMenu),
+            Node {
+                width: percent(100),
+                height: percent(100),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                padding: UiRect::left(px(96)),
+                row_gap: px(12),
+                ..default()
+            },
+            BackgroundColor(if facility.is_some() {
+                Color::srgba(0.002, 0.004, 0.008, 0.10)
+            } else {
+                theme::BACKGROUND
+            }),
+            children![(
                 text(TITLE, 56.0, theme::TEXT, font.clone()),
                 Node {
                     margin: UiRect::bottom(px(28)),
                     ..default()
                 },
-            ),
-            (
-                Node {
-                    width: px(240),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: px(10),
-                    ..default()
-                },
-                children![
-                    (
-                        Name::new("Play button"),
-                        MenuAction::Play,
-                        menu_button("Play", font.clone()),
-                    ),
-                    (
-                        Name::new("Settings button"),
-                        super::settings::SettingsAction::Open,
-                        menu_button("Settings", font.clone()),
-                    ),
-                    (
-                        Name::new("Quit button"),
-                        MenuAction::Quit,
-                        menu_button("Quit", font.clone()),
-                    ),
-                ],
-            ),
-        ],
-    ));
+            )],
+        ))
+        .id();
+    let buttons = commands
+        .spawn((
+            Node {
+                width: px(240),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(10),
+                ..default()
+            },
+            children![
+                (
+                    Name::new("Play button"),
+                    MenuAction::Play,
+                    menu_button("Play", font.clone()),
+                ),
+                (
+                    Name::new("Settings button"),
+                    super::settings::SettingsAction::Open,
+                    menu_button("Settings", font.clone()),
+                ),
+            ],
+        ))
+        .id();
+    commands.entity(menu).add_child(buttons);
+    #[cfg(not(target_arch = "wasm32"))]
+    commands.entity(buttons).with_children(|parent| {
+        parent.spawn((
+            Name::new("Quit button"),
+            MenuAction::Quit,
+            menu_button("Quit", font.clone()),
+        ));
+    });
 }
 
 fn enter_world(world: &mut World) {

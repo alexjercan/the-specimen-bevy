@@ -3098,6 +3098,8 @@ dependencies = [
  "rand_core",
  "serde_json",
  "transport",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -5540,6 +5542,7 @@ dependencies = [
  "game_assets",
  "game_core",
  "gameplay",
+ "getrandom 0.4.3",
  "probe",
 ]
 
