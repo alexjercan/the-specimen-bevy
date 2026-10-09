@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use crate::levels::{
     builder::{door, passage, room, DoorOf, DoorRef},
     doors::{DoorLock, ExitDoor},
+    exterior,
     module_names::{DOOR_FRAME as FRAME, DOOR_PANEL as PANEL},
 };
 
@@ -302,7 +303,7 @@ pub(super) fn spawn(commands: &mut Commands) {
         .with_related::<DoorOf>(DoorRef(service_maintenance))
         .with_related::<DoorOf>(DoorRef(maintenance_west))
         .with_related::<DoorOf>(DoorRef(maintenance_utility));
-    commands
+    let exit_room = commands
         .spawn(room(
             "exit",
             Rect::new(-1.25, -31.25, 8.75, -21.25),
@@ -313,7 +314,9 @@ pub(super) fn spawn(commands: &mut Commands) {
         .with_related::<DoorOf>(DoorRef(outside_exit))
         .with_related::<DoorOf>(DoorRef(exit_service))
         .with_related::<DoorOf>(DoorRef(exit_office))
-        .with_related::<DoorOf>(DoorRef(exit_security));
+        .with_related::<DoorOf>(DoorRef(exit_security))
+        .id();
+    exterior::spawn(commands, exit_room);
     commands
         .spawn(room(
             "security",

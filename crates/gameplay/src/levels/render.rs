@@ -18,7 +18,11 @@ use super::{
     animation::DoorSwing,
     devices::{ThrownFlashbang, FLASHBANG_BURST_DELAY},
     doors::{panel_transform, DoorPanel},
-    fuses::{FuseInstallation, FusePanel, FUSE_COUNT, FUSE_LENGTH, FUSE_MODULE, FUSE_RADIUS, INSERT_SECS_PER_FUSE},
+    exterior::{PendingExteriorRender, EXIT_CORRIDOR},
+    fuses::{
+        FuseInstallation, FusePanel, FUSE_COUNT, FUSE_LENGTH, FUSE_MODULE, FUSE_RADIUS,
+        INSERT_SECS_PER_FUSE,
+    },
     menu_background::MenuBackground,
     module_names::{BOILER_UNIT, EXIT_SIGN, WALL_LAMP_RED},
     pickups::{PickupKind, PickupMotion},
@@ -137,6 +141,7 @@ impl Plugin for LevelRenderPlugin {
                 PostUpdate,
                 (
                     render_rooms,
+                    render_exterior_corridor,
                     render_doors,
                     render_props,
                     render_fuses,
@@ -204,13 +209,20 @@ fn attach_throw_visual(
 }
 
 fn panel_fuse_destination(slot: usize) -> Vec3 {
-    Vec3::new((slot as f32 - 1.0) * PANEL_FUSE_SPACING, 0.0, PANEL_FUSE_DEPTH)
+    Vec3::new(
+        (slot as f32 - 1.0) * PANEL_FUSE_SPACING,
+        0.0,
+        PANEL_FUSE_DEPTH,
+    )
 }
 
 fn panel_fuse_position(from: Vec3, slot: usize, elapsed: f32) -> Vec3 {
-    let progress = ((elapsed - slot as f32 * INSERT_SECS_PER_FUSE) / INSERT_SECS_PER_FUSE)
-        .clamp(0.0, 1.0);
-    from.lerp(panel_fuse_destination(slot), progress * progress * (3.0 - 2.0 * progress))
+    let progress =
+        ((elapsed - slot as f32 * INSERT_SECS_PER_FUSE) / INSERT_SECS_PER_FUSE).clamp(0.0, 1.0);
+    from.lerp(
+        panel_fuse_destination(slot),
+        progress * progress * (3.0 - 2.0 * progress),
+    )
 }
 
 fn attach_panel_fuses(
@@ -222,15 +234,21 @@ fn attach_panel_fuses(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut commands: Commands,
 ) {
-    let Ok((panel, installation, transform)) = panels.get(added.entity) else { return };
+    let Ok((panel, installation, transform)) = panels.get(added.entity) else {
+        return;
+    };
     if panel.installed != 0 {
         return;
     }
-    let Ok(player) = players.get(installation.player) else { return };
+    let Ok(player) = players.get(installation.player) else {
+        return;
+    };
     let hand = player.translation + player.forward() * 0.3 - player.up() * 0.2;
     let from = transform.rotation.inverse() * (hand - transform.translation)
         + Vec3::Y * PANEL_FUSE_START_HEIGHT;
-    let module = assets.as_ref().and_then(|assets| assets.module(FUSE_MODULE));
+    let module = assets
+        .as_ref()
+        .and_then(|assets| assets.module(FUSE_MODULE));
     let fallback = module.is_none().then(|| {
         (
             meshes.add(Cylinder::new(FUSE_RADIUS, FUSE_LENGTH)),
@@ -242,14 +260,20 @@ fn attach_panel_fuses(
     });
     commands.entity(added.entity).with_children(|children| {
         for slot in 0..FUSE_COUNT {
-            let fuse = children.spawn((
-                Name::new(format!("panel fuse {}", slot + 1)),
-                PanelFuseVisual { slot, from },
-                Transform::from_translation(from),
-                Visibility::Hidden,
-            )).id();
+            let fuse = children
+                .spawn((
+                    Name::new(format!("panel fuse {}", slot + 1)),
+                    PanelFuseVisual { slot, from },
+                    Transform::from_translation(from),
+                    Visibility::Hidden,
+                ))
+                .id();
             if let Some(module) = module {
-                children.spawn((WorldAssetRoot(module.clone()), Transform::IDENTITY, ChildOf(fuse)));
+                children.spawn((
+                    WorldAssetRoot(module.clone()),
+                    Transform::IDENTITY,
+                    ChildOf(fuse),
+                ));
             } else if let Some((mesh, material)) = &fallback {
                 children.spawn((
                     Mesh3d(mesh.clone()),
@@ -267,9 +291,17 @@ fn animate_panel_fuses(
     mut visuals: Query<(&PanelFuseVisual, &ChildOf, &mut Transform, &mut Visibility)>,
 ) {
     for (visual, parent, mut transform, mut visibility) in &mut visuals {
-        let Ok((installation, panel)) = panels.get(parent.parent()) else { continue };
+        let Ok((installation, panel)) = panels.get(parent.parent()) else {
+            continue;
+        };
         let elapsed = installation.map_or_else(
-            || if panel.installed == FUSE_COUNT { INSERT_SECS_PER_FUSE * FUSE_COUNT as f32 } else { 0.0 },
+            || {
+                if panel.installed == FUSE_COUNT {
+                    INSERT_SECS_PER_FUSE * FUSE_COUNT as f32
+                } else {
+                    0.0
+                }
+            },
             |installation| installation.elapsed,
         );
         if elapsed < visual.slot as f32 * INSERT_SECS_PER_FUSE {
@@ -717,6 +749,58 @@ fn render_rooms(
             }
         }
         commands.entity(entity).remove::<PendingRoomRender>();
+    }
+}
+
+fn render_exterior_corridor(
+    corridors: Query<Entity, With<PendingExteriorRender>>,
+    assets: Option<Res<FacilityAssets>>,
+    render_ceilings: Res<RenderCeilings>,
+    mut commands: Commands,
+) {
+    let Some(assets) = assets else {
+        return;
+    };
+    let floor = assets.module("floor_tile").expect("missing exterior floor");
+    let wall = assets.module("wall").expect("missing exterior wall");
+    let ceiling = render_ceilings.0.then(|| {
+        assets
+            .module("ceiling_tile")
+            .expect("missing exterior ceiling")
+    });
+    for entity in &corridors {
+        for z in 0..3 {
+            let center = EXIT_CORRIDOR.max.y - (z as f32 + 0.5) * TILE;
+            commands.spawn((
+                WorldAssetRoot(floor.clone()),
+                Transform::from_xyz(0.0, 0.0, center),
+                ChildOf(entity),
+            ));
+            if let Some(ceiling) = &ceiling {
+                commands.spawn((
+                    WorldAssetRoot((*ceiling).clone()),
+                    Transform::from_xyz(0.0, 0.0, center),
+                    ChildOf(entity),
+                ));
+            }
+            for (x, rotation) in [
+                (EXIT_CORRIDOR.min.x, FRAC_PI_2),
+                (EXIT_CORRIDOR.max.x, -FRAC_PI_2),
+            ] {
+                commands.spawn((
+                    WorldAssetRoot(wall.clone()),
+                    Transform::from_xyz(x, 0.0, center)
+                        .with_rotation(Quat::from_rotation_y(rotation)),
+                    ChildOf(entity),
+                ));
+            }
+        }
+        commands.spawn((
+            WorldAssetRoot(wall.clone()),
+            Transform::from_xyz(0.0, 0.0, EXIT_CORRIDOR.min.y),
+            ChildOf(entity),
+        ));
+        commands.entity(entity).remove::<PendingExteriorRender>();
     }
 }
 

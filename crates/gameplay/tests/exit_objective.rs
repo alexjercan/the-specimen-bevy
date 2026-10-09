@@ -233,14 +233,20 @@ fn panel_installs_all_fuses_once_and_unlocks_only_the_exit() {
         .insert(FuseInventory(FUSE_COUNT));
     press_f(&mut app);
     assert_eq!(inventory(&app, player), 0);
+    assert_eq!(installed(&app, panel), 0);
+    assert!(locked(&app, exit));
+    let mut cues = Vec::new();
+    for _ in 0..12 {
+        app.update();
+        cues.extend(
+            app.world_mut()
+                .resource_mut::<Messages<PlaySound>>()
+                .drain(),
+        );
+    }
     assert_eq!(installed(&app, panel), FUSE_COUNT);
     assert!(!locked(&app, exit));
     assert!(locked(&app, other));
-    let cues: Vec<_> = app
-        .world_mut()
-        .resource_mut::<Messages<PlaySound>>()
-        .drain()
-        .collect();
     assert_eq!(cues.len(), 1);
     assert_eq!(cues[0].sound, Sound::FuseComplete);
     assert_eq!(cues[0].position, None);
@@ -283,6 +289,11 @@ fn duplicate_install_messages_consume_fuses_once() {
     }
     app.update();
     assert_eq!(inventory(&app, player), 0);
+    assert_eq!(installed(&app, panel), 0);
+    assert!(locked(&app, exit));
+    for _ in 0..12 {
+        app.update();
+    }
     assert_eq!(installed(&app, panel), FUSE_COUNT);
     assert!(!locked(&app, exit));
 }
@@ -369,8 +380,13 @@ fn first_floor_run_installs_fuses_opens_the_exit_and_walks_out() {
         .entity_mut(player)
         .insert(FuseInventory(FUSE_COUNT));
     press_f(&mut app);
-    assert!(!locked(&app, exit));
+    assert!(locked(&app, exit));
     assert_eq!(inventory(&app, player), 0);
+    assert_eq!(installed(&app, panel), 0);
+    for _ in 0..12 {
+        app.update();
+    }
+    assert!(!locked(&app, exit));
     assert_eq!(installed(&app, panel), FUSE_COUNT);
 
     place(

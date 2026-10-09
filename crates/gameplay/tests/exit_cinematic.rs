@@ -16,7 +16,7 @@ fn spawn(mut commands: Commands) {
 }
 
 #[test]
-fn exit_cinematic_mirrors_the_real_exit_with_an_open_door_in_a_yard() {
+fn exit_cinematic_mirrors_the_real_exit_with_an_open_door_in_a_corridor() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
         .add_plugins(PropLightsPlugin)
@@ -56,9 +56,9 @@ fn exit_cinematic_mirrors_the_real_exit_with_an_open_door_in_a_yard() {
             room.0
         })
         .collect();
-    let yard = Rect::new(-3.75, -38.75, 3.75, -31.25);
+    let exterior = Rect::new(-1.25, -38.75, 1.25, -31.25);
     let corridor = Rect::new(-1.25, -31.25, 1.25, -26.25);
-    assert!(authored.contains(&yard));
+    assert!(authored.contains(&exterior));
     assert!(authored.contains(&corridor));
 
     let mut lamps = world.query::<(&Prop, &LightConfig, &LightEffect)>();
@@ -71,7 +71,7 @@ fn exit_cinematic_mirrors_the_real_exit_with_an_open_door_in_a_yard() {
 
     let cinematic = &world.resource::<Captured>().0;
     assert_eq!(cinematic.door, door);
-    assert!(yard.contains(cinematic.view.translation.xz()));
+    assert!(exterior.contains(cinematic.view.translation.xz()));
     assert!(cinematic.view.forward().z > 0.0);
 }
 

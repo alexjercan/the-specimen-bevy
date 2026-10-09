@@ -3,9 +3,9 @@ use std::f32::consts::{FRAC_PI_2, PI};
 use bevy::{math::Rect, prelude::*};
 
 use super::{
-    builder::{prop, room, Door, DoorOf, DoorRef, DoorState, LevelRoot, LightEffect},
-    lights::LightConfig,
-    module_names::{DOOR_FRAME, DOOR_PANEL, EXIT_SIGN, WALL_LAMP_RED},
+    builder::{room, Door, DoorOf, DoorRef, DoorState, LevelRoot},
+    exterior::{spawn_details, EXIT_CORRIDOR},
+    module_names::{DOOR_FRAME, DOOR_PANEL},
     DoorSwing,
 };
 
@@ -47,8 +47,8 @@ pub fn build_exit_cinematic(commands: &mut Commands) -> ExitCinematic {
     commands
         .spawn((
             room(
-                "yard",
-                Rect::new(-3.75, -38.75, 3.75, -31.25),
+                "exit cinematic exterior corridor",
+                EXIT_CORRIDOR,
                 FLOOR_TILE,
                 WALL,
                 CEILING_TILE,
@@ -69,30 +69,10 @@ pub fn build_exit_cinematic(commands: &mut Commands) -> ExitCinematic {
         ))
         .with_related::<DoorOf>((DoorRef(door), ChildOf(root)));
 
-    commands.spawn((
-        prop(
-            "Exit cinematic lamp",
-            WALL_LAMP_RED,
-            Transform::from_xyz(1.0, 2.2, -31.35),
-        ),
-        LightConfig {
-            intensity: Some(18_000.0),
-            effect: Some(LightEffect::Pulse),
-            ..default()
-        },
-        ChildOf(root),
-    ));
-    commands.spawn((
-        prop(
-            "Exit cinematic sign",
-            EXIT_SIGN,
-            Transform::from_xyz(0.0, 2.62, -31.35),
-        ),
-        ChildOf(root),
-    ));
+    spawn_details(commands, root);
 
     let view =
-        Transform::from_xyz(1.2, 1.55, -37.2).looking_at(Vec3::new(0.0, 1.5, -31.25), Vec3::Y);
+        Transform::from_xyz(0.6, 1.55, -37.2).looking_at(Vec3::new(0.0, 1.5, -31.25), Vec3::Y);
 
     ExitCinematic { root, door, view }
 }

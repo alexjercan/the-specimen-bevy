@@ -3,6 +3,7 @@ mod builder;
 mod devices;
 mod doors;
 mod exit_cinematic;
+mod exterior;
 mod first_floor_builder;
 mod fuses;
 mod hiding;
