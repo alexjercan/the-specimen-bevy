@@ -88,11 +88,19 @@ fn escape(app: &mut App) {
     app.world_mut()
         .entity_mut(player)
         .insert(FuseInventory(FUSE_COUNT));
+    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+        100,
+    )));
     app.world_mut()
         .write_message(InstallFuses { player, panel });
     app.update();
     let exit = single::<With<ExitDoor>>(app);
+    assert!(app.world().get::<DoorLock>(exit).is_some());
+    for _ in 0..15 {
+        app.update();
+    }
     assert!(app.world().get::<DoorLock>(exit).is_none());
+    app.insert_resource(TimeUpdateStrategy::Automatic);
     app.world_mut()
         .get_mut::<Transform>(player)
         .unwrap()

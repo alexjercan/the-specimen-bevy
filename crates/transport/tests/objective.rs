@@ -58,7 +58,7 @@ fn headless_snapshot_reports_the_win_after_install_and_exit_without_exiting_earl
     assert_eq!(
         run(
             app,
-            Cursor::new("{\"tick\":1,\"input\":{\"f\":true}}\n{\"tick\":2,\"input\":{\"f\":false}}\n{\"tick\":3,\"input\":{\"f\":true}}\n{\"tick\":4,\"input\":{\"f\":false}}\n{\"tick\":40}\n{\"tick\":100,\"input\":{\"w\":true}}\n{\"tick\":101,\"input\":{\"w\":false}}\n"),
+            Cursor::new("{\"tick\":1,\"input\":{\"f\":true}}\n{\"tick\":80,\"input\":{\"f\":false}}\n{\"tick\":81,\"input\":{\"f\":true}}\n{\"tick\":82,\"input\":{\"f\":false}}\n{\"tick\":120}\n{\"tick\":200,\"input\":{\"w\":true}}\n{\"tick\":201,\"input\":{\"w\":false}}\n"),
             &mut output,
         ),
         AppExit::Success,
@@ -77,6 +77,6 @@ fn headless_snapshot_reports_the_win_after_install_and_exit_without_exiting_earl
     assert!(z(4) > -31.25);
     assert!(z(5) < -31.25);
     assert_eq!(lines[5]["won"], true);
-    assert_eq!(lines[6]["tick"], 101);
+    assert_eq!(lines[6]["tick"], 201);
     assert_eq!(lines[6]["won"], true);
 }

@@ -1,4 +1,4 @@
-name: Deploy HTML5 game to itch.io
+name: deploy-itch
 on:
   workflow_dispatch:
     inputs:
@@ -8,6 +8,7 @@ on:
         type: string
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: itch-production
   cancel-in-progress: false
@@ -16,14 +17,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     environment: itch-production
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      ITCH_TARGET: ${{ vars.ITCH_TARGET }}
+      BUTLER_VERSION: ${{ vars.BUTLER_VERSION }}
+      BUTLER_SHA256_LINUX_AMD64: ${{ vars.BUTLER_SHA256_LINUX_AMD64 }}
     steps:
       - name: Validate request and configuration
         shell: bash
-        env:
-          RELEASE_TAG: ${{ inputs.tag }}
-          ITCH_TARGET: ${{ vars.ITCH_TARGET }}
-          BUTLER_VERSION: ${{ vars.BUTLER_VERSION }}
-          BUTLER_SHA256_LINUX_AMD64: ${{ vars.BUTLER_SHA256_LINUX_AMD64 }}
         run: |
           set -euo pipefail
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must have the form vX.Y.Z" >&2; exit 1; }
@@ -33,23 +35,44 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
-      - uses: cachix/install-nix-action@v31
-      - name: Build HTML5 game from tagged source
-        run: nix develop --command trunk build --release
-      - name: Verify upload contents
+      - name: Download successful tagged release builds
         shell: bash
         run: |
           set -euo pipefail
-          test -f dist/index.html
-          test -d dist/assets
-          find dist -maxdepth 1 -type f -name '*_bg.wasm' -print -quit | grep -q .
-          (cd dist && find . -type f -print | LC_ALL=C sort > ../upload-inventory.txt)
-          (cd dist && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > ../upload-sha256.txt)
+          sha="$(git rev-parse HEAD)"
+          run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yaml --commit "$sha" --event push --status success --limit 100 --json databaseId,headBranch | jq -r --arg tag "$RELEASE_TAG" '[.[] | select(.headBranch == $tag) | .databaseId][0] // empty')"
+          test -n "$run_id" || { echo "No successful release workflow run for $RELEASE_TAG at $sha" >&2; exit 1; }
+          mkdir -p downloads
+          for platform in linux-x86_64 windows-x86_64 html5; do
+            name="the-specimen-bevy-${platform}"
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "downloads/$name"
+          done
+          test -f "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz"
+          test -f "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip"
+          test -f "downloads/the-specimen-bevy-html5/the-specimen-bevy-${RELEASE_TAG}-html5.zip"
+          find downloads -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > release-sha256.txt
+      - name: Prepare and verify Butler payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p itch-upload/linux itch-upload/windows itch-upload/html5
+          tar -xzf "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz" -C itch-upload/linux
+          unzip -q "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip" -d itch-upload/windows
+          unzip -q "downloads/the-specimen-bevy-html5/the-specimen-bevy-${RELEASE_TAG}-html5.zip" -d itch-upload/html5
+          test -x itch-upload/linux/the-specimen-bevy
+          test -f itch-upload/linux/LICENSE
+          test -d itch-upload/linux/assets
+          test -d itch-upload/linux/credits
+          test -f itch-upload/windows/the-specimen-bevy.exe
+          test -f itch-upload/windows/LICENSE
+          test -d itch-upload/windows/assets
+          test -d itch-upload/windows/credits
+          test -f itch-upload/html5/index.html
+          test -d itch-upload/html5/assets
+          find itch-upload/html5 -maxdepth 1 -type f -name '*_bg.wasm' -print -quit | grep -q .
+          (cd itch-upload && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > ../upload-sha256.txt)
       - name: Install pinned Butler
         shell: bash
-        env:
-          BUTLER_VERSION: ${{ vars.BUTLER_VERSION }}
-          BUTLER_SHA256_LINUX_AMD64: ${{ vars.BUTLER_SHA256_LINUX_AMD64 }}
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/butler.zip"
@@ -63,22 +86,22 @@ jobs:
           chmod +x "$install_dir/butler"
           echo "$install_dir" >> "$GITHUB_PATH"
           "$install_dir/butler" -V
-      - name: Upload HTML5 channel
+      - name: Upload HTML5, Windows, and Linux channels
         shell: bash
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-          ITCH_TARGET: ${{ vars.ITCH_TARGET }}
-          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
           test -n "$BUTLER_API_KEY" || { echo "BUTLER_API_KEY is not configured" >&2; exit 1; }
-          butler push dist "${ITCH_TARGET}:html5" --userversion "${RELEASE_TAG#v}"
-      - name: Store upload evidence
+          for platform in html5 windows linux; do
+            butler push "itch-upload/$platform" "${ITCH_TARGET}:$platform" --userversion "${RELEASE_TAG#v}"
+          done
+      - name: Store deployment evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: itch-html5-${{ inputs.tag }}
+          name: itch-deployment-${{ inputs.tag }}
           path: |
-            upload-inventory.txt
+            release-sha256.txt
             upload-sha256.txt
           if-no-files-found: warn

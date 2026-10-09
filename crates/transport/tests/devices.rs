@@ -181,14 +181,18 @@ fn flashbang_control_uses_right_mouse_and_reports_consumption() {
         },
     );
 
-    let responses = responses(app, "{\"tick\":1,\"input\":{\"flashbang\":true}}\n");
+    let mut input = String::from("{\"tick\":1,\"input\":{\"flashbang\":true}}\n");
+    for tick in 2..=42 {
+        input.push_str(&format!("{{\"tick\":{tick},\"input\":{{}}}}\n"));
+    }
+    let responses = responses(app, &input);
     assert_eq!(responses[1]["player"]["flashbangs"], 0);
     assert!(responses[1]["player"]["flash_remaining"].as_f64().unwrap() > 0.0);
     assert!(responses[1]["player"]["flash_remaining"].as_f64().unwrap() <= 5.0);
-    let heard: Vec<_> = responses[1]["heard"]
-        .as_array()
-        .unwrap()
+    let heard: Vec<_> = responses
         .iter()
+        .skip(1)
+        .flat_map(|response| response["heard"].as_array().unwrap())
         .map(|sound| sound["sound"].as_str().unwrap())
         .filter(|sound| sound.starts_with("flashbang"))
         .collect();

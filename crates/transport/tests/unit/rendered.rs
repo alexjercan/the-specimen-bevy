@@ -125,11 +125,11 @@ fn rendered_main_installs_fuses_opens_exit_and_reports_win_after_crossing() {
     assert_eq!(app.world().resource::<TransportTimeline>().tick(), Some(0));
     for (target, controls) in [
         (1, r#"{"f":true}"#),
-        (2, r#"{"f":false}"#),
-        (3, r#"{"f":true}"#),
-        (4, r#"{"f":false}"#),
-        (40, r#"{}"#),
-        (100, r#"{"w":true}"#),
+        (80, r#"{"f":false}"#),
+        (81, r#"{"f":true}"#),
+        (82, r#"{"f":false}"#),
+        (120, r#"{}"#),
+        (180, r#"{"w":true}"#),
     ] {
         let command: Command =
             serde_json::from_str(&format!(r#"{{"tick":{target},"input":{controls}}}"#)).unwrap();
@@ -137,20 +137,20 @@ fn rendered_main_installs_fuses_opens_exit_and_reports_win_after_crossing() {
         while app.world().resource::<TransportTimeline>().tick() != Some(target) {
             app.update();
         }
-        if target == 2 {
+        if target == 80 {
             assert!(app.world().get::<DoorLock>(exit).is_none());
             app.world_mut().entity_mut(player).insert(
                 Transform::from_xyz(0.0, 1.6, -30.0)
                     .looking_at(Vec3::new(0.0, 1.1, -31.25), Vec3::Y),
             );
         }
-        if target == 4 {
+        if target == 82 {
             assert_eq!(
                 app.world().get::<FusePanel>(panel).unwrap().installed,
                 FUSE_COUNT
             );
         }
-        if target == 40 {
+        if target == 120 {
             assert_eq!(
                 app.world().get::<Door>(exit).unwrap().state,
                 DoorState::Open
@@ -168,7 +168,7 @@ fn rendered_main_installs_fuses_opens_exit_and_reports_win_after_crossing() {
         "player at {:?}",
         app.world().get::<Transform>(player).unwrap().translation
     );
-    let reply: serde_json::Value = serde_json::from_str(&snapshot(app.world_mut(), 100)).unwrap();
+    let reply: serde_json::Value = serde_json::from_str(&snapshot(app.world_mut(), 180)).unwrap();
     assert_eq!(reply["won"], true);
 }
 

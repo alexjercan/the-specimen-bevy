@@ -1,4 +1,4 @@
-name: Native release
+name: release
 on:
   push:
     tags: ["v*"]
@@ -26,6 +26,25 @@ jobs:
         with:
           name: the-specimen-bevy-linux-x86_64
           path: the-specimen-bevy-*-linux-x86_64.tar.gz
+          if-no-files-found: error
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Build HTML5 game
+        run: nix develop --command trunk build --release
+      - name: Package HTML5 game
+        run: |
+          test -f dist/index.html
+          test -d dist/assets
+          find dist -maxdepth 1 -type f -name '*_bg.wasm' -print -quit | grep -q .
+          (cd dist && zip -qr "../the-specimen-bevy-${GITHUB_REF_NAME}-html5.zip" .)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: the-specimen-bevy-html5
+          path: the-specimen-bevy-*-html5.zip
           if-no-files-found: error
   windows:
     runs-on: windows-latest
