@@ -182,7 +182,9 @@ for line in sys.stdin:
             self.assertIn("[tick 1] won=False game_over=False visible=0 heard=0 -> hold W", progress)
             self.assertIn("wait 1 tick", progress)
             self.assertNotIn("waiting for pi", progress)
-            self.assertIn("playtest finished: tick=2", progress)
+            self.assertIn("playtest won: tick=2", progress)
+            self.assertEqual(result["status"], "won")
+            self.assertIsNone(result["reason"])
             self.assertTrue(result["won"])
             trace = [__import__("json").loads(line) for line in (root / "output" / "trace.jsonl").read_text().splitlines()]
             self.assertEqual(len(trace), 3)
@@ -192,6 +194,87 @@ for line in sys.stdin:
             self.assertEqual(trace[1]["intent"], "Explore ahead")
             self.assertGreaterEqual(trace[1]["decision_time_s"], 0)
             self.assertEqual((root / "run.webm").read_bytes(), b"fake video")
+
+    def test_malformed_pi_action_is_retried_without_losing_recording(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            game = root / "game"
+            game.write_text("""#!/usr/bin/env python3
+import json, sys
+print(json.dumps({'tick':0,'won':False}), flush=True)
+for line in sys.stdin:
+    print(json.dumps({'tick':json.loads(line)['tick'],'won':True}), flush=True)
+open(sys.argv[sys.argv.index('--record') + 1], 'wb').write(b'finished video')
+""")
+            game.chmod(0o755)
+            agent = root / "pi"
+            agent.write_text("""#!/usr/bin/env python3
+import json, sys
+answer = ''
+for line in sys.stdin:
+    request = json.loads(line)
+    if request['type'] == 'prompt':
+        answer = '{"frames":1,"input":{"w":true}' if request['id'].endswith('-0') else '{"frames":1,"input":{"w":true}}'
+    print(json.dumps({'type':'response','id':request['id'],'success':True,
+                      'data':{'text':answer}}), flush=True)
+    if request['type'] == 'prompt':
+        print(json.dumps({'type':'agent_settled'}), flush=True)
+""")
+            agent.chmod(0o755)
+            recording = root / "run.webm"
+            options = playtest.parser().parse_args([
+                "--model", "test", "--game", str(game), "--pi", str(agent),
+                "--output", str(root / "output"), "--ticks", "3",
+                "--render", "--record", str(recording),
+            ])
+            with contextlib.redirect_stderr(io.StringIO()):
+                result = playtest.play(options)
+            self.assertEqual(result["status"], "won")
+            self.assertEqual(result["tick"], 1)
+            self.assertEqual(recording.read_bytes(), b"finished video")
+            progress = (root / "output" / "progress.log").read_text()
+            self.assertIn("invalid pi action at tick 0; retrying (1/2)", progress)
+            self.assertEqual(len((root / "output" / "trace.jsonl").read_text().splitlines()), 2)
+
+    def test_time_budget_finishes_in_flight_tick_and_finalizes_recording(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            game = root / "game"
+            game.write_text("""#!/usr/bin/env python3
+import json, sys, time
+print(json.dumps({'tick':0,'won':False}), flush=True)
+for line in sys.stdin:
+    time.sleep(1.2)
+    print(json.dumps({'tick':json.loads(line)['tick'],'won':False}), flush=True)
+open(sys.argv[sys.argv.index('--record') + 1], 'wb').write(b'finished video')
+""")
+            game.chmod(0o755)
+            agent = root / "pi"
+            agent.write_text("""#!/usr/bin/env python3
+import json, sys
+for line in sys.stdin:
+    request = json.loads(line)
+    print(json.dumps({'type':'response','id':request['id'],'success':True,
+                      'data':{'text':'{"frames":1}'}}), flush=True)
+    if request['type'] == 'prompt':
+        print(json.dumps({'type':'agent_settled'}), flush=True)
+""")
+            agent.chmod(0o755)
+            recording = root / "run.webm"
+            options = playtest.parser().parse_args([
+                "--model", "test", "--game", str(game), "--pi", str(agent),
+                "--output", str(root / "output"), "--ticks", "3", "--seconds", "1",
+                "--step-timeout", "3", "--render", "--record", str(recording),
+            ])
+            with contextlib.redirect_stderr(io.StringIO()):
+                result = playtest.play(options)
+            self.assertEqual(result["tick"], 1)
+            self.assertEqual(result["status"], "timeout")
+            self.assertIn("wall-clock limit of 1s reached before tick 3", result["reason"])
+            self.assertEqual(recording.read_bytes(), b"finished video")
+            self.assertIn("playtest timeout: wall-clock limit of 1s reached before tick 3",
+                          (root / "output" / "progress.log").read_text())
+            self.assertEqual(len((root / "output" / "trace.jsonl").read_text().splitlines()), 2)
 
     def test_interruption_preserves_trace_and_closes_children(self):
         with tempfile.TemporaryDirectory() as directory:

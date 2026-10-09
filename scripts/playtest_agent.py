@@ -185,7 +185,7 @@ def decide(process, lines, prompt, deadline, index):
     try:
         return json.loads(text)
     except ValueError as error:
-        raise ValueError(f"pi action must be a JSON object: {text[:200]}") from error
+        raise ValueError(f"pi action is not valid JSON ({error}): {text[:200]!r}...") from error
 
 
 def command(action, now, cap, max_step):
@@ -320,6 +320,7 @@ def play(args):
                  "You receive initial map only once; keep track of it. MAX=" + str(args.max_step))
         end = time.monotonic() + args.seconds
         snapshot = initial
+        timed_out = False
         with (args.output / "trace.jsonl").open("w") as trace:
             trace.write(json.dumps({"snapshot": initial}) + "\n")
             index = 0
@@ -327,23 +328,48 @@ def play(args):
             while snapshot["tick"] < args.ticks and not terminal(snapshot):
                 deadline = min(end, time.monotonic() + args.step_timeout)
                 if deadline <= time.monotonic():
-                    raise TimeoutError("playtest time budget exhausted")
+                    timed_out = True
+                    break
                 prompt = (instructions + "\n" + rules + "\nSnapshot: " + json.dumps(snapshot)
                           if index == 0 else "Snapshot: " + json.dumps(snapshot) + "\n" + rules)
                 decision_start = time.monotonic()
-                action = decide(agent, agent_lines, prompt, deadline, index)
+                try:
+                    for attempt in range(3):
+                        try:
+                            action = decide(agent, agent_lines, prompt, deadline, f"{index}-{attempt}")
+                            wire = command(action, snapshot["tick"], args.ticks, args.max_step)
+                            break
+                        except ValueError as error:
+                            if attempt == 2:
+                                raise ValueError(f"pi returned three invalid actions at tick "
+                                                 f"{snapshot['tick']}: {error}") from error
+                            progress.write(f"invalid pi action at tick {snapshot['tick']}; "
+                                           f"retrying ({attempt + 1}/2): {error}")
+                            prompt = (f"Your last action was invalid: {str(error)[:120]}. "
+                                      "Return ONLY one valid JSON object matching the action format.\n"
+                                      f"Snapshot: {json.dumps(snapshot)}\n{rules}")
+                except TimeoutError:
+                    if time.monotonic() < end:
+                        raise
+                    timed_out = True
+                    break
                 decision_time = time.monotonic() - decision_start
-                wire = command(action, snapshot["tick"], args.ticks, args.max_step)
                 intent = action.get("intent")
                 progress.write(progress_decision(snapshot, wire, intent, decision_time, held))
                 send(game, wire, "game", game_lines.log)
-                snapshot = game_reply(game, game_lines, deadline, wire["tick"])
+                snapshot = game_reply(game, game_lines, time.monotonic() + args.step_timeout, wire["tick"])
                 trace.write(json.dumps({"action": wire, "intent": intent,
                                         "decision_time_s": decision_time, "snapshot": snapshot}) + "\n")
                 trace.flush()
                 index += 1
-        progress.write(f"playtest finished: {progress_snapshot(snapshot)}; closing game and pi")
-        return snapshot
+        status = ("won" if snapshot.get("won") else "game_over" if snapshot.get("game_over")
+                  else "tick_limit" if snapshot["tick"] >= args.ticks else "timeout" if timed_out
+                  else "stopped")
+        reason = (f"wall-clock limit of {args.seconds}s reached before tick {args.ticks}; "
+                  "increase --seconds to allow more model decisions" if status == "timeout" else None)
+        progress.write(f"playtest {status}: {reason + '; ' if reason else ''}"
+                       f"{progress_snapshot(snapshot)}; closing game and pi")
+        return {**snapshot, "status": status, "reason": reason}
     finally:
         progress.write("stopping children; waiting for recording finalization" if args.record else "stopping children")
         game_status = close_child(game, timeout=args.encode_timeout if args.record else 5) if game else None
@@ -365,7 +391,8 @@ def main():
     args = parser().parse_args()
     try:
         result = play(args)
-        print(json.dumps({"tick": result["tick"], "won": result.get("won", False),
+        print(json.dumps({"status": result["status"], "reason": result["reason"],
+                          "tick": result["tick"], "won": result.get("won", False),
                           "game_over": result.get("game_over", False), "output": str(args.output)}))
     except KeyboardInterrupt:
         print("playtest interrupted; children stopped (see output/progress.log and trace.jsonl)", file=sys.stderr)
