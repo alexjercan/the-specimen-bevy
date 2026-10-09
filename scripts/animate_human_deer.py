@@ -33,7 +33,7 @@ TAIL = (
     "C_base_tail_J_01",
     "C_tail_01_J_02",
     "C_tail_02_J_03",
-    *(f"C_Bone_tail_{i:02d}_J_0{i + 3}" for i in range(1, 14)),
+    *(f"C_Bone_tail_{i:02d}_J_0{i + 3}" for i in range(1, 15)),
 )
 
 LEGS = {
@@ -61,12 +61,19 @@ CHASE = {
     "hind_lift": 0.55,
     "fore_lift": 0.6,
     "crouch": 0.55,
+    "finger_clearance": 0.05,
     "touchdown": {"hind_L": 0.0, "hind_R": 0.08, "fore_L": 0.42, "fore_R": 0.5},
 }
+EXTRA_NODES = {
+    IDLE: ("C_Hip_ctrl", "R_leg_exposed_bone_low"),
+    **{name: tuple(FOLLOWERS) for name in ("WALK", "CHASE", "ATTACK")},
+}
+IDLE_TOLERANCE = {"rotation_deg": 1.0, "translation_m": 0.005, "scale": 0.001}
 ATTACK = {
     "frames": 40,
     "hit_frame": 19,
 }
+CLIP_FRAMES = {"WALK": WALK["frames"], "CHASE": CHASE["frames"], "ATTACK": ATTACK["frames"]}
 
 
 def arm_bones(side):
@@ -122,6 +129,10 @@ def import_model(path):
     for obj in list(bpy.data.objects):
         if obj.type == "MESH" and obj.name.startswith("Icosphere") and obj.parent is None and not obj.data.materials:
             bpy.data.objects.remove(obj)
+    for obj in bpy.data.objects:
+        if obj.animation_data:
+            for track in list(obj.animation_data.nla_tracks):
+                obj.animation_data.nla_tracks.remove(track)
     armatures = [o for o in bpy.data.objects if o.type == "ARMATURE"]
     if len(armatures) != 1:
         raise SystemExit(f"expected one armature, found {len(armatures)}")
@@ -131,7 +142,10 @@ def import_model(path):
 class Rig:
     def __init__(self, arm):
         self.arm = arm
-        self.unit = 1.0 / arm.matrix_world.to_scale().x
+        scale = arm.matrix_world.to_scale()
+        if max(scale) - min(scale) > 1e-5 * max(scale):
+            raise SystemExit(f"armature scale {tuple(scale)} is not uniform")
+        self.unit = 1.0 / scale.x
         bones = arm.data.bones
         self.order = []
         stack = [b for b in bones if b.parent is None]
@@ -233,6 +247,7 @@ class Creature:
         self.arms = {s: arm_bones(s) for s in ("L", "R")}
         self.arm_normal = {s: rig.bend_normal(a[0][0], a[0][1], a[0][2]) for s, a in self.arms.items()}
         self.reach_error = 0.0
+        self.clearance = (math.inf, None, None)
 
     def pelvis(self, offset, pitch=0.0, roll=0.0, yaw=0.0):
         r = self.rig
@@ -258,20 +273,21 @@ class Creature:
     def leg(self, side, offset, meta_pitch=0.0, foot_pitch=0.0):
         r = self.rig
         upper, knee, ankle, feet, toe = LEGS[side]
-        foot_target = r.base_head(feet) + r.local(offset)
+        base_dir = r.base_head(toe) - r.base_head(feet)
+        foot_dir = rot(X, foot_pitch) @ base_dir
+        foot_target = r.base_head(feet) + r.local(offset) + Z * max(0.0, base_dir.z - foot_dir.z)
         meta = rot(X, meta_pitch) @ (r.base_head(feet) - r.base_head(ankle))
         hock = foot_target - meta
         normal = r.delta(HIP) @ self.leg_normal[side]
         self.reach_error = max(self.reach_error, r.two_bone(upper, knee, ankle, hock, normal))
         r.aim(ankle, r.head(feet) - r.head(ankle), foot_target - r.head(ankle))
-        base_dir = r.base_head(toe) - r.base_head(feet)
-        r.aim(feet, r.head(toe) - r.head(feet), rot(X, foot_pitch) @ base_dir)
+        r.aim(feet, r.head(toe) - r.head(feet), foot_dir)
 
     def arm_swing(self, side, flex, elbow, abduct=0.0, wrist=0.0):
         r = self.rig
         (shoulder, elbow_bone, _wrist, hand), _ = self.arms[side]
-        r.turn(shoulder, X, flex)
         r.turn(shoulder, Y, abduct if side == "L" else -abduct)
+        r.turn(shoulder, X, flex)
         r.turn(elbow_bone, X, elbow)
         r.turn(hand, X, wrist)
 
@@ -281,6 +297,23 @@ class Creature:
         normal = r.delta(SPINE[-1]) @ self.arm_normal[side]
         self.reach_error = max(self.reach_error, r.two_bone(shoulder, elbow_bone, wrist, wrist_target, normal))
         r.aim(hand, r.head(fingers["middle"][0]) - r.head(hand), hand_dir)
+
+    def plant_hand(self, side, target, hand_dir, curl, margin):
+        r = self.rig
+        bones, fingers = self.arms[side]
+        chain = [*bones, *(n for names in fingers.values() for n in names)]
+        saved = {n: r.basis[n].copy() for n in chain}
+        target = target.copy()
+        for _ in range(3):
+            for n, m in saved.items():
+                r.basis[n] = m.copy()
+            r.cache = None
+            self.arm_reach(side, r.local(target), hand_dir)
+            self.curl(side, curl)
+            low = min(r.world(r.head(n)).z for names in fingers.values() for n in names) - self.ground
+            if low >= margin - 1e-4:
+                break
+            target.z += margin - low
 
     def palm(self, side):
         r = self.rig
@@ -292,13 +325,13 @@ class Creature:
         normal = thumb - along * thumb.dot(along) - across * thumb.dot(across)
         return along, normal.normalized()
 
-    def curl(self, side, degrees, thumb_degrees=None):
+    def curl(self, side, degrees):
         r = self.rig
         _, fingers = self.arms[side]
         along, normal = self.palm(side)
         axis = along.cross(normal).normalized()
         for finger, names in fingers.items():
-            amount = degrees if finger != "thumb" else (degrees * 0.5 if thumb_degrees is None else thumb_degrees)
+            amount = degrees * (0.5 if finger == "thumb" else 1.0)
             for k, n in enumerate(names):
                 r.rotate(n, Quaternion(axis, math.radians(amount * (0.8 + 0.2 * k))))
 
@@ -336,7 +369,6 @@ def walk_pose(c, f):
 
 
 def chase_posture(c, p):
-    r = c.rig
     flex = math.sin(2.0 * math.pi * (p - 0.2))
     lift = 0.12 * math.cos(2.0 * math.pi * (p - 0.9)) + 0.04 * math.cos(4.0 * math.pi * (p - 0.2))
     c.pelvis(Vector((0.0, 0.0, -CHASE["crouch"] + lift)), pitch=-10.0 + 6.0 * flex, roll=1.5 * wave(p, 0.1), yaw=2.0 * wave(p, 0.05))
@@ -394,8 +426,7 @@ def chase_pose(c, f, plants):
             target = plant + Vector((0.0, stride * (smooth(s) - 0.5), CHASE["fore_lift"] * arc))
             pitch = -65.0 - 45.0 * arc + 25.0 * smooth(s)
             curl = 18.0 + 22.0 * arc
-        c.arm_reach(side, r.local(target), rot(X, pitch) @ Y)
-        c.curl(side, curl)
+        c.plant_hand(side, target, rot(X, pitch) @ Y, curl, CHASE["finger_clearance"])
 
 
 def attack_curves(f):
@@ -421,8 +452,8 @@ def attack_pose(c, f):
         r.turn(n, X, (4.0 if i < 6 else 1.0) * rear - 2.0 * lunge)
         r.turn(n, Z, 5.0 * lag * (1.0 if i < 8 else 0.5) - 2.0 * whip * (1.0 if i >= 8 else 0.0))
     for side, shift in (("R", 0.0), ("L", 2.0)):
-        a, b = attack_curves(f - shift)
-        c.arm_swing(side, 98.0 * a + 38.0 * b, 48.0 * a + 4.0 * b, abduct=16.0 * a + 4.0 * b, wrist=22.0 * a - 18.0 * b)
+        a, b = attack_curves(f - shift * (1.0 - ramp(f, 22.0, 32.0)))
+        c.arm_swing(side, 120.0 * a + 62.0 * b, 50.0 * a + 8.0 * b, abduct=32.0 * a - 4.0 * b, wrist=25.0 * a - 15.0 * b)
         c.curl(side, -14.0 * a + 38.0 * b)
     for side in ("L", "R"):
         c.leg(side, Vector((0.0, 0.0, 0.0)))
@@ -457,45 +488,74 @@ def write_curves(bag, data_path, group, frames, values, width):
         curve.update()
 
 
-def build_action(name, arm, rig, followers, frames, pose_fn):
-    samples = {n: ([], []) for n in rig.order}
-    follow = {o.name: ([], []) for o in followers}
-    base_world = {o.name: o.matrix_world.copy() for o in followers}
+def build_action(name, arm, objects, frames, sample_fn):
+    bones = [pb.name for pb in arm.pose.bones]
+    samples = {n: ([], []) for n in bones}
+    others = {o.name: ([], []) for o in objects}
     for f in frames:
-        rig.reset()
-        pose_fn(f)
-        for n in rig.order:
-            loc, q, _ = rig.basis[n].decompose()
+        pose, nodes = sample_fn(f)
+        for n in bones:
+            loc, q, _ = pose[n].decompose()
             samples[n][0].append(loc)
             samples[n][1].append(q)
-        for o in followers:
-            world = follower_world(rig, arm, FOLLOWERS[o.name], base_world[o.name])
-            parent_world = o.parent.matrix_world @ o.matrix_parent_inverse
-            loc, q, _ = (parent_world.inverted() @ world).decompose()
-            follow[o.name][0].append(loc)
-            follow[o.name][1].append(q)
+        for o in objects:
+            loc, q, _ = nodes[o.name].decompose()
+            others[o.name][0].append(loc)
+            others[o.name][1].append(q)
     action = bpy.data.actions.new(name)
     action.use_fake_user = True
     slot = action.slots.new(id_type="OBJECT", name=arm.name)
     bag = anim_utils.action_ensure_channelbag_for_slot(action, slot)
-    for n in rig.order:
+    for n in bones:
         locs, quats = samples[n]
         write_curves(bag, f'pose.bones["{n}"].location', n, frames, locs, 3)
         write_curves(bag, f'pose.bones["{n}"].rotation_quaternion', n, frames, continuous(quats), 4)
-    for o in followers:
-        fslot = action.slots.new(id_type="OBJECT", name=o.name)
-        fbag = anim_utils.action_ensure_channelbag_for_slot(action, fslot)
-        locs, quats = follow[o.name]
-        write_curves(fbag, "location", o.name, frames, locs, 3)
-        write_curves(fbag, "rotation_quaternion", o.name, frames, continuous(quats), 4)
+    for o in objects:
+        node_slot = action.slots.new(id_type="OBJECT", name=o.name)
+        node_bag = anim_utils.action_ensure_channelbag_for_slot(action, node_slot)
+        locs, quats = others[o.name]
+        write_curves(node_bag, "location", o.name, frames, locs, 3)
+        write_curves(node_bag, "rotation_quaternion", o.name, frames, continuous(quats), 4)
     return action
+
+
+def authored_sampler(arm, rig, creature, followers, pose_fn):
+    base_world = {o.name: o.matrix_world.copy() for o in followers}
+
+    def sample(f):
+        rig.reset()
+        pose_fn(f)
+        low = min((rig.world(rig.head(n)).z - creature.ground, n) for n in rig.order)
+        creature.clearance = min(creature.clearance, (low[0], low[1], f))
+        nodes = {}
+        for o in followers:
+            world = follower_world(rig, arm, FOLLOWERS[o.name], base_world[o.name])
+            nodes[o.name] = (o.parent.matrix_world @ o.matrix_parent_inverse).inverted() @ world
+        return dict(rig.basis), nodes
+
+    return sample
+
+
+def source_sampler(arm, objects):
+    scene = bpy.context.scene
+
+    def sample(f):
+        scene.frame_set(f)
+        return {pb.name: pb.matrix_basis.copy() for pb in arm.pose.bones}, {o.name: o.matrix_basis.copy() for o in objects}
+
+    return sample
+
+
+def slot_target(slot, objects):
+    target = next((o for o in objects if slot.identifier == "OB" + o.name), None)
+    if target is None:
+        raise SystemExit(f"no object for action slot {slot.identifier}")
+    return target
 
 
 def bind_action(action, objects):
     for slot in action.slots:
-        target = next((o for o in objects if slot.identifier == "OB" + o.name), None)
-        if target is None:
-            continue
+        target = slot_target(slot, objects)
         if target.animation_data is None:
             target.animation_data_create()
         target.animation_data.action = action
@@ -504,9 +564,7 @@ def bind_action(action, objects):
 
 def push_to_nla(action, objects):
     for slot in action.slots:
-        target = next((o for o in objects if slot.identifier == "OB" + o.name), None)
-        if target is None:
-            continue
+        target = slot_target(slot, objects)
         if target.animation_data is None:
             target.animation_data_create()
         track = target.animation_data.nla_tracks.new()
@@ -528,11 +586,15 @@ def generate(source_dir, out_dir):
         raise SystemExit(f"source clip {SOURCE_CLIP!r} missing")
     if len(arm.data.bones) != 101:
         raise SystemExit(f"expected 101 joints, found {len(arm.data.bones)}")
-    scene.frame_set(1)
-    scene.frame_set(0)
+    idle_objects = [o for o in scene.objects if o.type != "ARMATURE" and o.animation_data and o.animation_data.action == idle]
     followers = [bpy.data.objects[n] for n in FOLLOWERS]
-    for o in followers:
+    for o in {*idle_objects, *followers}:
         o.rotation_mode = "QUATERNION"
+    start, end = (int(round(x)) for x in idle.frame_range)
+    if (end - start) / FPS != 6.25:
+        raise SystemExit(f"source clip spans {(end - start) / FPS} s, expected 6.25 s")
+    actions = [build_action(IDLE, arm, idle_objects, list(range(start, end + 1)), source_sampler(arm, idle_objects))]
+    scene.frame_set(start)
     rig = Rig(arm)
     creature = Creature(rig)
     depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -546,22 +608,22 @@ def generate(source_dir, out_dir):
             evaluated.to_mesh_clear()
     creature.ground = lowest
     plants = chase_plants(creature)
-    all_objects = [arm, *followers, *[o for o in scene.objects if o.animation_data and o.animation_data.action == idle]]
-    idle_objects = [o for o in scene.objects if o.animation_data and o.animation_data.action == idle]
     clips = {
         "WALK": (range(WALK["frames"] + 1), lambda f: walk_pose(creature, f)),
         "CHASE": (range(CHASE["frames"] + 1), lambda f: chase_pose(creature, f, plants)),
         "ATTACK": (range(ATTACK["frames"] + 1), lambda f: attack_pose(creature, f)),
     }
-    reach = {}
-    actions = []
+    reach, clearance = {}, {}
     for name, (frames, fn) in clips.items():
         creature.reach_error = 0.0
-        actions.append(build_action(name, arm, rig, followers, list(frames), fn))
+        creature.clearance = (math.inf, None, None)
+        actions.append(build_action(name, arm, followers, list(frames), authored_sampler(arm, rig, creature, followers, fn)))
         reach[name] = creature.reach_error
-    idle.name = IDLE
-    for action in [idle, *actions]:
-        push_to_nla(action, list({o.name: o for o in all_objects + idle_objects}.values()))
+        clearance[name] = creature.clearance
+    targets = list({o.name: o for o in [arm, *idle_objects, *followers]}.values())
+    bpy.data.actions.remove(idle)
+    for action in actions:
+        push_to_nla(action, targets)
     scene.frame_start = 0
     scene.frame_end = 150
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -570,15 +632,15 @@ def generate(source_dir, out_dir):
         filepath=str(glb),
         export_format="GLB",
         export_animations=True,
-        export_animation_mode="ACTIONS",
-        export_merge_animation="ACTION",
-        export_force_sampling=False,
+        export_animation_mode="NLA_TRACKS",
+        export_merge_animation="NLA_TRACK",
+        export_force_sampling=True,
         export_optimize_animation_size=False,
         export_reset_pose_bones=True,
         export_apply=False,
         export_yup=True,
     )
-    return glb, {"ground_z": lowest, "reach_shortfall_m": reach}
+    return glb, {"ground_z": lowest, "reach_shortfall_m": reach, "lowest_joint_above_ground_m": clearance, "unit": arm.matrix_world.to_scale().x}
 
 
 def read_glb(path):
@@ -629,27 +691,77 @@ def channels(doc, binary, anim):
     return out
 
 
-def compare_idle(source, exported):
-    worst_time, worst_value, missing = 0.0, 0.0, []
-    for key, (times, values, _) in source.items():
+def sample(times, values, t):
+    if t <= times[0]:
+        return values[0]
+    if t >= times[-1]:
+        return values[-1]
+    lo, hi = 0, len(times) - 1
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if times[mid] <= t:
+            lo = mid
+        else:
+            hi = mid
+    k = (t - times[lo]) / (times[hi] - times[lo])
+    a, b = values[lo], values[hi]
+    if len(a) == 4 and sum(x * y for x, y in zip(a, b)) < 0.0:
+        b = [-x for x in b]
+    return [x + (y - x) * k for x, y in zip(a, b)]
+
+
+def value_error(path, a, b):
+    if path == "rotation":
+        qa, qb = Quaternion((a[3], a[0], a[1], a[2])).normalized(), Quaternion((b[3], b[0], b[1], b[2])).normalized()
+        angle = qa.rotation_difference(qb).angle
+        return math.degrees(min(angle, 2.0 * math.pi - angle))
+    return max(abs(x - y) for x, y in zip(a, b))
+
+
+def node_default(node, path):
+    return node.get(path, {"translation": [0.0, 0.0, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0], "scale": [1.0, 1.0, 1.0]}[path])
+
+
+def compare_idle(src_doc, source, exported, unit):
+    worst = {"rotation_deg": 0.0, "translation_m": 0.0, "scale": 0.0}
+    missing = []
+    src_nodes = {n.get("name"): n for n in src_doc["nodes"]}
+    duration = max(t for (ts, _, _) in source.values() for t in ts)
+    for key, (etimes, evalues, _) in exported.items():
+        node, path = key
+        if node not in src_nodes:
+            missing.append([*key, "not in source"])
+            continue
+        if abs(etimes[-1] - duration) > 1e-4:
+            missing.append([*key, f"duration {etimes[-1]} != {duration}"])
+        if key in source:
+            times, values, _ = source[key]
+        else:
+            times, values = [0.0], [node_default(src_nodes[node], path)]
+        field = {"rotation": "rotation_deg", "translation": "translation_m", "scale": "scale"}[path]
+        scale = unit if path == "translation" else 1.0
+        for t, v in zip(times, values):
+            worst[field] = max(worst[field], value_error(path, v, sample(etimes, evalues, t)) * scale)
+        for t, v in zip(etimes, evalues):
+            worst[field] = max(worst[field], value_error(path, sample(times, values, t), v) * scale)
+    for key in source:
         if key not in exported:
             missing.append(list(key))
-            continue
-        etimes, evalues, _ = exported[key]
-        if len(etimes) != len(times):
-            missing.append([*key, f"count {len(etimes)} != {len(times)}"])
-            continue
-        worst_time = max(worst_time, max(abs(a - b) for a, b in zip(times, etimes)))
-        scale = max(1.0, max(abs(x) for v in values for x in v))
-        for a, b in zip(values, evalues):
-            diff = max(abs(x - y) for x, y in zip(a, b))
-            if key[1] == "rotation":
-                diff = min(diff, max(abs(x + y) for x, y in zip(a, b)))
-            worst_value = max(worst_value, diff / scale)
-    return {"max_time_error_s": worst_time, "max_relative_value_error": worst_value, "missing": missing}
+    return {"max_error": worst, "missing": missing}
 
 
-def validate(glb, source_dir):
+def compare_rest(src_doc, doc, unit):
+    src_nodes = {n.get("name"): n for n in src_doc["nodes"]}
+    worst = {"rotation_deg": 0.0, "translation_m": 0.0, "scale": 0.0}
+    for j in doc["skins"][0]["joints"]:
+        node = doc["nodes"][j]
+        for path, field in (("rotation", "rotation_deg"), ("translation", "translation_m"), ("scale", "scale")):
+            err = value_error(path, node_default(src_nodes[node["name"]], path), node_default(node, path))
+            worst[field] = max(worst[field], err * (unit if path == "translation" else 1.0))
+    return worst
+
+
+def validate(glb, source_dir, unit):
     doc, binary = read_glb(glb)
     src_doc, src_binary = read_gltf(source_dir / "scene.gltf")
     joints = {doc["nodes"][j]["name"] for j in doc["skins"][0]["joints"]}
@@ -658,6 +770,9 @@ def validate(glb, source_dir):
     if len(joints) != 101:
         problems.append(f"joint count {len(joints)}")
     anims = {a["name"]: a for a in doc.get("animations", [])}
+    expected = {IDLE, "WALK", "CHASE", "ATTACK"}
+    if set(anims) != expected or len(doc.get("animations", [])) != len(expected):
+        problems.append(f"clips {sorted(a['name'] for a in doc.get('animations', []))}")
     for name in (IDLE, "WALK", "CHASE", "ATTACK"):
         if name not in anims:
             problems.append(f"missing clip {name}")
@@ -675,21 +790,48 @@ def validate(glb, source_dir):
             "interpolation": sorted({i for (_, _, i) in ch.values()}),
             "finite": all(math.isfinite(x) for x in values),
         }
+        expected = 6.25 if name == IDLE else CLIP_FRAMES[name] / FPS
+        if abs(entry["duration_s"] - expected) > 1e-4:
+            problems.append(f"{name} lasts {entry['duration_s']} s, expected {expected} s")
+        if entry["interpolation"] != ["LINEAR"]:
+            problems.append(f"{name} interpolation {entry['interpolation']}")
         if name != IDLE:
             seam = 0.0
             for (_, vs, _) in ch.values():
                 seam = max(seam, max(abs(a - b) for a, b in zip(vs[0], vs[-1])))
             entry["first_last_max_delta"] = seam
-            if len(animated_joints) != 101:
-                problems.append(f"{name} animates {len(animated_joints)} joints")
+            if seam > 1e-6:
+                problems.append(f"{name} first and last keys differ by {seam}")
+        if len(animated_joints) != 101:
+            problems.append(f"{name} animates {len(animated_joints)} joints")
         if not entry["finite"]:
             problems.append(f"{name} has non-finite values")
         report["clips"][name] = entry
     if IDLE in anims:
         src = channels(src_doc, src_binary, src_doc["animations"][0])
-        report["idle_vs_source"] = compare_idle(src, channels(doc, binary, anims[IDLE]))
-        if report["idle_vs_source"]["missing"] or report["idle_vs_source"]["max_relative_value_error"] > 1e-4:
+        idle = compare_idle(src_doc, src, channels(doc, binary, anims[IDLE]), unit)
+        report["idle_vs_source"] = idle
+        if idle["missing"] or any(idle["max_error"][k] > v for k, v in IDLE_TOLERANCE.items()):
             problems.append("IDLE differs from source clip")
+    report["bind_rest_vs_source_defaults"] = compare_rest(src_doc, doc, unit)
+    structure = {k: [len(src_doc.get(k, [])), len(doc.get(k, []))] for k in ("nodes", "meshes", "materials", "images", "skins")}
+    report["structure_source_vs_output"] = structure
+    for k, (a, b) in structure.items():
+        if a != b:
+            problems.append(f"{k} count {b} != source {a}")
+    src_alpha = {m["name"]: m.get("alphaMode", "OPAQUE") for m in src_doc["materials"]}
+    out_alpha = {m["name"]: m.get("alphaMode", "OPAQUE") for m in doc["materials"]}
+    if src_alpha != out_alpha:
+        problems.append(f"material alpha modes {out_alpha} != source {src_alpha}")
+    textures = {}
+    for image in doc["images"]:
+        view = doc["bufferViews"][image["bufferView"]]
+        blob = binary[view.get("byteOffset", 0): view.get("byteOffset", 0) + view["byteLength"]]
+        source_png = source_dir / "textures" / f"{image['name']}.png"
+        textures[image["name"]] = source_png.is_file() and hashlib.sha256(blob).digest() == hashlib.sha256(source_png.read_bytes()).digest()
+    report["textures_identical_to_source"] = textures
+    if not all(textures.values()):
+        problems.append("embedded textures differ from source")
     report["problems"] = problems
     return report
 
@@ -732,8 +874,8 @@ def previews(glb, out_dir, ground):
     for o in objects:
         if o.animation_data:
             o.animation_data.action = None
-    target = (0.0, -2.4, -2.3)
-    views = {"side": (13.0, -2.4, -1.4), "front": (7.5, 8.5, -0.6)}
+    target = (0.0, -2.2, -1.9)
+    views = {"side": (15.5, -2.2, -1.0), "front": (9.0, 10.0, -0.2)}
     preview_dir = out_dir / "previews"
     if preview_dir.exists():
         shutil.rmtree(preview_dir)
@@ -786,7 +928,17 @@ def main():
             source_hash = None
         license_text = (source_dir / "license.txt").read_text()
         glb, facts = generate(source_dir, out_dir)
-        report = validate(glb, source_dir)
+        report = validate(glb, source_dir, facts["unit"])
+        for name, shortfall in facts["reach_shortfall_m"].items():
+            if shortfall > 1e-4:
+                report["problems"].append(f"{name} IK target out of reach by {shortfall:.4f} m")
+        for name, (height, joint, frame) in facts["lowest_joint_above_ground_m"].items():
+            if height < 0.0:
+                report["problems"].append(f"{name} joint {joint} is {-height:.4f} m below ground at frame {frame}")
+        for name, nodes in EXTRA_NODES.items():
+            found = report["clips"].get(name, {}).get("extra_nodes")
+            if found != sorted(nodes):
+                report["problems"].append(f"{name} extra animated nodes {found} != {sorted(nodes)}")
         manifest = {
             "output": glb.name,
             "output_sha256": sha256(glb),
@@ -797,6 +949,7 @@ def main():
             "fps": FPS,
             "ground_z_m": round(facts["ground_z"], 4),
             "reach_shortfall_m": {k: round(v, 4) for k, v in facts["reach_shortfall_m"].items()},
+            "lowest_joint_above_ground": {k: {"height_m": round(v[0], 4), "joint": v[1], "frame": v[2]} for k, v in facts["lowest_joint_above_ground_m"].items()},
             "clips": {
                 IDLE: {"source_name": SOURCE_CLIP, "loop": True},
                 "WALK": {"loop": True, "in_place_speed_m_s": round(WALK["stride"] / (WALK["duty"] * WALK["frames"] / FPS), 3)},
@@ -808,7 +961,7 @@ def main():
         for name, entry in report["clips"].items():
             manifest["clips"][name].update(entry)
         (out_dir / f"{OUTPUT_NAME}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-        print(json.dumps({k: manifest[k] for k in ("reach_shortfall_m",)}, indent=2))
+        print(json.dumps({k: manifest[k] for k in ("reach_shortfall_m", "lowest_joint_above_ground")}, indent=2))
         print(json.dumps(report, indent=2))
         if report["problems"]:
             raise SystemExit(f"validation failed: {report['problems']}")

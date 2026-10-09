@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use bevy::animation::AnimatedBy;
+use bevy::animation::{graph::AnimationNodeIndex, AnimatedBy};
 use bevy::asset::{AssetPlugin, LoadState, RecursiveDependencyLoadState};
 use game::prelude::*;
 
-const SCENE_PATH: &str = "scene.gltf#Scene0";
-const GLTF_PATH: &str = "scene.gltf";
+const GLB_PATH: &str = "human_deer_animated.glb";
+const SCENE_PATH: &str = "human_deer_animated.glb#Scene0";
+const CLIP_NAMES: [&str; 4] = ["IDLE", "WALK", "CHASE", "ATTACK"];
 const SCREENSHOT_PATH: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/art/visuals/screenshots/human_deer_viewer.png"
@@ -23,20 +24,22 @@ const INITIAL_ANGLE: f32 = 0.6;
 #[derive(Resource)]
 struct DeerScene {
     scene: Handle<WorldAsset>,
-    clip: Handle<AnimationClip>,
+    graph: Handle<AnimationGraph>,
+    nodes: Vec<AnimationNodeIndex>,
+    selected: usize,
 }
+
+#[derive(Component)]
+struct AnimationLabel;
 
 #[derive(Component)]
 struct OrbitCamera;
 
 fn main() {
-    let asset_root = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/art/visuals/sources/sketchfab/the_human_deer"
-    );
+    let asset_root = concat!(env!("CARGO_MANIFEST_DIR"), "/art/visuals/generated/monster");
     assert!(
-        PathBuf::from(asset_root).join("scene.gltf").is_file(),
-        "extract the_human_deer.zip into art/visuals/sources/sketchfab/the_human_deer before running human_deer_viewer"
+        PathBuf::from(asset_root).join(GLB_PATH).is_file(),
+        "generate art/visuals/generated/monster/human_deer_animated.glb before running human_deer_viewer"
     );
 
     let capture = std::env::args().any(|arg| arg == "--capture");
@@ -91,14 +94,38 @@ fn setup(
     assets: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
     let scene = assets.load(SCENE_PATH);
-    let clip = assets.load(GltfAssetLabel::Animation(0).from_asset(GLTF_PATH));
+    let clips = (0..CLIP_NAMES.len())
+        .map(|index| assets.load(GltfAssetLabel::Animation(index).from_asset(GLB_PATH)));
+    let (graph, nodes) = AnimationGraph::from_clips(clips);
+    let graph = graphs.add(graph);
     commands.spawn((
         WorldAssetRoot(scene.clone()),
         Transform::from_xyz(0.0, MODEL_Y_OFFSET, 0.0).with_scale(Vec3::splat(MODEL_SCALE)),
     ));
-    commands.insert_resource(DeerScene { scene, clip });
+    commands.insert_resource(DeerScene {
+        scene,
+        graph,
+        nodes,
+        selected: 0,
+    });
+    commands.spawn((
+        Text::new("IDLE"),
+        TextFont {
+            font_size: bevy::text::FontSize::Px(28.0),
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(24),
+            top: px(24),
+            ..default()
+        },
+        AnimationLabel,
+    ));
 
     commands.spawn((
         Mesh3d(meshes.add(Plane3d::default().mesh().size(8.0, 8.0))),
@@ -161,18 +188,36 @@ fn scene_loaded(world: &World) -> bool {
 
 fn play_animation(
     mut commands: Commands,
-    mut graphs: ResMut<Assets<AnimationGraph>>,
-    deer: Option<Res<DeerScene>>,
-    mut players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut deer: ResMut<DeerScene>,
+    mut players: Query<(Entity, &mut AnimationPlayer, Has<AnimationGraphHandle>)>,
+    mut label: Query<&mut Text, With<AnimationLabel>>,
 ) {
-    let Some(deer) = deer else {
-        return;
-    };
-    for (entity, mut player) in &mut players {
-        let (graph, node) = AnimationGraph::from_clip(deer.clip.clone());
-        let handle = graphs.add(graph);
-        player.play(node).repeat();
-        commands.entity(entity).insert(AnimationGraphHandle(handle));
+    let previous = deer.selected;
+    if keys.just_pressed(KeyCode::ArrowLeft) || keys.just_pressed(KeyCode::Comma) {
+        deer.selected = (deer.selected + CLIP_NAMES.len() - 1) % CLIP_NAMES.len();
+    } else if keys.just_pressed(KeyCode::ArrowRight) || keys.just_pressed(KeyCode::Period) {
+        deer.selected = (deer.selected + 1) % CLIP_NAMES.len();
+    }
+    let changed = previous != deer.selected;
+    if changed {
+        for mut text in &mut label {
+            **text = CLIP_NAMES[deer.selected].into();
+        }
+    }
+    for (entity, mut player, has_graph) in &mut players {
+        if !has_graph {
+            commands
+                .entity(entity)
+                .insert(AnimationGraphHandle(deer.graph.clone()));
+        }
+        if changed || player.is_added() {
+            player.stop_all();
+            let active = player.play(deer.nodes[deer.selected]);
+            if deer.selected != 3 {
+                active.repeat();
+            }
+        }
     }
 }
 
@@ -204,6 +249,10 @@ fn measure_bounds(
     );
     *done = true;
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/human_deer_viewer.rs"]
+mod tests;
 
 fn orbit_camera(time: Res<Time>, mut cameras: Query<&mut Transform, With<OrbitCamera>>) {
     let transform = orbit_transform(time.elapsed_secs() * ORBIT_SPEED);

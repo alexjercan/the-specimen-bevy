@@ -1,0 +1,262 @@
+{
+  "output": "human_deer_animated.glb",
+  "output_sha256": "a9f271b6157a85b6c4b9c9da500975e5f8ce4ecc85a799ab51aa970b87c252ce",
+  "source": "the_human_deer.zip",
+  "source_sha256": "3e5d58e4c9be7fa61721eae9800c73265cdf32b66dd83ef4b53b55d8ac6d2b28",
+  "source_license_txt": [
+    "Model Information:",
+    "* title:\tThe Human Deer",
+    "* source:\thttps://sketchfab.com/3d-models/the-human-deer-7644694337404bb18eb68e6b637740a1",
+    "* author:\tceeleste (https://sketchfab.com/ceeleste)",
+    "",
+    "Model License:",
+    "* license type:\tCC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "* requirements:\tAuthor must be credited. Commercial use is allowed.",
+    "",
+    "If you use this 3D model in your project be sure to copy paste this credit wherever you share it:",
+    "This work is based on \"The Human Deer\" (https://sketchfab.com/3d-models/the-human-deer-7644694337404bb18eb68e6b637740a1) by ceeleste (https://sketchfab.com/ceeleste) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)"
+  ],
+  "blender": "5.2.2 LTS",
+  "fps": 24,
+  "ground_z_m": -4.6308,
+  "reach_shortfall_m": {
+    "WALK": 0.0,
+    "CHASE": 0.0,
+    "ATTACK": 0.0
+  },
+  "lowest_joint_above_ground": {
+    "WALK": {
+      "height_m": 0.0321,
+      "joint": "R_toe_J_083",
+      "frame": 31
+    },
+    "CHASE": {
+      "height_m": 0.0321,
+      "joint": "R_toe_J_083",
+      "frame": 3
+    },
+    "ATTACK": {
+      "height_m": 0.0321,
+      "joint": "R_toe_J_083",
+      "frame": 9
+    }
+  },
+  "clips": {
+    "IDLE": {
+      "source_name": "Take 001",
+      "loop": true,
+      "duration_s": 6.25,
+      "channels": 306,
+      "paths": {
+        "translation": 103,
+        "rotation": 102,
+        "scale": 101
+      },
+      "animated_joints": 101,
+      "extra_nodes": [
+        "C_Hip_ctrl",
+        "R_leg_exposed_bone_low"
+      ],
+      "interpolation": [
+        "LINEAR"
+      ],
+      "finite": true
+    },
+    "WALK": {
+      "loop": true,
+      "in_place_speed_m_s": 1.222,
+      "duration_s": 1.5,
+      "channels": 307,
+      "paths": {
+        "translation": 103,
+        "rotation": 103,
+        "scale": 101
+      },
+      "animated_joints": 101,
+      "extra_nodes": [
+        "R_leg_exposed_bone_low",
+        "pPlane19"
+      ],
+      "interpolation": [
+        "LINEAR"
+      ],
+      "finite": true,
+      "first_last_max_delta": 0.0
+    },
+    "CHASE": {
+      "loop": true,
+      "in_place_speed_m_s": 7.5,
+      "duration_s": 0.666667,
+      "channels": 307,
+      "paths": {
+        "translation": 103,
+        "rotation": 103,
+        "scale": 101
+      },
+      "animated_joints": 101,
+      "extra_nodes": [
+        "R_leg_exposed_bone_low",
+        "pPlane19"
+      ],
+      "interpolation": [
+        "LINEAR"
+      ],
+      "finite": true,
+      "first_last_max_delta": 0.0
+    },
+    "ATTACK": {
+      "loop": false,
+      "hit_time_s": 0.7917,
+      "duration_s": 1.666667,
+      "channels": 307,
+      "paths": {
+        "translation": 103,
+        "rotation": 103,
+        "scale": 101
+      },
+      "animated_joints": 101,
+      "extra_nodes": [
+        "R_leg_exposed_bone_low",
+        "pPlane19"
+      ],
+      "interpolation": [
+        "LINEAR"
+      ],
+      "finite": true,
+      "first_last_max_delta": 0.0
+    }
+  },
+  "validation": {
+    "joints": 101,
+    "skins": 1,
+    "images": 12,
+    "materials": 4,
+    "clips": {
+      "IDLE": {
+        "duration_s": 6.25,
+        "channels": 306,
+        "paths": {
+          "translation": 103,
+          "rotation": 102,
+          "scale": 101
+        },
+        "animated_joints": 101,
+        "extra_nodes": [
+          "C_Hip_ctrl",
+          "R_leg_exposed_bone_low"
+        ],
+        "interpolation": [
+          "LINEAR"
+        ],
+        "finite": true
+      },
+      "WALK": {
+        "duration_s": 1.5,
+        "channels": 307,
+        "paths": {
+          "translation": 103,
+          "rotation": 103,
+          "scale": 101
+        },
+        "animated_joints": 101,
+        "extra_nodes": [
+          "R_leg_exposed_bone_low",
+          "pPlane19"
+        ],
+        "interpolation": [
+          "LINEAR"
+        ],
+        "finite": true,
+        "first_last_max_delta": 0.0
+      },
+      "CHASE": {
+        "duration_s": 0.666667,
+        "channels": 307,
+        "paths": {
+          "translation": 103,
+          "rotation": 103,
+          "scale": 101
+        },
+        "animated_joints": 101,
+        "extra_nodes": [
+          "R_leg_exposed_bone_low",
+          "pPlane19"
+        ],
+        "interpolation": [
+          "LINEAR"
+        ],
+        "finite": true,
+        "first_last_max_delta": 0.0
+      },
+      "ATTACK": {
+        "duration_s": 1.666667,
+        "channels": 307,
+        "paths": {
+          "translation": 103,
+          "rotation": 103,
+          "scale": 101
+        },
+        "animated_joints": 101,
+        "extra_nodes": [
+          "R_leg_exposed_bone_low",
+          "pPlane19"
+        ],
+        "interpolation": [
+          "LINEAR"
+        ],
+        "finite": true,
+        "first_last_max_delta": 0.0
+      }
+    },
+    "idle_vs_source": {
+      "max_error": {
+        "rotation_deg": 0.15323335969831878,
+        "translation_m": 0.002494207168908247,
+        "scale": 6.198883056640625e-06
+      },
+      "missing": []
+    },
+    "bind_rest_vs_source_defaults": {
+      "rotation_deg": 179.79070433449613,
+      "translation_m": 6.042699930336028,
+      "scale": 5.9604644775390625e-06
+    },
+    "structure_source_vs_output": {
+      "nodes": [
+        328,
+        328
+      ],
+      "meshes": [
+        72,
+        72
+      ],
+      "materials": [
+        4,
+        4
+      ],
+      "images": [
+        12,
+        12
+      ],
+      "skins": [
+        1,
+        1
+      ]
+    },
+    "textures_identical_to_source": {
+      "Hair_cards_baseColor": true,
+      "Deer_body1_emissive": true,
+      "Deer_body1_normal": true,
+      "Deer_body1_metallicRoughness": true,
+      "Deer_body1_baseColor": true,
+      "Deer_head1_emissive": true,
+      "Deer_head1_normal": true,
+      "Deer_head1_metallicRoughness": true,
+      "Deer_head1_baseColor": true,
+      "hair_cards_v2_normal": true,
+      "hair_cards_v2_baseColor": true,
+      "hair_cards_v2_metallicRoughness": true
+    },
+    "problems": []
+  }
+}
