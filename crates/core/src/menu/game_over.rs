@@ -1,9 +1,29 @@
 use bevy::prelude::*;
 use game_assets::UiAssets;
-use game_ui::{menu_button, text, theme};
-use gameplay::{controller::PlayerController, levels::Caught};
+use gameplay::{
+    controller::PlayerController,
+    levels::{Caught, Monster, MonsterFigure},
+};
 
-use super::{release_cursor, screen_camera, GameState, MenuAction};
+use super::{
+    cinematic::{self, CinematicCamera},
+    release_cursor, GameState,
+};
+
+const PUSH_IN: f32 = 0.35;
+const PUSH_SECS: f32 = 5.0;
+const SHADE: f32 = 0.94;
+const SHADE_SECS: f32 = 3.0;
+const GLOW: Color = Color::srgb(0.75, 0.08, 0.05);
+
+#[derive(Component)]
+pub(super) struct GameOverScreen;
+
+#[derive(Resource, Clone, Copy)]
+pub(super) struct CaughtShot {
+    pub(super) view: Transform,
+    pub(super) monster: Option<Transform>,
+}
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(Update, finish_run.run_if(in_state(GameState::Playing)))
@@ -14,58 +34,60 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 fn finish_run(
-    players: Query<&Caught, With<PlayerController>>,
+    players: Query<(&Caught, &Transform), With<PlayerController>>,
+    monsters: Query<&Transform, With<Monster>>,
     mut next: ResMut<NextState<GameState>>,
+    mut commands: Commands,
 ) {
-    if players.iter().any(Caught::finished) {
-        next.set(GameState::GameOver);
-    }
+    let Some((caught, view)) = players.iter().find(|(caught, _)| caught.finished()) else {
+        return;
+    };
+    commands.insert_resource(CaughtShot {
+        view: *view,
+        monster: monsters.get(caught.monster).ok().copied(),
+    });
+    next.set(GameState::GameOver);
 }
 
-fn spawn_game_over(mut commands: Commands, assets: Res<UiAssets>) {
-    let font = assets.font.clone();
-    commands.spawn(screen_camera(GameState::GameOver));
+fn spawn_game_over(mut commands: Commands, assets: Res<UiAssets>, shot: Option<Res<CaughtShot>>) {
+    let view = shot.as_ref().map_or(Transform::IDENTITY, |shot| shot.view);
+    let camera = cinematic::spawn_cameras(&mut commands, GameState::GameOver, view);
+    let forward = view.forward() * PUSH_IN;
+    commands.entity(camera).insert(CinematicCamera::new(
+        view,
+        view.with_translation(view.translation + forward),
+        PUSH_SECS,
+    ));
+    if let Some(monster) = shot.as_ref().and_then(|shot| shot.monster) {
+        commands.spawn((
+            Name::new("Caught figure"),
+            MonsterFigure,
+            monster,
+            DespawnOnExit(GameState::GameOver),
+        ));
+        commands.spawn((
+            Name::new("Caught glow"),
+            PointLight {
+                color: GLOW,
+                intensity: 6_000.0,
+                range: 6.0,
+                shadow_maps_enabled: false,
+                ..default()
+            },
+            Transform::from_translation(view.translation + view.down() * 0.6),
+            DespawnOnExit(GameState::GameOver),
+        ));
+    }
+    commands.remove_resource::<CaughtShot>();
     commands.spawn((
-        Name::new("Game over screen"),
-        DespawnOnExit(GameState::GameOver),
-        Node {
-            width: percent(100),
-            height: percent(100),
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Center,
-            padding: UiRect::left(px(96)),
-            row_gap: px(12),
-            ..default()
-        },
-        BackgroundColor(theme::BACKGROUND),
-        children![
-            (
-                text("Game over", 56.0, theme::TEXT, font.clone()),
-                Node {
-                    margin: UiRect::bottom(px(28)),
-                    ..default()
-                },
-            ),
-            (
-                Node {
-                    width: px(240),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: px(10),
-                    ..default()
-                },
-                children![
-                    (
-                        Name::new("Main menu button"),
-                        MenuAction::MainMenu,
-                        menu_button("Main Menu", font.clone()),
-                    ),
-                    (
-                        Name::new("Quit button"),
-                        MenuAction::Quit,
-                        menu_button("Quit", font.clone()),
-                    ),
-                ],
-            ),
-        ],
+        GameOverScreen,
+        cinematic::overlay(
+            GameState::GameOver,
+            "Game over screen",
+            "CAUGHT",
+            SHADE,
+            SHADE_SECS,
+            assets.font.clone(),
+        ),
     ));
 }

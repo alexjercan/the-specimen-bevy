@@ -1,19 +1,35 @@
 use bevy::prelude::*;
 use game_assets::UiAssets;
-use game_ui::{menu_button, text, theme};
-use gameplay::{controller::PlayerController, levels::Escaped};
+use gameplay::{
+    controller::PlayerController,
+    levels::{build_exit_cinematic, Escaped, ToggleDoor},
+};
 
-use super::{release_cursor, screen_camera, GameState, MenuAction};
+use super::{
+    cinematic::{self, Cinematic, CinematicCamera},
+    release_cursor, GameState,
+};
+
+pub(super) const DOOR_CLOSE_AT: f32 = 0.8;
+const DRIFT: f32 = 0.6;
+const DRIFT_SECS: f32 = 6.0;
+const SHADE: f32 = 0.4;
+const SHADE_SECS: f32 = 4.0;
 
 #[derive(Component)]
 pub(super) struct CompleteScreen;
 
+#[derive(Component)]
+struct ClosingDoor(Entity);
+
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(Update, finish_run.run_if(in_state(GameState::Playing)))
+    app.add_message::<ToggleDoor>()
+        .add_systems(Update, finish_run.run_if(in_state(GameState::Playing)))
         .add_systems(
             OnEnter(GameState::Complete),
             (spawn_complete_screen, release_cursor),
-        );
+        )
+        .add_systems(Update, close_door.run_if(in_state(GameState::Complete)));
 }
 
 fn finish_run(
@@ -26,50 +42,40 @@ fn finish_run(
 }
 
 fn spawn_complete_screen(mut commands: Commands, assets: Res<UiAssets>) {
-    let font = assets.font.clone();
-    commands.spawn(screen_camera(GameState::Complete));
+    let scene = build_exit_cinematic(&mut commands);
+    commands
+        .entity(scene.root)
+        .insert(DespawnOnExit(GameState::Complete));
+    let camera = cinematic::spawn_cameras(&mut commands, GameState::Complete, scene.view);
+    let back = scene.view.back() * DRIFT;
+    commands.entity(camera).insert(CinematicCamera::new(
+        scene.view,
+        scene.view.with_translation(scene.view.translation + back),
+        DRIFT_SECS,
+    ));
     commands.spawn((
         CompleteScreen,
-        Name::new("Complete screen"),
-        DespawnOnExit(GameState::Complete),
-        Node {
-            width: percent(100),
-            height: percent(100),
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Center,
-            padding: UiRect::left(px(96)),
-            row_gap: px(12),
-            ..default()
-        },
-        BackgroundColor(theme::BACKGROUND),
-        children![
-            (
-                text("You escaped", 56.0, theme::TEXT, font.clone()),
-                Node {
-                    margin: UiRect::bottom(px(28)),
-                    ..default()
-                },
-            ),
-            (
-                Node {
-                    width: px(240),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: px(10),
-                    ..default()
-                },
-                children![
-                    (
-                        Name::new("Main menu button"),
-                        MenuAction::MainMenu,
-                        menu_button("Main Menu", font.clone()),
-                    ),
-                    (
-                        Name::new("Quit button"),
-                        MenuAction::Quit,
-                        menu_button("Quit", font.clone()),
-                    ),
-                ],
-            ),
-        ],
+        ClosingDoor(scene.door),
+        cinematic::overlay(
+            GameState::Complete,
+            "Complete screen",
+            "ESCAPED",
+            SHADE,
+            SHADE_SECS,
+            assets.font.clone(),
+        ),
     ));
+}
+
+fn close_door(
+    screens: Query<(Entity, &Cinematic, &ClosingDoor)>,
+    mut toggles: MessageWriter<ToggleDoor>,
+    mut commands: Commands,
+) {
+    for (entity, cinematic, door) in &screens {
+        if cinematic.elapsed >= DOOR_CLOSE_AT {
+            toggles.write(ToggleDoor(door.0));
+            commands.entity(entity).remove::<ClosingDoor>();
+        }
+    }
 }

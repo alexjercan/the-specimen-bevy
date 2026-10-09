@@ -12,11 +12,12 @@ use bevy::{
     log::{Level, LogPlugin},
     prelude::*,
     state::app::StatesPlugin,
+    window::{MonitorSelection, PrimaryWindow, WindowMode, WindowPlugin},
 };
 use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_rand::prelude::{ChaCha8Rng, EntropyPlugin};
 use game_assets::GameAssetsState;
-use game_settings::{GameSettings, GameSettingsPlugin, GraphicsQuality};
+use game_settings::{DisplayMode, GameSettings, GameSettingsPlugin, GraphicsQuality};
 #[cfg(feature = "debug")]
 use gameplay::controller::{PlayerController, PlayerControlsEnabled};
 use gameplay::levels::{
@@ -148,7 +149,14 @@ impl AppBuilder {
                 app.add_plugins(transport::TransportPlugin);
             }
         } else {
-            app.add_plugins(DefaultPlugins.set(logging));
+            let mut window = Window::default();
+            if menu {
+                window.mode = window_mode(app.world().resource::<GameSettings>().display_mode);
+            }
+            app.add_plugins(DefaultPlugins.set(logging).set(WindowPlugin {
+                primary_window: Some(window),
+                ..default()
+            }));
             if self.muted_audio {
                 app.insert_resource(GlobalVolume::new(Volume::Linear(0.0)));
             }
@@ -209,6 +217,9 @@ impl AppBuilder {
                     (dim_new_lights, dim_ambient_on_outage, apply_graphics),
                 );
             }
+            if menu {
+                app.add_systems(Update, apply_window_mode);
+            }
         }
         if self.transport {
             app.add_systems(OnEnter(CoreState::Ready), transport_ready);
@@ -258,6 +269,28 @@ fn sync_debug_controls(
         } else {
             CursorGrabMode::None
         };
+    }
+}
+
+fn window_mode(mode: DisplayMode) -> WindowMode {
+    match mode {
+        DisplayMode::Windowed => WindowMode::Windowed,
+        DisplayMode::Fullscreen => WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+    }
+}
+
+fn apply_window_mode(
+    settings: Res<GameSettings>,
+    mut windows: Query<&mut Window, With<PrimaryWindow>>,
+) {
+    if !settings.is_changed() {
+        return;
+    }
+    let mode = window_mode(settings.display_mode);
+    for mut window in &mut windows {
+        if window.mode != mode {
+            window.mode = mode;
+        }
     }
 }
 
@@ -318,3 +351,7 @@ fn transport_ready(mut timeline: ResMut<transport::TransportTimeline>) {
 #[cfg(test)]
 #[path = "../tests/unit/dark_lighting.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/window_mode.rs"]
+mod window_mode_tests;

@@ -1,7 +1,10 @@
+use std::time::Duration;
+
 use bevy::{
     input::InputPlugin,
     prelude::*,
     state::app::StatesPlugin,
+    time::TimeUpdateStrategy,
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
@@ -10,8 +13,9 @@ use game_core::{CoreState, GameState, MenuPlugin};
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin},
     levels::{
-        DoorLock, DoorPlugin, Escaped, ExitDoor, FUSE_COUNT, FacilityPower, FacilityPowerPlugin,
-        FuseInventory, FusePanel, FusePlugin, HidingPlugin, InstallFuses, ObjectivePlugin, Room,
+        DoorLock, DoorPlugin, Escaped, ExitDoor, FacilityPower, FacilityPowerPlugin, FuseInventory,
+        FusePanel, FusePlugin, HidingPlugin, InstallFuses, LevelRoot, ObjectivePlugin, Room,
+        FUSE_COUNT,
     },
 };
 
@@ -98,6 +102,32 @@ fn escape(app: &mut App) {
     }
 }
 
+fn settle(app: &mut App) {
+    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+        100,
+    )));
+    for _ in 0..45 {
+        app.update();
+    }
+    app.insert_resource(TimeUpdateStrategy::Automatic);
+}
+
+fn buttons(app: &mut App) -> usize {
+    count::<With<Button>>(app)
+}
+
+fn assert_completion_scene(app: &mut App) {
+    assert_eq!(game_state(app), GameState::Complete);
+    assert_eq!(count::<With<PlayerController>>(app), 0);
+    assert_eq!(count::<With<FusePanel>>(app), 0);
+    assert_eq!(count::<With<ExitDoor>>(app), 0);
+    assert_eq!(count::<With<LevelRoot>>(app), 1);
+    assert_eq!(count::<With<Room>>(app), 2);
+    assert_eq!(count::<With<Camera2d>>(app), 1);
+    assert_eq!(count::<With<Camera3d>>(app), 1);
+    assert_eq!(buttons(app), 0);
+}
+
 fn assert_fresh_run(app: &mut App) {
     assert_eq!(game_state(app), GameState::Playing);
     let power = app.world().resource::<FacilityPower>();
@@ -113,18 +143,13 @@ fn assert_fresh_run(app: &mut App) {
 }
 
 #[test]
-fn escaping_shows_the_completion_screen_and_replay_starts_a_fresh_run() {
+fn escaping_shows_the_completion_cinematic_and_replay_starts_a_fresh_run() {
     let mut app = app();
     press(&mut app, "Play button");
     assert_fresh_run(&mut app);
 
     escape(&mut app);
-    assert_eq!(game_state(&app), GameState::Complete);
-    assert_eq!(count::<With<Room>>(&mut app), 0);
-    assert_eq!(count::<With<PlayerController>>(&mut app), 0);
-    assert_eq!(count::<With<FusePanel>>(&mut app), 0);
-    assert_eq!(count::<With<ExitDoor>>(&mut app), 0);
-    assert_eq!(count::<With<Camera2d>>(&mut app), 1);
+    assert_completion_scene(&mut app);
     let screen = app
         .world_mut()
         .query::<&Name>()
@@ -142,16 +167,27 @@ fn escaping_shows_the_completion_screen_and_replay_starts_a_fresh_run() {
         (CursorGrabMode::None, true)
     );
 
+    settle(&mut app);
+    assert_eq!(buttons(&mut app), 3);
     press(&mut app, "Main menu button");
     assert_eq!(game_state(&app), GameState::MainMenu);
     assert_eq!(count::<With<Camera2d>>(&mut app), 1);
+    assert_eq!(count::<With<Room>>(&mut app), 0);
 
     press(&mut app, "Play button");
     assert_fresh_run(&mut app);
     escape(&mut app);
-    assert_eq!(game_state(&app), GameState::Complete);
-    assert_eq!(count::<With<Room>>(&mut app), 0);
-    assert_eq!(count::<With<PlayerController>>(&mut app), 0);
+    assert_completion_scene(&mut app);
+    settle(&mut app);
+    press(&mut app, "Retry button");
+    assert_fresh_run(&mut app);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 4);
+    assert_eq!(count::<With<Camera2d>>(&mut app), 0);
+    assert_eq!(buttons(&mut app), 0);
+
+    escape(&mut app);
+    assert_completion_scene(&mut app);
+    settle(&mut app);
     press(&mut app, "Main menu button");
     press(&mut app, "Play button");
     assert_fresh_run(&mut app);
@@ -165,6 +201,7 @@ fn quit_from_the_completion_screen_requests_app_exit() {
     press(&mut app, "Play button");
     escape(&mut app);
     assert_eq!(game_state(&app), GameState::Complete);
+    settle(&mut app);
     press(&mut app, "Quit button");
     assert_eq!(app.should_exit(), Some(AppExit::Success));
 }

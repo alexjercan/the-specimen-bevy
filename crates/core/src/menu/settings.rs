@@ -61,6 +61,7 @@ pub(super) enum SettingsAction {
     Back,
     Tab(SettingsTab),
     Graphics,
+    DisplayMode,
     Forward,
     Left,
     Backward,
@@ -74,6 +75,7 @@ impl SettingsAction {
     fn name(self) -> &'static str {
         match self {
             Self::Graphics => "Quality preset",
+            Self::DisplayMode => "Display mode",
             Self::Forward => "Forward",
             Self::Left => "Left",
             Self::Backward => "Backward",
@@ -140,7 +142,10 @@ impl SettingsGroup {
                 Row::Key(SettingsAction::Flashlight),
                 Row::Key(SettingsAction::Flashbang),
             ],
-            Self::Quality => &[Row::Choice(SettingsAction::Graphics)],
+            Self::Quality => &[
+                Row::Choice(SettingsAction::Graphics),
+                Row::Choice(SettingsAction::DisplayMode),
+            ],
         }
     }
 }
@@ -210,7 +215,7 @@ impl SettingSlider {
 }
 
 #[derive(Component)]
-struct QualityLabel;
+struct ChoiceLabel(SettingsAction);
 
 #[derive(Component)]
 pub(super) struct SliderReadout(pub(super) SettingSlider);
@@ -410,12 +415,20 @@ fn spawn_row(
                     row.spawn((
                         control_button(action),
                         children![(
-                            QualityLabel,
-                            text(format!("{:?}", settings.graphics), 16.0, theme::TEXT, font),
+                            ChoiceLabel(action),
+                            text(choice_value(action, settings), 16.0, theme::TEXT, font),
                         )],
                     ));
                 });
         }
+    }
+}
+
+fn choice_value(action: SettingsAction, settings: &GameSettings) -> String {
+    match action {
+        SettingsAction::Graphics => format!("{:?}", settings.graphics),
+        SettingsAction::DisplayMode => format!("{:?}", settings.display_mode),
+        _ => unreachable!(),
     }
 }
 
@@ -678,6 +691,10 @@ fn activate(
                 settings.graphics = settings.graphics.next();
                 dirty.0 = true;
             }
+            SettingsAction::DisplayMode => {
+                settings.display_mode = settings.display_mode.next();
+                dirty.0 = true;
+            }
             key @ (SettingsAction::Forward
             | SettingsAction::Left
             | SettingsAction::Backward
@@ -785,16 +802,16 @@ fn refresh(
     settings: Res<GameSettings>,
     awaiting: Res<AwaitingKey>,
     assets: Option<Res<UiAssets>>,
-    mut labels: Query<&mut Text, (With<QualityLabel>, Without<SliderReadout>)>,
-    mut readouts: Query<(&SliderReadout, &mut Text), Without<QualityLabel>>,
+    mut labels: Query<(&ChoiceLabel, &mut Text), Without<SliderReadout>>,
+    mut readouts: Query<(&SliderReadout, &mut Text), Without<ChoiceLabel>>,
     mut chips: Query<(Entity, &mut KeyChip)>,
     mut commands: Commands,
 ) {
     if !settings.is_changed() && !awaiting.is_changed() {
         return;
     }
-    for mut text in &mut labels {
-        **text = format!("{:?}", settings.graphics);
+    for (label, mut text) in &mut labels {
+        **text = choice_value(label.0, &settings);
     }
     for (readout, mut text) in &mut readouts {
         **text = readout.0.readout(readout.0.get(&settings));

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::{
     ecs::resource::IsResource,
     input::{
@@ -5,6 +7,7 @@ use bevy::{
         ButtonState, InputPlugin,
     },
     state::app::StatesPlugin,
+    time::TimeUpdateStrategy,
     ui_widgets::{SliderDragState, SliderValue, ValueChange},
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
@@ -14,11 +17,16 @@ use game_settings::{GameSettings, SettingsDirty, MAX_SENSITIVITY};
 use game_ui::SliderFill;
 use gameplay::{
     controller::{Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
-    levels::{Caught, Door, DoorPlugin, DoorRef, Escaped, FusePanel, LevelRoot, Room},
+    levels::{
+        Caught, Door, DoorPlugin, DoorRef, DoorState, Escaped, ExitDoor, FusePanel, LevelRoot,
+        Monster, MonsterFigure, Room,
+    },
 };
 
 use super::{
-    complete::CompleteScreen,
+    cinematic::{Cinematic, CinematicCamera, CinematicOptions, REVEAL_AT, TITLE_AT, TITLE_FADE},
+    complete::{CompleteScreen, DOOR_CLOSE_AT},
+    game_over::{CaughtShot, GameOverScreen},
     loading::LoadingScreen,
     main_menu::MainMenu,
     pause::PauseMenu,
@@ -439,9 +447,106 @@ fn play_pause_and_main_menu_cycle_without_duplicate_worlds() {
     assert_eq!(count::<Without<IsResource>>(&mut app), playing);
 }
 
+fn run_for(app: &mut App, secs: f32) {
+    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+        100,
+    )));
+    for _ in 0..(secs * 10.0).round() as usize {
+        app.update();
+    }
+    app.insert_resource(TimeUpdateStrategy::Automatic);
+}
+
+fn run_player(app: &mut App) -> Entity {
+    app.world_mut()
+        .query_filtered::<Entity, With<PlayerController>>()
+        .single(app.world())
+        .unwrap()
+}
+
+fn options(app: &mut App) -> Vec<MenuAction> {
+    let mut actions: Vec<_> = app
+        .world_mut()
+        .query::<&MenuAction>()
+        .iter(app.world())
+        .copied()
+        .collect();
+    actions.sort_by_key(|action| *action as u8);
+    actions
+}
+
+fn title_alpha(app: &mut App) -> f32 {
+    app.world_mut()
+        .query::<(&Text, &TextColor)>()
+        .iter(app.world())
+        .find_map(|(text, color)| {
+            matches!(text.0.as_str(), "ESCAPED" | "CAUGHT").then(|| color.0.alpha())
+        })
+        .unwrap()
+}
+
+fn catch(app: &mut App) {
+    let player = run_player(app);
+    let monster = app
+        .world_mut()
+        .query_filtered::<Entity, With<Monster>>()
+        .single(app.world())
+        .unwrap();
+    app.world_mut().entity_mut(player).insert(Caught {
+        monster,
+        remaining: 0.0,
+    });
+    app.update();
+    app.update();
+}
+
+fn assert_run_gone(app: &mut App) {
+    assert_eq!(count::<With<PlayerController>>(app), 0);
+    assert_eq!(count::<With<Monster>>(app), 0);
+    assert_eq!(count::<With<FusePanel>>(app), 0);
+    assert_eq!(count::<With<ExitDoor>>(app), 0);
+    assert_eq!(count::<With<Room>>(app), count::<With<CinematicRoom>>(app));
+    assert_eq!(
+        count::<(With<IsResource>, With<DespawnOnExit<GameState>>)>(app),
+        0
+    );
+}
+
+fn assert_cinematic_gone(app: &mut App) {
+    assert_eq!(count::<With<Cinematic>>(app), 0);
+    assert_eq!(count::<With<CinematicCamera>>(app), 0);
+    assert_eq!(count::<With<MonsterFigure>>(app), 0);
+    assert_eq!(count::<With<CompleteScreen>>(app), 0);
+    assert_eq!(count::<With<GameOverScreen>>(app), 0);
+    assert!(app.world().get_resource::<CaughtShot>().is_none());
+}
+
+#[derive(Component)]
+struct CinematicRoom;
+
+fn tag_cinematic_rooms(app: &mut App) {
+    app.add_observer(
+        |added: On<Add, Room>,
+         parents: Query<&ChildOf>,
+         roots: Query<&Name>,
+         mut commands: Commands| {
+            let Ok(parent) = parents.get(added.entity) else {
+                return;
+            };
+            if roots
+                .get(parent.parent())
+                .is_ok_and(|name| name.as_str() == "Exit cinematic")
+            {
+                commands.entity(added.entity).insert(CinematicRoom);
+            }
+        },
+    );
+}
+
 #[test]
 fn escape_transitions_to_completion_and_returns_to_menu() {
     let mut app = app();
+    tag_cinematic_rooms(&mut app);
     app.add_observer(|_: On<Add, Room>, mut commands: Commands| {
         commands.spawn(NonLevelRoot);
     });
@@ -450,33 +555,27 @@ fn escape_transitions_to_completion_and_returns_to_menu() {
     assert!(count::<With<NonLevelRoot>>(&mut app) > 0);
     assert_eq!(count::<With<LevelRoot>>(&mut app), 4);
     let playing = count::<(Without<IsResource>, Without<NonLevelRoot>)>(&mut app);
-    let player = app
-        .world_mut()
-        .query_filtered::<Entity, With<PlayerController>>()
-        .single(app.world())
-        .unwrap();
+    let player = run_player(&mut app);
     app.world_mut().entity_mut(player).insert(Escaped);
     app.update();
     app.update();
 
     assert_eq!(game_state(&app), GameState::Complete);
     assert_eq!(count::<With<CompleteScreen>>(&mut app), 1);
-    assert_eq!(count::<With<Room>>(&mut app), 0);
-    assert_eq!(count::<With<LevelRoot>>(&mut app), 0);
-    assert_eq!(count::<With<FusePanel>>(&mut app), 0);
-    assert_eq!(count::<With<DoorRef>>(&mut app), 0);
-    assert_eq!(count::<With<PlayerController>>(&mut app), 0);
-    assert_eq!(
-        count::<(With<IsResource>, With<DespawnOnExit<GameState>>)>(&mut app),
-        0
-    );
+    assert_run_gone(&mut app);
+    assert_eq!(count::<With<CinematicRoom>>(&mut app), 2);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 1);
     assert!(count::<With<NonLevelRoot>>(&mut app) > 0);
     assert_eq!(count::<With<Camera2d>>(&mut app), 1);
+    assert_eq!(count::<With<Camera3d>>(&mut app), 1);
     assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
 
+    run_for(&mut app, REVEAL_AT);
     press(&mut app, MenuAction::MainMenu);
     assert_eq!(game_state(&app), GameState::MainMenu);
-    assert_eq!(count::<With<CompleteScreen>>(&mut app), 0);
+    assert_cinematic_gone(&mut app);
+    assert_eq!(count::<With<Room>>(&mut app), 0);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 0);
     assert_eq!(count::<With<MainMenu>>(&mut app), 1);
     press(&mut app, MenuAction::Play);
     assert_eq!(game_state(&app), GameState::Playing);
@@ -490,34 +589,199 @@ fn escape_transitions_to_completion_and_returns_to_menu() {
 }
 
 #[test]
-fn monster_catch_waits_for_the_attack_then_transitions_to_game_over() {
+fn completion_cinematic_closes_the_door_then_reveals_options() {
     let mut app = app();
     ready(&mut app);
     press(&mut app, MenuAction::Play);
-    let player = app
+    let player = run_player(&mut app);
+    app.world_mut().entity_mut(player).insert(Escaped);
+    app.update();
+    app.update();
+    assert_eq!(game_state(&app), GameState::Complete);
+    assert!(options(&mut app).is_empty());
+    assert_eq!(count::<With<Button>>(&mut app), 0);
+    assert_eq!(title_alpha(&mut app), 0.0);
+    let door = app
         .world_mut()
-        .query_filtered::<Entity, With<PlayerController>>()
+        .query::<&Door>()
+        .single(app.world())
+        .unwrap()
+        .state;
+    assert_eq!(door, DoorState::Open);
+
+    run_for(&mut app, DOOR_CLOSE_AT + 0.6);
+    let door = app
+        .world_mut()
+        .query::<&Door>()
+        .single(app.world())
+        .unwrap()
+        .state;
+    assert_eq!(door, DoorState::Closed);
+    assert!(options(&mut app).is_empty());
+
+    run_for(&mut app, TITLE_AT + TITLE_FADE - DOOR_CLOSE_AT - 0.4);
+    assert!(title_alpha(&mut app) > 0.99);
+    assert!(options(&mut app).is_empty());
+    assert_eq!(count::<With<Button>>(&mut app), 0);
+
+    run_for(&mut app, REVEAL_AT - TITLE_AT - TITLE_FADE + 0.2);
+    assert_eq!(
+        options(&mut app),
+        vec![MenuAction::Retry, MenuAction::MainMenu, MenuAction::Quit]
+    );
+    run_for(&mut app, 2.0);
+    assert_eq!(options(&mut app).len(), 3);
+    assert_eq!(count::<With<CinematicOptions>>(&mut app), 1);
+}
+
+#[test]
+fn monster_catch_waits_for_the_attack_then_stages_the_caught_cinematic() {
+    let mut app = app();
+    ready(&mut app);
+    press(&mut app, MenuAction::Play);
+    let player = run_player(&mut app);
+    let monster = app
+        .world_mut()
+        .query_filtered::<Entity, With<Monster>>()
         .single(app.world())
         .unwrap();
+    let pose = Transform::from_xyz(1.0, 0.0, -4.0).looking_to(Vec3::Z, Vec3::Y);
+    *app.world_mut().get_mut::<Transform>(monster).unwrap() = pose;
+    let view = Transform::from_xyz(1.0, 1.6, -2.6).looking_at(Vec3::new(1.0, 1.8, -4.0), Vec3::Y);
+    *app.world_mut().get_mut::<Transform>(player).unwrap() = view;
     app.world_mut().entity_mut(player).insert(Caught {
-        monster: Entity::PLACEHOLDER,
+        monster,
         remaining: 60.0,
     });
     app.update();
     app.update();
     assert_eq!(game_state(&app), GameState::Playing);
+    assert_eq!(count::<With<MonsterFigure>>(&mut app), 0);
     app.world_mut().get_mut::<Caught>(player).unwrap().remaining = 0.0;
     app.update();
     app.update();
+
     assert_eq!(game_state(&app), GameState::GameOver);
+    assert_eq!(count::<With<GameOverScreen>>(&mut app), 1);
+    assert_run_gone(&mut app);
     assert_eq!(count::<With<Room>>(&mut app), 0);
-    assert_eq!(count::<With<PlayerController>>(&mut app), 0);
+    let figure = app
+        .world_mut()
+        .query_filtered::<&Transform, (With<MonsterFigure>, Without<Monster>)>()
+        .single(app.world())
+        .copied()
+        .unwrap();
+    assert_eq!(figure, pose);
+    let camera = app
+        .world_mut()
+        .query_filtered::<&Transform, With<Camera3d>>()
+        .single(app.world())
+        .copied()
+        .unwrap();
+    assert!(camera.translation.distance(view.translation) < 0.05);
+    assert!(camera.rotation.angle_between(view.rotation) < 0.01);
     assert_eq!(count::<With<Camera2d>>(&mut app), 1);
+    assert!(app.world().get_resource::<CaughtShot>().is_none());
     assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
+    assert!(options(&mut app).is_empty());
+
+    run_for(&mut app, REVEAL_AT - 0.3);
+    assert!(options(&mut app).is_empty());
+    let camera = app
+        .world_mut()
+        .query_filtered::<&Transform, With<Camera3d>>()
+        .single(app.world())
+        .copied()
+        .unwrap();
+    assert!(camera.translation.distance(view.translation) > 0.1);
+    assert!(camera.forward().dot(*view.forward()) > 0.999);
+    run_for(&mut app, 0.5);
+    assert_eq!(
+        options(&mut app),
+        vec![MenuAction::Retry, MenuAction::MainMenu, MenuAction::Quit]
+    );
+
     press(&mut app, MenuAction::MainMenu);
+    assert_eq!(game_state(&app), GameState::MainMenu);
+    assert_cinematic_gone(&mut app);
     press(&mut app, MenuAction::Play);
     assert_eq!(game_state(&app), GameState::Playing);
     assert_eq!(count::<With<PlayerController>>(&mut app), 1);
+    assert_eq!(count::<With<Monster>>(&mut app), 1);
+}
+
+#[test]
+fn retry_starts_a_fresh_run_directly_without_leaking_cinematics() {
+    let mut app = app();
+    ready(&mut app);
+    press(&mut app, MenuAction::Play);
+    let playing = count::<Without<IsResource>>(&mut app);
+    let rooms = count::<With<Room>>(&mut app);
+    let main_menus = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let entered = main_menus.clone();
+    app.add_systems(OnEnter(GameState::MainMenu), move || {
+        entered.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    });
+
+    for round in 0..4 {
+        let player = run_player(&mut app);
+        if round % 2 == 0 {
+            app.world_mut().entity_mut(player).insert(Escaped);
+            app.update();
+            app.update();
+            assert_eq!(game_state(&app), GameState::Complete);
+        } else {
+            catch(&mut app);
+            assert_eq!(game_state(&app), GameState::GameOver);
+            assert_eq!(count::<With<MonsterFigure>>(&mut app), 1);
+        }
+        run_for(&mut app, REVEAL_AT + 0.2);
+        press(&mut app, MenuAction::Retry);
+        assert_eq!(game_state(&app), GameState::Playing);
+        assert_cinematic_gone(&mut app);
+        assert_eq!(count::<With<MainMenu>>(&mut app), 0);
+        assert_eq!(count::<With<Room>>(&mut app), rooms);
+        assert_eq!(count::<With<LevelRoot>>(&mut app), 4);
+        assert_eq!(count::<With<Camera2d>>(&mut app), 0);
+        assert_eq!(count::<With<PlayerController>>(&mut app), 1);
+        assert_eq!(count::<With<Monster>>(&mut app), 1);
+        let player = run_player(&mut app);
+        assert!(app.world().get::<Escaped>(player).is_none());
+        assert!(app.world().get::<Caught>(player).is_none());
+        assert_eq!(count::<Without<IsResource>>(&mut app), playing);
+    }
+    assert_eq!(main_menus.load(std::sync::atomic::Ordering::SeqCst), 0);
+}
+
+#[test]
+fn headless_runs_keep_outcomes_queryable_without_menu_screens() {
+    for outcome in 0..2 {
+        let mut app = AppBuilder::headless().with_seed(7).build();
+        app.finish();
+        app.cleanup();
+        app.update();
+        app.update();
+        assert!(app.world().get_resource::<State<GameState>>().is_none());
+        let player = run_player(&mut app);
+        if outcome == 0 {
+            app.world_mut().entity_mut(player).insert(Escaped);
+        } else {
+            app.world_mut().entity_mut(player).insert(Caught {
+                monster: Entity::PLACEHOLDER,
+                remaining: 0.0,
+            });
+        }
+        for _ in 0..5 {
+            app.update();
+        }
+        assert_eq!(run_player(&mut app), player);
+        assert_eq!(app.world().get::<Escaped>(player).is_some(), outcome == 0);
+        assert_eq!(app.world().get::<Caught>(player).is_some(), outcome == 1);
+        assert_eq!(count::<With<Room>>(&mut app), 26);
+        assert_eq!(count::<With<Cinematic>>(&mut app), 0);
+        assert_eq!(count::<With<MonsterFigure>>(&mut app), 0);
+        assert_eq!(count::<With<Camera>>(&mut app), 0);
+    }
 }
 
 #[test]

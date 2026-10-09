@@ -1,4 +1,5 @@
 mod background;
+mod cinematic;
 mod complete;
 mod game_over;
 #[cfg(test)]
@@ -42,6 +43,7 @@ pub enum PauseState {
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
 enum MenuAction {
     Play,
+    Retry,
     Resume,
     MainMenu,
     Quit,
@@ -63,6 +65,7 @@ impl Plugin for MenuPlugin {
                 loading::plugin,
                 main_menu::plugin,
                 pause::plugin,
+                cinematic::plugin,
                 complete::plugin,
                 game_over::plugin,
                 settings::plugin,
@@ -88,6 +91,10 @@ fn activate_buttons(
         }
         let sound = match action {
             MenuAction::Play => {
+                game.set(GameState::Playing);
+                Sound::UiConfirm
+            }
+            MenuAction::Retry => {
                 game.set(GameState::Playing);
                 Sound::UiConfirm
             }

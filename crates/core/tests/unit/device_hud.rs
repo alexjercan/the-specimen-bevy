@@ -118,30 +118,49 @@ fn flash_overlay_tracks_elapsed_and_hides_when_absent() {
 }
 
 #[test]
-fn spent_flashbang_shows_zero_after_the_flash() {
+fn flashbang_hud_only_appears_with_inventory() {
     let mut app = test_app();
     app.update();
     let player = app
         .world_mut()
-        .spawn((PlayerController, Flashbangs(1)))
+        .spawn((PlayerController, Flashbangs(0)))
         .id();
+    let mut huds = app.world_mut().query::<(&FlashbangStatus, &Visibility)>();
     app.update();
-    let mut huds = app.world_mut().query::<&FlashbangStatus>();
-    assert_eq!(huds.single(app.world()).unwrap().count, 1);
+    assert_eq!(
+        huds.single(app.world()).unwrap(),
+        (&FlashbangStatus { count: 0 }, &Visibility::Hidden)
+    );
+
+    app.world_mut().entity_mut(player).insert(Flashbangs(1));
+    app.update();
+    assert_eq!(
+        huds.single(app.world()).unwrap(),
+        (&FlashbangStatus { count: 1 }, &Visibility::Inherited)
+    );
 
     app.world_mut()
         .entity_mut(player)
         .insert((Flashbangs(0), Flashed { remaining: 1.0 }));
     app.update();
-    let status = *huds.single(app.world()).unwrap();
-    assert_eq!(status.count, 0);
-    assert_eq!(status.count, 0);
+    assert_eq!(
+        huds.single(app.world()).unwrap(),
+        (&FlashbangStatus { count: 0 }, &Visibility::Hidden)
+    );
 
     app.world_mut().entity_mut(player).remove::<Flashed>();
     app.update();
-    let status = *huds.single(app.world()).unwrap();
-    assert_eq!(status.count, 0);
-    assert_eq!(status.count, 0);
+    assert_eq!(
+        huds.single(app.world()).unwrap(),
+        (&FlashbangStatus { count: 0 }, &Visibility::Hidden)
+    );
+
+    app.world_mut().entity_mut(player).insert(Flashbangs(1));
+    app.update();
+    assert_eq!(
+        huds.single(app.world()).unwrap(),
+        (&FlashbangStatus { count: 1 }, &Visibility::Inherited)
+    );
 }
 
 #[test]

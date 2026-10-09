@@ -3,7 +3,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use game_settings::{parse_key, GameSettings, GraphicsQuality, MovementKeys, DEFAULT_SENSITIVITY};
+use game_settings::{
+    parse_key, DisplayMode, GameSettings, GraphicsQuality, MovementKeys, DEFAULT_SENSITIVITY,
+};
 
 #[test]
 fn saves_and_loads_player_settings() {
@@ -22,6 +24,7 @@ fn saves_and_loads_player_settings() {
     settings.music = 0.2;
     settings.mouse_sensitivity = 0.004;
     settings.graphics = GraphicsQuality::Low;
+    settings.display_mode = DisplayMode::Windowed;
     settings.keys.forward = "ArrowUp".into();
     settings.keys.flashlight = "MouseMiddle".into();
     settings.keys.flashbang = "KeyQ".into();
@@ -62,4 +65,5 @@ fn missing_fields_keep_defaults() {
     assert_eq!(settings.sfx, 1.0);
     assert_eq!(settings.music, 1.0);
     assert_eq!(settings.keys, MovementKeys::default());
+    assert_eq!(settings.display_mode, DisplayMode::Fullscreen);
 }

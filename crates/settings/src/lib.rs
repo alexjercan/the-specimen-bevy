@@ -19,6 +19,23 @@ pub enum GraphicsQuality {
     High,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DisplayMode {
+    Windowed,
+    #[default]
+    Fullscreen,
+}
+
+impl DisplayMode {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Windowed => Self::Fullscreen,
+            Self::Fullscreen => Self::Windowed,
+        }
+    }
+}
+
 impl GraphicsQuality {
     pub fn next(self) -> Self {
         match self {
@@ -147,6 +164,7 @@ pub struct GameSettings {
     pub mouse_sensitivity: f32,
     pub keys: MovementKeys,
     pub graphics: GraphicsQuality,
+    pub display_mode: DisplayMode,
 }
 
 impl Default for GameSettings {
@@ -158,6 +176,7 @@ impl Default for GameSettings {
             mouse_sensitivity: DEFAULT_SENSITIVITY,
             keys: MovementKeys::default(),
             graphics: GraphicsQuality::High,
+            display_mode: DisplayMode::Fullscreen,
         }
     }
 }

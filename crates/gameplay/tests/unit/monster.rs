@@ -1732,6 +1732,87 @@ fn first_floor_authors_player_and_monster_only_when_actors_are_spawned() {
 }
 
 #[test]
+fn figure_holds_the_final_attack_pose_once_without_restarting() {
+    use crate::levels::MonsterFigure;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .init_resource::<Assets<AnimationGraph>>()
+        .add_plugins(super::MonsterRenderPlugin);
+    let clip: Handle<AnimationClip> = default();
+    let (graph, nodes) =
+        AnimationGraph::from_clips([clip.clone(), clip.clone(), clip.clone(), clip]);
+    let graph_handle = app
+        .world_mut()
+        .resource_mut::<Assets<AnimationGraph>>()
+        .add(graph);
+    app.world_mut().insert_resource(super::MonsterAnimations {
+        graph: graph_handle,
+        idle: nodes[0],
+        walk: nodes[1],
+        chase: nodes[2],
+        attack: nodes[3],
+    });
+    let figure = app.world_mut().spawn(MonsterFigure).id();
+    let scene_root = app
+        .world_mut()
+        .spawn((super::MonsterScene, ChildOf(figure)))
+        .id();
+    let player_entity = app
+        .world_mut()
+        .spawn((AnimationPlayer::default(), ChildOf(scene_root)))
+        .id();
+    app.update();
+    let attack = nodes[3];
+    let paused_at = app
+        .world()
+        .get::<AnimationPlayer>(player_entity)
+        .unwrap()
+        .animation(attack)
+        .unwrap()
+        .seek_time();
+    assert!(app
+        .world()
+        .get::<AnimationPlayer>(player_entity)
+        .unwrap()
+        .animation(attack)
+        .unwrap()
+        .is_paused());
+    assert_eq!(paused_at, super::ATTACK_DURATION);
+    app.update();
+    assert_eq!(
+        app.world()
+            .get::<AnimationPlayer>(player_entity)
+            .unwrap()
+            .animation(attack)
+            .unwrap()
+            .seek_time(),
+        paused_at,
+        "an already-posed figure must not be restarted every frame"
+    );
+}
+
+#[test]
+fn monster_figure_never_gains_monster_ai_behavior() {
+    use crate::levels::{MonsterFigure, Room};
+
+    let mut app = monster_app(7);
+    app.world_mut().spawn(Room(Rect::new(-5.0, -5.0, 5.0, 5.0)));
+    let figure = app
+        .world_mut()
+        .spawn((MonsterFigure, Transform::from_xyz(1.0, 0.0, 1.0)))
+        .id();
+    for _ in 0..10 {
+        app.update();
+    }
+    assert!(app.world().get::<super::Monster>(figure).is_none());
+    assert_eq!(
+        app.world().get::<Transform>(figure).unwrap().translation,
+        Vec3::new(1.0, 0.0, 1.0)
+    );
+}
+
+#[test]
 fn route_grid_is_half_meter() {
     assert_eq!(
         point(super::node(Vec2::new(-1.1, 2.1))),

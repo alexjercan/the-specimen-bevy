@@ -113,6 +113,10 @@ impl Default for Monster {
 pub(super) struct PatrolRng(pub(super) ChaCha8Rng);
 
 #[derive(Component)]
+#[require(Transform, Visibility)]
+pub struct MonsterFigure;
+
+#[derive(Component)]
 struct MonsterScene;
 
 #[derive(Resource)]
@@ -145,7 +149,7 @@ pub struct MonsterRenderPlugin;
 
 impl Plugin for MonsterRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (attach_scene, animate_monster).chain());
+        app.add_systems(Update, (attach_scene, pose_figure, animate_monster).chain());
     }
 }
 
@@ -165,7 +169,13 @@ fn attach_monster_sounds(added: On<Add, Monster>, mut commands: Commands) {
 
 fn attach_scene(
     mut commands: Commands,
-    monsters: Query<Entity, (With<Monster>, Without<MonsterScene>)>,
+    monsters: Query<
+        Entity,
+        (
+            Or<(With<Monster>, With<MonsterFigure>)>,
+            Without<MonsterScene>,
+        ),
+    >,
     assets: Option<Res<MonsterAssets>>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
     animations: Option<Res<MonsterAnimations>>,
@@ -239,6 +249,40 @@ fn animate_monster(
                         if !attacking {
                             playing.repeat();
                         }
+                    }
+                }
+                if let Ok(descendants) = children.get(entity) {
+                    stack.extend(descendants.iter());
+                }
+            }
+        }
+    }
+}
+
+fn pose_figure(
+    mut commands: Commands,
+    animations: Option<Res<MonsterAnimations>>,
+    figures: Query<&Children, With<MonsterFigure>>,
+    scene_roots: Query<(), With<MonsterScene>>,
+    children: Query<&Children>,
+    mut players: Query<(Entity, &mut AnimationPlayer, Option<&AnimationGraphHandle>)>,
+) {
+    let Some(animations) = animations else { return };
+    for roots in &figures {
+        for root in roots.iter().filter(|root| scene_roots.contains(*root)) {
+            let mut stack = vec![root];
+            while let Some(entity) = stack.pop() {
+                if let Ok((entity, mut player, graph)) = players.get_mut(entity) {
+                    if graph.is_none() {
+                        commands
+                            .entity(entity)
+                            .insert(AnimationGraphHandle(animations.graph.clone()));
+                    }
+                    if !player.is_playing_animation(animations.attack) {
+                        player
+                            .play(animations.attack)
+                            .seek_to(ATTACK_DURATION)
+                            .pause();
                     }
                 }
                 if let Ok(descendants) = children.get(entity) {

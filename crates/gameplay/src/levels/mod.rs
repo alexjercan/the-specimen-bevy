@@ -2,6 +2,7 @@ mod animation;
 mod builder;
 mod devices;
 mod doors;
+mod exit_cinematic;
 mod first_floor_builder;
 mod fuses;
 mod hiding;
@@ -27,6 +28,7 @@ pub use devices::{
 };
 pub use doors::{panel_center, panel_top, DoorLock, DoorPanel, DoorPlugin, ExitDoor, ToggleDoor};
 pub(crate) use doors::{PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH};
+pub use exit_cinematic::{build_exit_cinematic, ExitCinematic};
 pub use first_floor_builder::{
     build_first_floor, select_fuse_slots, spawn_first_floor_actors, FuseTable, FuseZone,
     FUSE_TABLES, FUSE_ZONES,
@@ -41,7 +43,7 @@ pub use interaction::{InteractTarget, InteractTargets};
 pub use lights::{LightConfig, PropLightsPlugin};
 pub use menu_background::build_main_menu_background;
 pub use module_names::BOILER_UNIT;
-pub use monster::{Caught, Monster, MonsterPlugin, MonsterRenderPlugin};
+pub use monster::{Caught, Monster, MonsterFigure, MonsterPlugin, MonsterRenderPlugin};
 pub use objective::{Escaped, ObjectivePlugin};
 pub use pickups::{PickupKind, PickupPlugin};
 pub use power::{FacilityPower, FacilityPowerPlugin, MAX_OUTAGE_DELAY_SECS, MIN_OUTAGE_DELAY_SECS};

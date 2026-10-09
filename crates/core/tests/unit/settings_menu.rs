@@ -211,7 +211,7 @@ fn settings_tabs_switch_pages_and_hold_labeled_groups() {
                 tabs += 1;
                 None
             }
-            SettingsAction::Graphics => Some(SettingsGroup::Quality),
+            SettingsAction::Graphics | SettingsAction::DisplayMode => Some(SettingsGroup::Quality),
             SettingsAction::Interact | SettingsAction::Flashlight | SettingsAction::Flashbang => {
                 Some(SettingsGroup::Interaction)
             }
@@ -238,6 +238,26 @@ fn settings_tabs_switch_pages_and_hold_labeled_groups() {
     );
     click(&mut app, SettingsAction::Tab(SettingsTab::Graphics));
     assert_eq!(visible_tabs(&mut app), vec![SettingsTab::Graphics]);
+    let display_label = app
+        .world_mut()
+        .query::<(&ChoiceLabel, &Text)>()
+        .iter(app.world())
+        .find_map(|(label, text)| (label.0 == SettingsAction::DisplayMode).then(|| text.0.clone()))
+        .unwrap();
+    assert_eq!(display_label, "Fullscreen");
+    click(&mut app, SettingsAction::DisplayMode);
+    assert_eq!(
+        app.world().resource::<GameSettings>().display_mode,
+        game_settings::DisplayMode::Windowed
+    );
+    assert!(app.world().resource::<SettingsDirty>().0);
+    let display_label = app
+        .world_mut()
+        .query::<(&ChoiceLabel, &Text)>()
+        .iter(app.world())
+        .find_map(|(label, text)| (label.0 == SettingsAction::DisplayMode).then(|| text.0.clone()))
+        .unwrap();
+    assert_eq!(display_label, "Windowed");
     assert_eq!(app.world().resource::<AwaitingKey>().0, None);
     assert_eq!(chip_text(&mut app, SettingsAction::Forward), "W");
 

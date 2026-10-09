@@ -44,7 +44,7 @@ fn sync_flashbang_status(
         count: flashbangs.map_or(0, |flashbangs| flashbangs.0),
     };
     for (mut status, mut visibility) in &mut huds {
-        visibility.set_if_neq(if flashbangs.is_some() {
+        visibility.set_if_neq(if state.count > 0 {
             Visibility::Inherited
         } else {
             Visibility::Hidden
