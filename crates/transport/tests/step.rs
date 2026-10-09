@@ -96,6 +96,50 @@ fn steps_to_absolute_ticks_without_free_running() {
 }
 
 #[test]
+fn capture_is_reported_as_game_over_at_contact_without_exiting_transport() {
+    use gameplay::{
+        controller::{Flashlight, PlayerController},
+        levels::Caught,
+    };
+
+    fn catch_after_two_updates(
+        updates: Res<Updates>,
+        players: Query<Entity, With<PlayerController>>,
+        mut commands: Commands,
+    ) {
+        if updates.0.load(Ordering::SeqCst) == 3 {
+            for entity in &players {
+                commands
+                    .entity(entity)
+                    .insert(Caught::new(Entity::PLACEHOLDER));
+            }
+        }
+    }
+
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, InputPlugin, TransportPlugin))
+        .insert_resource(Updates(Arc::new(AtomicU64::new(0))))
+        .add_systems(Startup, ready)
+        .add_systems(Update, (count, catch_after_two_updates).chain());
+    app.world_mut()
+        .spawn((PlayerController, Flashlight::default()));
+    let mut output = Vec::new();
+    assert_eq!(
+        run(
+            app,
+            Cursor::new("{\"tick\":1}\n{\"tick\":3}\n"),
+            &mut output
+        ),
+        AppExit::Success
+    );
+    let lines = parse(&output);
+    assert_eq!(lines[0]["game_over"], false);
+    assert_eq!(lines[1]["game_over"], false);
+    assert_eq!(lines[2]["game_over"], true);
+    assert_eq!(lines[2]["won"], false);
+}
+
+#[test]
 fn readiness_offsets_loading_updates_and_defers_input() {
     let mut app = App::new();
     let updates = Arc::new(AtomicU64::new(0));

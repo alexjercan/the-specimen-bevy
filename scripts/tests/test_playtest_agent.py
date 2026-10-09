@@ -17,6 +17,11 @@ spec.loader.exec_module(playtest)
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_terminal_snapshot_includes_game_over(self):
+        self.assertFalse(playtest.terminal({"won": False, "game_over": False}))
+        self.assertTrue(playtest.terminal({"won": True, "game_over": False}))
+        self.assertTrue(playtest.terminal({"won": False, "game_over": True}))
+
     def test_persistent_controls_and_tick_cap(self):
         self.assertEqual(
             playtest.command({"frames": 10, "input": {"w": True}}, 8, 12, 120),
@@ -153,9 +158,9 @@ for line in sys.stdin:
             progress = (root / "output" / "progress.log").read_text()
             self.assertEqual(progress, output.getvalue())
             self.assertIn("game ready: tick=0", progress)
-            self.assertIn("[tick 0] won=False visible=0 heard=0 -> press W", progress)
+            self.assertIn("[tick 0] won=False game_over=False visible=0 heard=0 -> press W", progress)
             self.assertIn("intent=Explore ahead; decision_time=", progress)
-            self.assertIn("[tick 1] won=False visible=0 heard=0 -> hold W", progress)
+            self.assertIn("[tick 1] won=False game_over=False visible=0 heard=0 -> hold W", progress)
             self.assertIn("wait 1 tick", progress)
             self.assertNotIn("waiting for pi", progress)
             self.assertIn("playtest finished: tick=2", progress)

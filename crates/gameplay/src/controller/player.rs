@@ -5,8 +5,8 @@ use bevy::{
 use bevy_enhanced_input::prelude::*;
 
 use crate::levels::{
-    AmbientSource, AmbientSourceKind, Door, DoorOf, DoorRef, DoorSwing, Doors, Hidden, Passage,
-    PropCollider, Room,
+    AmbientSource, AmbientSourceKind, Caught, Door, DoorOf, DoorRef, DoorSwing, Doors, Hidden,
+    Passage, PropCollider, Room,
 };
 use game_audio::{PlaySound, Sound};
 use game_settings::{parse_key, GameSettings, MovementKeys};
@@ -272,7 +272,7 @@ pub(crate) fn apply_input(
             &mut Stamina,
             Option<&Hidden>,
         ),
-        With<PlayerController>,
+        (With<PlayerController>, Without<Caught>),
     >,
     mut exhaustion: MessageWriter<SprintExhausted>,
     mut sounds: MessageWriter<PlaySound>,

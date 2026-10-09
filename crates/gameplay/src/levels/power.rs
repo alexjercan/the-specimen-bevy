@@ -10,6 +10,7 @@ use super::{
     fuses::FuseInventory,
     hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
+    monster::Caught,
     sounds::IntermittentSound,
 };
 
@@ -93,7 +94,7 @@ impl Plugin for FacilityPowerPlugin {
 fn advance_outage(
     time: Res<Time>,
     enabled: Res<PlayerControlsEnabled>,
-    players: Query<(), With<PlayerController>>,
+    players: Query<(), (With<PlayerController>, Without<Caught>)>,
     boilers: Query<(Entity, &SourceSounds)>,
     mut power: Option<ResMut<FacilityPower>>,
     mut sounds: MessageWriter<PlaySound>,
@@ -129,7 +130,10 @@ fn repair_boiler(
     _: On<Start<Interact>>,
     enabled: Res<PlayerControlsEnabled>,
     targets: InteractTargets,
-    players: Query<(&Transform, Option<&FuseInventory>, Option<&Hidden>), With<PlayerController>>,
+    players: Query<
+        (&Transform, Option<&FuseInventory>, Option<&Hidden>),
+        (With<PlayerController>, Without<Caught>),
+    >,
     power: Option<Res<FacilityPower>>,
     mut repairs: MessageWriter<RepairBoiler>,
 ) {

@@ -10,6 +10,7 @@ use super::{
     doors::{DoorLock, ExitDoor, INTERACT_RANGE},
     hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
+    monster::Caught,
 };
 
 pub const FUSE_COUNT: usize = 3;
@@ -67,7 +68,7 @@ fn use_fuses(
     targets: InteractTargets,
     mut players: Query<
         (Entity, &Transform, &mut FuseInventory, Option<&Hidden>),
-        With<PlayerController>,
+        (With<PlayerController>, Without<Caught>),
     >,
     mut installs: MessageWriter<InstallFuses>,
     mut sounds: MessageWriter<PlaySound>,
@@ -110,7 +111,7 @@ fn use_fuses(
 
 fn install_fuses(
     mut installs: MessageReader<InstallFuses>,
-    mut players: Query<&mut FuseInventory>,
+    mut players: Query<&mut FuseInventory, Without<Caught>>,
     mut panels: Query<&mut FusePanel>,
     exits: Query<Entity, (With<ExitDoor>, With<DoorLock>)>,
     mut sounds: MessageWriter<PlaySound>,

@@ -250,6 +250,39 @@ fn monster_cues_fade_across_distinct_room_distances() {
 }
 
 #[test]
+fn detection_cue_remains_audible_across_the_sight_range() {
+    let detection = Sound::MonsterDetected;
+    assert!(detection.spatial_gain(0.0) > detection.spatial_gain(12.0));
+    assert!(detection.spatial_gain(12.0) > 0.25);
+    assert!(detection.spatial_gain(12.0) > Sound::MonsterStep(0).spatial_gain(12.0));
+
+    let mut app = playback_app(Some(Vec3::ZERO));
+    app.add_plugins(TransformPlugin)
+        .add_message::<PlaySoundFrom>()
+        .add_systems(Update, play_source_sounds);
+    let monster = app
+        .world_mut()
+        .spawn(Transform::from_xyz(12.0, 0.0, 0.0))
+        .id();
+    app.update();
+    app.world_mut().write_message(PlaySoundFrom {
+        sound: detection,
+        source: monster,
+        offset: Vec3::ZERO,
+    });
+    app.update();
+    let voice = app.world().get::<Children>(monster).unwrap()[0];
+    assert_eq!(
+        app.world().get::<AudioPlayer>(voice).unwrap().0,
+        test_support::sound_assets().monster_detected
+    );
+    assert!(
+        (app.world().get::<AudioGain>(voice).unwrap().0 - detection.spatial_gain(12.0)).abs()
+            < 0.001
+    );
+}
+
+#[test]
 fn monster_patrol_steps_and_presence_use_source_attached_clips() {
     let mut app = playback_app(Some(Vec3::ZERO));
     app.add_message::<PlaySourceSound>()

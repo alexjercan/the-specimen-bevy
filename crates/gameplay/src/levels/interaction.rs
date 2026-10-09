@@ -141,6 +141,13 @@ impl InteractTargets<'_, '_> {
         self.locks.contains(entity)
     }
 
+    pub(crate) fn clear_sight(&self, start: Vec2, end: Vec2) -> bool {
+        !self
+            .sight_blockers()
+            .into_iter()
+            .any(|blocker| crosses((start, end), blocker))
+    }
+
     fn opening(&self, link: Entity) -> Option<Vec2> {
         let target = self.links.get(link).ok()?.0;
         self.doors

@@ -14,7 +14,7 @@ use game_settings::{GameSettings, SettingsDirty, MAX_SENSITIVITY};
 use game_ui::SliderFill;
 use gameplay::{
     controller::{Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
-    levels::{Door, DoorPlugin, DoorRef, Escaped, FusePanel, LevelRoot, Room},
+    levels::{Caught, Door, DoorPlugin, DoorRef, Escaped, FusePanel, LevelRoot, Room},
 };
 
 use super::{
@@ -487,6 +487,37 @@ fn escape_transitions_to_completion_and_returns_to_menu() {
         count::<(Without<IsResource>, Without<NonLevelRoot>)>(&mut app),
         playing
     );
+}
+
+#[test]
+fn monster_catch_waits_for_the_attack_then_transitions_to_game_over() {
+    let mut app = app();
+    ready(&mut app);
+    press(&mut app, MenuAction::Play);
+    let player = app
+        .world_mut()
+        .query_filtered::<Entity, With<PlayerController>>()
+        .single(app.world())
+        .unwrap();
+    app.world_mut().entity_mut(player).insert(Caught {
+        monster: Entity::PLACEHOLDER,
+        remaining: 60.0,
+    });
+    app.update();
+    app.update();
+    assert_eq!(game_state(&app), GameState::Playing);
+    app.world_mut().get_mut::<Caught>(player).unwrap().remaining = 0.0;
+    app.update();
+    app.update();
+    assert_eq!(game_state(&app), GameState::GameOver);
+    assert_eq!(count::<With<Room>>(&mut app), 0);
+    assert_eq!(count::<With<PlayerController>>(&mut app), 0);
+    assert_eq!(count::<With<Camera2d>>(&mut app), 1);
+    assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
+    press(&mut app, MenuAction::MainMenu);
+    press(&mut app, MenuAction::Play);
+    assert_eq!(game_state(&app), GameState::Playing);
+    assert_eq!(count::<With<PlayerController>>(&mut app), 1);
 }
 
 #[test]

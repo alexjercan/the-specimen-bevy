@@ -1,5 +1,6 @@
 mod background;
 mod complete;
+mod game_over;
 #[cfg(test)]
 #[path = "../../tests/unit/menu_hover.rs"]
 mod hover_tests;
@@ -27,6 +28,7 @@ pub enum GameState {
     MainMenu,
     Playing,
     Complete,
+    GameOver,
 }
 
 #[derive(SubStates, Default, Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -62,6 +64,7 @@ impl Plugin for MenuPlugin {
                 main_menu::plugin,
                 pause::plugin,
                 complete::plugin,
+                game_over::plugin,
                 settings::plugin,
             ))
             .add_systems(Update, (activate_buttons, hover_buttons));

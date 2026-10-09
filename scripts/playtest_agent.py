@@ -58,6 +58,10 @@ class Progress:
         self.stream.close()
 
 
+def terminal(snapshot):
+    return snapshot.get("won", False) or snapshot.get("game_over", False)
+
+
 def progress_snapshot(snapshot):
     player = snapshot.get("player") or {}
     position = player.get("position")
@@ -68,6 +72,7 @@ def progress_snapshot(snapshot):
     door = (f" nearest_door={nearest['distance_m']:.1f}m/"
             f"{nearest['bearing_deg'][0]:+.0f}deg/open={nearest['open']}" if nearest else "")
     return (f"tick={snapshot['tick']}{location} won={snapshot.get('won', False)}"
+            f" game_over={snapshot.get('game_over', False)}"
             f" visible={len(visible)} heard={len(snapshot.get('heard', []))}{door}")
 
 
@@ -306,7 +311,7 @@ def play(args):
             trace.write(json.dumps({"snapshot": initial}) + "\n")
             index = 0
             held = set()
-            while snapshot["tick"] < args.ticks and not snapshot.get("won"):
+            while snapshot["tick"] < args.ticks and not terminal(snapshot):
                 deadline = min(end, time.monotonic() + args.step_timeout)
                 if deadline <= time.monotonic():
                     raise TimeoutError("playtest time budget exhausted")
@@ -347,7 +352,8 @@ def main():
     args = parser().parse_args()
     try:
         result = play(args)
-        print(json.dumps({"tick": result["tick"], "won": result.get("won", False), "output": str(args.output)}))
+        print(json.dumps({"tick": result["tick"], "won": result.get("won", False),
+                          "game_over": result.get("game_over", False), "output": str(args.output)}))
     except KeyboardInterrupt:
         print("playtest interrupted; children stopped (see output/progress.log and trace.jsonl)", file=sys.stderr)
         raise SystemExit(130) from None

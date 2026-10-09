@@ -267,6 +267,10 @@ pub struct MonsterAssets {
     pub idle: Handle<AnimationClip>,
     #[asset(path = "monster/human_deer_animated.glb#Animation1")]
     pub walk: Handle<AnimationClip>,
+    #[asset(path = "monster/human_deer_animated.glb#Animation2")]
+    pub chase: Handle<AnimationClip>,
+    #[asset(path = "monster/human_deer_animated.glb#Animation3")]
+    pub attack: Handle<AnimationClip>,
 }
 
 #[derive(AssetCollection, Resource)]

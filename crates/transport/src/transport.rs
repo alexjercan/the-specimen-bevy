@@ -11,7 +11,7 @@ use bevy::{
 };
 use gameplay::{
     controller::{Flashlight, PlayerController, PlayerInput, Stamina},
-    levels::Escaped,
+    levels::{Caught, Escaped},
 };
 use serde::{Deserialize, Serialize};
 
@@ -83,6 +83,7 @@ struct Snapshot {
     tick: u64,
     player: Option<PlayerSnapshot>,
     won: bool,
+    game_over: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     map: Option<Map>,
     power_on: Option<bool>,
@@ -130,11 +131,17 @@ pub fn snapshot(world: &mut World, tick: u64) -> String {
         .iter(world)
         .next()
         .is_some();
+    let game_over = world
+        .query_filtered::<(), (With<PlayerController>, With<Caught>)>()
+        .iter(world)
+        .next()
+        .is_some();
     let view = perception::view(world);
     serde_json::to_string(&Snapshot {
         tick,
         player,
         won,
+        game_over,
         map: view.map,
         power_on: view.power_on,
         visible: view.visible,

@@ -12,6 +12,7 @@ use super::{
     fuses::FuseInventory,
     interaction::{InteractTarget, InteractTargets},
     module_names::{CONCEPT_LOCKER, CONCEPT_TABLE},
+    monster::Caught,
 };
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
@@ -191,7 +192,7 @@ fn use_hiding_spots(
     targets: InteractTargets,
     players: Query<
         (Entity, &Transform, Option<&FuseInventory>, Option<&Hidden>),
-        With<PlayerController>,
+        (With<PlayerController>, Without<Caught>),
     >,
     mut uses: MessageWriter<UseHidingSpot>,
 ) {
@@ -210,7 +211,10 @@ fn use_hiding_spots(
 fn toggle_hiding(
     mut uses: MessageReader<UseHidingSpot>,
     spots: Query<&HidingSpot, Without<PlayerController>>,
-    mut players: Query<(&Transform, &mut PlayerInput, Option<&mut Hidden>), With<PlayerController>>,
+    mut players: Query<
+        (&Transform, &mut PlayerInput, Option<&mut Hidden>),
+        (With<PlayerController>, Without<Caught>),
+    >,
     mut sounds: MessageWriter<PlaySourceSound>,
     mut commands: Commands,
 ) {
@@ -261,7 +265,10 @@ fn toggle_hiding(
 fn animate_hiding(
     time: Res<Time>,
     spots: Query<(&HidingSpot, &Transform), Without<PlayerController>>,
-    mut players: Query<(Entity, &mut Transform, &mut Hidden), With<PlayerController>>,
+    mut players: Query<
+        (Entity, &mut Transform, &mut Hidden),
+        (With<PlayerController>, Without<Caught>),
+    >,
     mut commands: Commands,
 ) {
     let step = time.delta_secs() / HIDING_TRANSITION;

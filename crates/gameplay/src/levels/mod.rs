@@ -35,7 +35,7 @@ pub use interaction::{InteractTarget, InteractTargets};
 pub use lights::{LightConfig, PropLightsPlugin};
 pub use menu_background::build_main_menu_background;
 pub use module_names::BOILER_UNIT;
-pub use monster::{Monster, MonsterPlugin, MonsterRenderPlugin};
+pub use monster::{Caught, Monster, MonsterPlugin, MonsterRenderPlugin};
 pub use objective::{Escaped, ObjectivePlugin};
 pub use power::{FacilityPower, FacilityPowerPlugin, MAX_OUTAGE_DELAY_SECS, MIN_OUTAGE_DELAY_SECS};
 pub use render::{LevelRenderPlugin, RenderCeilings};

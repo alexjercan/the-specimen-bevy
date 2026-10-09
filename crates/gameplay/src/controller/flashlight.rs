@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
 use super::player::{PlayerController, PlayerControlsEnabled};
+use crate::levels::Caught;
 use game_audio::{PlaySound, Sound};
 
 pub const DRAIN_SECONDS: f32 = 15.0;
@@ -104,7 +105,11 @@ pub(super) fn toggle(
     enabled: Res<PlayerControlsEnabled>,
     mut players: Query<
         &mut Flashlight,
-        (With<PlayerController>, Without<WaitForFlashlightRelease>),
+        (
+            With<PlayerController>,
+            Without<WaitForFlashlightRelease>,
+            Without<Caught>,
+        ),
     >,
     mut sounds: MessageWriter<PlaySound>,
 ) {

@@ -10,6 +10,7 @@ use super::{
     fuses::FuseInventory,
     hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
+    monster::Caught,
 };
 
 pub(crate) const INTERACT_RANGE: f32 = 2.5;
@@ -45,7 +46,10 @@ impl Plugin for DoorPlugin {
 
 fn interact(
     _: On<Start<Interact>>,
-    players: Query<(&Transform, Option<&FuseInventory>, Option<&Hidden>), With<PlayerController>>,
+    players: Query<
+        (&Transform, Option<&FuseInventory>, Option<&Hidden>),
+        (With<PlayerController>, Without<Caught>),
+    >,
     enabled: Res<PlayerControlsEnabled>,
     targets: InteractTargets,
     mut toggles: MessageWriter<ToggleDoor>,

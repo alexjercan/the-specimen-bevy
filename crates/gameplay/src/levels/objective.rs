@@ -5,6 +5,7 @@ use crate::controller::PlayerController;
 use super::{
     builder::{Door, Room},
     doors::{DoorLock, ExitDoor},
+    monster::Caught,
 };
 
 const EXIT_REACH: f32 = 2.5;
@@ -23,7 +24,10 @@ impl Plugin for ObjectivePlugin {
 fn escape(
     exits: Query<&Door, (With<ExitDoor>, Without<DoorLock>)>,
     rooms: Query<&Room>,
-    players: Query<(Entity, &Transform), (With<PlayerController>, Without<Escaped>)>,
+    players: Query<
+        (Entity, &Transform),
+        (With<PlayerController>, Without<Escaped>, Without<Caught>),
+    >,
     mut commands: Commands,
 ) {
     for (entity, player) in &players {

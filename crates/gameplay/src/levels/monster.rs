@@ -6,23 +6,39 @@ use game_assets::MonsterAssets;
 use game_audio::{PlaySourceSound, Sound, SourceSounds};
 use rand_core::Rng;
 
-use crate::controller::{collision, PlayerController, PlayerControlsEnabled};
+use crate::controller::{collision, PlayerController, PlayerControlsEnabled, Stamina, RUN_SPEED};
 
 use super::{
-    Door, DoorLock, DoorOf, DoorRef, DoorState, DoorSwing, Doors, Passage, PropCollider, Room,
-    ToggleDoor,
+    interaction::InteractTargets, Door, DoorLock, DoorOf, DoorRef, DoorState, DoorSwing, Doors,
+    Escaped, Hidden, Passage, PropCollider, Room, ToggleDoor,
 };
 
 const SPEED: f32 = 0.51;
+const CHASE_SPEED: f32 = RUN_SPEED + 1.0;
+const SIGHT_RANGE: f32 = 12.0;
+const SIGHT_COS: f32 = 0.45;
+const WALK_HEARING: f32 = 3.0;
+const RUN_HEARING: f32 = 9.0;
+const SEARCH_TIME: f32 = 8.0;
+const SEARCH_RADIUS: f32 = 2.5;
+const SEARCH_REACH: f32 = 10.0;
+const STALL_LIMIT: u8 = 3;
+const SEARCH_RETRY: f32 = 0.5;
+const ATTACK_REACH: f32 = 0.9;
+const ATTACK_DURATION: f32 = 19.0 / 24.0;
+const JUMPSCARE_TURN_SPEED: f32 = 9.0;
+const JUMPSCARE_FOCUS: f32 = 1.8;
 const GRID: f32 = 0.5;
 const ARRIVAL: f32 = 0.16;
 const DOOR_APPROACH: f32 = 1.35;
 const STEP_PERIOD: f32 = 0.6;
+const CHASE_STEP_PERIOD: f32 = 0.32;
 const PRESENCE_INTERVAL: f32 = 24.0;
 const MODEL_SCALE: f32 = 0.42;
 const MODEL_LIFT: f32 = 1.93;
 const MODEL_PIVOT: Vec2 = Vec2::new(0.091, 3.793);
 const TURN_SPEED: f32 = 2.1;
+const CHASE_TURN_SPEED: f32 = 8.0;
 const MOVE_FACING_TOLERANCE: f32 = 0.18;
 
 #[cfg(test)]
@@ -36,6 +52,35 @@ pub struct Monster {
     presence_clock: f32,
     step_index: usize,
     route_retry: f32,
+    stalls: u8,
+    pursuit: Option<Pursuit>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Pursuit {
+    last_sensed: Vec2,
+    remaining: f32,
+    searching: bool,
+    planned: Option<Vec2>,
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct Caught {
+    pub monster: Entity,
+    pub remaining: f32,
+}
+
+impl Caught {
+    pub fn new(monster: Entity) -> Self {
+        Self {
+            monster,
+            remaining: ATTACK_DURATION,
+        }
+    }
+
+    pub fn finished(&self) -> bool {
+        self.remaining <= 0.0
+    }
 }
 
 impl Default for Monster {
@@ -46,6 +91,8 @@ impl Default for Monster {
             presence_clock: 0.0,
             step_index: 0,
             route_retry: 0.0,
+            stalls: 0,
+            pursuit: None,
         }
     }
 }
@@ -61,6 +108,8 @@ struct MonsterAnimations {
     graph: Handle<AnimationGraph>,
     idle: AnimationNodeIndex,
     walk: AnimationNodeIndex,
+    chase: AnimationNodeIndex,
+    attack: AnimationNodeIndex,
 }
 
 pub struct MonsterPlugin;
@@ -70,7 +119,10 @@ impl Plugin for MonsterPlugin {
         app.add_message::<ToggleDoor>()
             .add_message::<PlaySourceSound>()
             .add_observer(attach_monster_sounds)
-            .add_systems(Update, (manage_doors, patrol).chain());
+            .add_systems(
+                Update,
+                (sense_player, manage_doors, patrol, catch_player).chain(),
+            );
     }
 }
 
@@ -85,6 +137,8 @@ impl Plugin for MonsterRenderPlugin {
 fn attach_monster_sounds(added: On<Add, Monster>, mut commands: Commands) {
     commands.entity(added.entity).insert(SourceSounds(vec![
         (Sound::MonsterPresence, Vec3::Y),
+        (Sound::MonsterDetected, Vec3::Y),
+        (Sound::MonsterAttack, Vec3::Y),
         (Sound::MonsterStep(0), Vec3::Y),
         (Sound::MonsterStep(1), Vec3::Y),
         (Sound::MonsterStep(2), Vec3::Y),
@@ -103,11 +157,18 @@ fn attach_scene(
 ) {
     let Some(assets) = assets else { return };
     if animations.is_none() {
-        let (graph, clips) = AnimationGraph::from_clips([assets.idle.clone(), assets.walk.clone()]);
+        let (graph, clips) = AnimationGraph::from_clips([
+            assets.idle.clone(),
+            assets.walk.clone(),
+            assets.chase.clone(),
+            assets.attack.clone(),
+        ]);
         commands.insert_resource(MonsterAnimations {
             graph: graphs.add(graph),
             idle: clips[0],
             walk: clips[1],
+            chase: clips[2],
+            attack: clips[3],
         });
     }
     for entity in &monsters {
@@ -130,13 +191,15 @@ fn attach_scene(
 fn animate_monster(
     mut commands: Commands,
     animations: Option<Res<MonsterAnimations>>,
-    monsters: Query<(&Monster, &Children)>,
+    monsters: Query<(Entity, &Monster, &Children)>,
+    caught: Query<&Caught>,
     scene_roots: Query<(), With<MonsterScene>>,
     children: Query<&Children>,
     mut players: Query<(Entity, &mut AnimationPlayer, Option<&AnimationGraphHandle>)>,
 ) {
     let Some(animations) = animations else { return };
-    for (monster, roots) in &monsters {
+    for (entity, monster, roots) in &monsters {
+        let attacking = caught.iter().any(|caught| caught.monster == entity);
         for root in roots.iter().filter(|root| scene_roots.contains(*root)) {
             let mut stack = vec![root];
             while let Some(entity) = stack.pop() {
@@ -146,14 +209,21 @@ fn animate_monster(
                             .entity(entity)
                             .insert(AnimationGraphHandle(animations.graph.clone()));
                     }
-                    let clip = if monster.route.is_empty() {
+                    let clip = if attacking {
+                        animations.attack
+                    } else if monster.pursuit.is_some() {
+                        animations.chase
+                    } else if monster.route.is_empty() {
                         animations.idle
                     } else {
                         animations.walk
                     };
                     if player.is_added() || !player.is_playing_animation(clip) {
                         player.stop_all();
-                        player.play(clip).repeat();
+                        let playing = player.play(clip);
+                        if !attacking {
+                            playing.repeat();
+                        }
                     }
                 }
                 if let Ok(descendants) = children.get(entity) {
@@ -191,15 +261,20 @@ fn route(
     rooms: &[(Entity, Rect)],
     blockers: &[(Vec2, Vec2, f32)],
 ) -> Option<VecDeque<Vec2>> {
-    let start = node(start);
+    let origin = start;
     let goal = node(end);
     let valid = |cell: IVec2| {
         let position = point(cell);
         room_at(position, rooms).is_some() && collision::clear_for_player(position, blockers)
     };
-    if !valid(start) {
-        return None;
-    }
+    let start = (-1..=1)
+        .flat_map(|x| (-1..=1).map(move |y| node(origin) + IVec2::new(x, y)))
+        .filter(|&cell| valid(cell) && clear_path(origin, point(cell), blockers))
+        .min_by(|a, b| {
+            origin
+                .distance_squared(point(*a))
+                .total_cmp(&origin.distance_squared(point(*b)))
+        })?;
     let goal = if valid(goal) {
         goal
     } else {
@@ -222,7 +297,14 @@ fn route(
                 cells.push(cursor);
             }
             cells.reverse();
-            return Some(cells.into_iter().skip(1).map(point).collect());
+            let mut path: VecDeque<_> = cells.into_iter().map(point).collect();
+            if path
+                .front()
+                .is_some_and(|first| first.distance(origin) < ARRIVAL)
+            {
+                path.pop_front();
+            }
+            return Some(path);
         }
         for direction in [IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y] {
             let next = current + direction;
@@ -242,23 +324,197 @@ fn route(
     None
 }
 
-fn turn_toward(transform: &mut Transform, direction: Vec2, delta: f32) -> bool {
+fn clear_path(start: Vec2, end: Vec2, blockers: &[(Vec2, Vec2, f32)]) -> bool {
+    collision::move_player(start, end - start, blockers).distance(end) < 0.01
+}
+
+fn search_route(
+    position: Vec2,
+    center: Vec2,
+    rng: &mut ChaCha8Rng,
+    rooms: &[(Entity, Rect)],
+    blockers: &[(Vec2, Vec2, f32)],
+) -> VecDeque<Vec2> {
+    let first = rng.next_u32() as usize;
+    (0..16)
+        .map(|index| (first + index) % 16)
+        .map(|index| {
+            let radius = if index < 8 {
+                SEARCH_RADIUS
+            } else {
+                SEARCH_RADIUS * 0.5
+            };
+            center + Vec2::from_angle(index as f32 * std::f32::consts::FRAC_PI_4) * radius
+        })
+        .filter(|&target| {
+            position.distance(target) > GRID
+                && room_at(target, rooms).is_some()
+                && collision::clear_for_player(target, blockers)
+        })
+        .find_map(|target| {
+            route(position, target, rooms, blockers)
+                .filter(|path| !path.is_empty() && path.len() as f32 * GRID <= SEARCH_REACH)
+        })
+        .unwrap_or_default()
+}
+
+fn turn_toward(transform: &mut Transform, direction: Vec2, delta: f32, speed: f32) -> bool {
     let target = (-direction.x).atan2(-direction.y);
     let (current, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
     let difference = (target - current + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
         - std::f32::consts::PI;
-    let step = difference.clamp(-TURN_SPEED * delta, TURN_SPEED * delta);
+    let step = difference.clamp(-speed * delta, speed * delta);
     transform.rotation = Quat::from_rotation_y(current + step);
     (difference - step).abs() <= MOVE_FACING_TOLERANCE
+}
+
+fn sense_player(
+    time: Res<Time>,
+    enabled: Option<Res<PlayerControlsEnabled>>,
+    sight: InteractTargets,
+    players: Query<
+        (
+            &Transform,
+            &crate::controller::PlayerInput,
+            &Stamina,
+            Has<Hidden>,
+        ),
+        (With<PlayerController>, Without<Escaped>, Without<Caught>),
+    >,
+    mut monsters: Query<(Entity, &Transform, &mut Monster), Without<PlayerController>>,
+    mut sounds: MessageWriter<PlaySourceSound>,
+) {
+    if enabled.is_some_and(|enabled| !enabled.0) {
+        return;
+    }
+    for (entity, transform, mut monster) in &mut monsters {
+        let position = transform.translation.xz();
+        let sensed = players.iter().find_map(|(player, input, stamina, hidden)| {
+            if hidden {
+                return None;
+            }
+            let target = player.translation.xz();
+            let distance = position.distance(target);
+            let direction = (target - position).normalize_or_zero();
+            let facing = (transform.rotation * -Vec3::Z).xz();
+            let visible = distance <= SIGHT_RANGE
+                && (distance <= ATTACK_REACH || direction.dot(facing) >= SIGHT_COS);
+            let heard = input.movement.length_squared() > 0.01
+                && distance
+                    <= if stamina.sprinting {
+                        RUN_HEARING
+                    } else {
+                        WALK_HEARING
+                    };
+            (visible || heard)
+                .then(|| sight.clear_sight(position, target))
+                .filter(|clear| *clear)
+                .map(|_| target)
+        });
+        if let Some(target) = sensed {
+            if let Some(mut pursuit) = monster.pursuit {
+                if pursuit.searching {
+                    pursuit.searching = false;
+                    pursuit.planned = None;
+                    monster.route.clear();
+                }
+                pursuit.last_sensed = target;
+                pursuit.remaining = SEARCH_TIME;
+                monster.pursuit = Some(pursuit);
+            } else {
+                sounds.write(PlaySourceSound {
+                    source: entity,
+                    sound: Sound::MonsterDetected,
+                });
+                monster.route.clear();
+                monster.stalls = 0;
+                monster.pursuit = Some(Pursuit {
+                    last_sensed: target,
+                    remaining: SEARCH_TIME,
+                    searching: false,
+                    planned: None,
+                });
+            }
+        } else if let Some(mut pursuit) = monster.pursuit {
+            pursuit.remaining -= time.delta_secs();
+            if pursuit.remaining <= 0.0 {
+                monster.pursuit = None;
+                monster.route.clear();
+            } else {
+                monster.pursuit = Some(pursuit);
+            }
+        }
+    }
+}
+
+fn catch_player(
+    time: Res<Time>,
+    enabled: Option<Res<PlayerControlsEnabled>>,
+    mut players: Query<
+        (Entity, &mut Transform, Has<Hidden>, Option<&mut Caught>),
+        (With<PlayerController>, Without<Escaped>),
+    >,
+    mut monsters: Query<(Entity, &mut Transform, &mut Monster), Without<PlayerController>>,
+    mut sounds: MessageWriter<PlaySourceSound>,
+    mut commands: Commands,
+) {
+    if enabled.is_some_and(|enabled| !enabled.0) {
+        return;
+    }
+    let delta = time.delta_secs();
+    let mut staged = false;
+    for (_, mut view, _, caught) in &mut players {
+        let Some(mut caught) = caught else {
+            continue;
+        };
+        staged = true;
+        if caught.finished() {
+            continue;
+        }
+        caught.remaining = (caught.remaining - delta).max(0.0);
+        let Ok((_, mut pose, _)) = monsters.get_mut(caught.monster) else {
+            continue;
+        };
+        let toward = (view.translation.xz() - pose.translation.xz()).normalize_or_zero();
+        if toward != Vec2::ZERO {
+            turn_toward(&mut pose, toward, delta, CHASE_TURN_SPEED);
+            let focus = pose.translation + Vec3::Y * JUMPSCARE_FOCUS;
+            let facing = view.looking_at(focus, Vec3::Y).rotation;
+            view.rotation = view
+                .rotation
+                .rotate_towards(facing, JUMPSCARE_TURN_SPEED * delta);
+        }
+    }
+    if staged {
+        return;
+    }
+    for (monster_entity, pose, mut monster) in &mut monsters {
+        if monster.pursuit.is_none() {
+            continue;
+        }
+        let Some((player, ..)) = players.iter().find(|(_, view, hidden, _)| {
+            !hidden && pose.translation.xz().distance(view.translation.xz()) <= ATTACK_REACH
+        }) else {
+            continue;
+        };
+        monster.route.clear();
+        sounds.write(PlaySourceSound {
+            source: monster_entity,
+            sound: Sound::MonsterAttack,
+        });
+        commands.entity(player).insert(Caught::new(monster_entity));
+        return;
+    }
 }
 
 fn manage_doors(
     enabled: Option<Res<PlayerControlsEnabled>>,
     doors: Query<(Entity, &Door, Has<DoorLock>)>,
     monsters: Query<&Transform, With<Monster>>,
+    caught: Query<(), (With<PlayerController>, With<Caught>)>,
     mut toggles: MessageWriter<ToggleDoor>,
 ) {
-    if enabled.is_some_and(|enabled| !enabled.0) {
+    if !caught.is_empty() || enabled.is_some_and(|enabled| !enabled.0) {
         return;
     }
     for (entity, door, locked) in &doors {
@@ -285,9 +541,10 @@ fn patrol(
     passages: Query<&Passage>,
     props: Query<(&PropCollider, &Transform), (Without<PlayerController>, Without<Monster>)>,
     mut monsters: Query<(Entity, &mut Monster, &mut Transform), Without<PlayerController>>,
+    caught: Query<(), (With<PlayerController>, With<Caught>)>,
     mut sounds: MessageWriter<PlaySourceSound>,
 ) {
-    if enabled.is_some_and(|enabled| !enabled.0) {
+    if !caught.is_empty() || enabled.is_some_and(|enabled| !enabled.0) {
         return;
     }
     let Some(rng) = rng.as_deref_mut() else {
@@ -310,6 +567,12 @@ fn patrol(
             + collision::rotate(collider.center * transform.scale.xz(), yaw);
         blockers.push((center, collider.half * transform.scale.xz().abs(), yaw));
     }
+    let mut dynamic = blockers.clone();
+    for (_, door, swing, locked) in &doors {
+        if !locked {
+            dynamic.push(collision::door_panel(door, swing));
+        }
+    }
     let delta = time.delta_secs().min(0.1);
     for (entity, mut monster, mut transform) in &mut monsters {
         monster.presence_clock += delta;
@@ -321,6 +584,47 @@ fn patrol(
             });
         }
         let position = transform.translation.xz();
+        if let Some(mut pursuit) = monster.pursuit {
+            if !pursuit.searching
+                && pursuit
+                    .planned
+                    .is_none_or(|planned| planned.distance(pursuit.last_sensed) > GRID)
+            {
+                pursuit.planned = Some(pursuit.last_sensed);
+                monster.route = route(position, pursuit.last_sensed, &rooms_data, &blockers)
+                    .unwrap_or_default();
+                monster.stalls = 0;
+            }
+            if monster.route.is_empty() && !pursuit.searching && pursuit.remaining >= SEARCH_TIME {
+                let toward = (pursuit.last_sensed - position).normalize_or_zero();
+                if toward != Vec2::ZERO {
+                    turn_toward(&mut transform, toward, delta, CHASE_TURN_SPEED);
+                }
+                monster.pursuit = Some(pursuit);
+                continue;
+            }
+            if monster.route.is_empty() {
+                pursuit.searching = true;
+                if monster.route_retry > 0.0 {
+                    monster.route_retry -= delta;
+                } else {
+                    monster.route = search_route(
+                        position,
+                        pursuit.last_sensed,
+                        &mut rng.0,
+                        &rooms_data,
+                        &blockers,
+                    );
+                    if monster.route.is_empty() {
+                        monster.route_retry = SEARCH_RETRY;
+                    }
+                }
+            }
+            monster.pursuit = Some(pursuit);
+            if monster.route.is_empty() {
+                continue;
+            }
+        }
         if monster.route.is_empty() && monster.route_retry > 0.0 {
             monster.route_retry -= delta;
             continue;
@@ -375,15 +679,31 @@ fn patrol(
                 }
             }
         }
+        while monster
+            .route
+            .front()
+            .is_some_and(|next| position.distance(*next) < ARRIVAL)
+        {
+            monster.route.pop_front();
+        }
+        while monster.route.len() > 1 && clear_path(position, monster.route[1], &dynamic) {
+            monster.route.pop_front();
+        }
         let Some(next) = monster.route.front().copied() else {
             continue;
         };
-        if position.distance(next) < ARRIVAL {
-            monster.route.pop_front();
-            continue;
-        }
         let forward = (next - position).normalize_or_zero();
-        let facing_waypoint = turn_toward(&mut transform, forward, delta);
+        let chasing = monster.pursuit.is_some();
+        let facing_waypoint = turn_toward(
+            &mut transform,
+            forward,
+            delta,
+            if chasing {
+                CHASE_TURN_SPEED
+            } else {
+                TURN_SPEED
+            },
+        );
         if doors.iter().any(|(_, door, swing, locked)| {
             !locked
                 && position.distance(door.position) < DOOR_APPROACH
@@ -394,24 +714,40 @@ fn patrol(
         if !facing_waypoint {
             continue;
         }
-        let step = forward * SPEED * delta;
-        let mut dynamic = blockers.clone();
-        for (_, door, swing, locked) in &doors {
-            if !locked {
-                dynamic.push(collision::door_panel(door, swing));
-            }
-        }
+        let speed = if monster.pursuit.is_some() {
+            CHASE_SPEED
+        } else {
+            SPEED
+        };
+        let step = forward * (speed * delta).min(position.distance(next));
         let moved = collision::move_player(position, step, &dynamic);
         if moved.distance(position) < step.length() * 0.15 {
-            monster.route.clear();
-            monster.route_retry = 1.0;
+            monster.stalls += 1;
+            let goal = monster.route.back().copied();
+            monster.route = goal
+                .filter(|_| monster.stalls < STALL_LIMIT)
+                .and_then(|goal| route(position, goal, &rooms_data, &dynamic))
+                .unwrap_or_default();
+            if monster.route.is_empty() {
+                monster.stalls = 0;
+                match monster.pursuit.as_mut() {
+                    Some(pursuit) => pursuit.searching = true,
+                    None => monster.route_retry = 1.0,
+                }
+            }
             continue;
         }
+        monster.stalls = 0;
         transform.translation.x = moved.x;
         transform.translation.z = moved.y;
         monster.step_clock += delta;
-        if monster.step_clock >= STEP_PERIOD {
-            monster.step_clock -= STEP_PERIOD;
+        let step_period = if monster.pursuit.is_some() {
+            CHASE_STEP_PERIOD
+        } else {
+            STEP_PERIOD
+        };
+        if monster.step_clock >= step_period {
+            monster.step_clock -= step_period;
             sounds.write(PlaySourceSound {
                 source: entity,
                 sound: Sound::MonsterStep(monster.step_index),

@@ -97,6 +97,7 @@ impl Sound {
                 let fade = (1.0 - distance / self.audible_range()).max(0.0);
                 0.8 * fade * fade
             }
+            Self::MonsterDetected => 1.0 / (1.0 + 0.015 * distance * distance),
             _ => 0.6 / (1.0 + 0.06 * distance * distance),
         }
     }
