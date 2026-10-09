@@ -1,6 +1,6 @@
 # Rename project to the-specimen-bevy
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 0
 - TAGS: backlog
 
