@@ -24,7 +24,8 @@ pub(crate) const FUSE_RADIUS: f32 = 0.03;
 pub(crate) const FUSE_LENGTH: f32 = 0.2;
 pub(crate) const FUSE_PANEL_AIM_RADIUS: f32 = 0.5;
 
-#[derive(Component, Default, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Component, Reflect, Default, Clone, Copy, Debug, PartialEq, Eq)]
+#[reflect(Component)]
 pub struct FuseInventory(pub usize);
 
 #[derive(Component, Default, Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,7 +59,8 @@ impl Plugin for FusePlugin {
         if !app.is_plugin_added::<PickupPlugin>() {
             app.add_plugins(PickupPlugin);
         }
-        app.add_message::<InstallFuses>()
+        app.register_type::<FuseInventory>()
+            .add_message::<InstallFuses>()
             .add_message::<PlaySound>()
             .add_observer(attach_inventory)
             .add_observer(use_panel)

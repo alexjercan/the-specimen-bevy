@@ -1,4 +1,73 @@
 use super::*;
+use bevy::world_serialization::WorldAsset;
+use bevy_asset_loader::mapped::{AssetFileStem, MapKey};
+
+#[test]
+fn installing_fuses_spawns_scene_children_and_animates_visuals() {
+    let mut app = App::new();
+    let mut modules = bevy::platform::collections::HashMap::default();
+    modules.insert(
+        AssetFileStem::from_asset_path(&"facility/modules/fuse_pickup.glb#Scene0".into()),
+        Handle::<WorldAsset>::default(),
+    );
+    app.insert_resource(FacilityAssets { modules })
+        .init_resource::<Assets<Mesh>>()
+        .init_resource::<Assets<StandardMaterial>>()
+        .add_observer(attach_panel_fuses)
+        .add_systems(Update, animate_panel_fuses);
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, 1.0)))
+        .id();
+    let panel = app.world_mut().spawn(FusePanel::default()).id();
+    app.world_mut().entity_mut(panel).insert(FuseInstallation {
+        player,
+        elapsed: 0.0,
+    });
+    app.update();
+
+    let mut visuals = app
+        .world_mut()
+        .query::<(Entity, &PanelFuseVisual, &ChildOf, &Children, &Visibility)>();
+    let slots: Vec<_> = visuals
+        .iter(app.world())
+        .map(|(entity, visual, parent, children, visibility)| {
+            assert_eq!(parent.parent(), panel);
+            assert_eq!(
+                *visibility,
+                if visual.slot == 0 {
+                    Visibility::Visible
+                } else {
+                    Visibility::Hidden
+                }
+            );
+            assert_eq!(children.len(), 1);
+            assert_eq!(
+                app.world().get::<ChildOf>(children[0]).unwrap().parent(),
+                entity
+            );
+            assert!(app.world().get::<WorldAssetRoot>(children[0]).is_some());
+            visual.slot
+        })
+        .collect();
+    assert_eq!(slots.len(), FUSE_COUNT);
+    for slot in 0..FUSE_COUNT {
+        assert!(slots.contains(&slot));
+    }
+
+    app.world_mut()
+        .get_mut::<FuseInstallation>(panel)
+        .unwrap()
+        .elapsed = INSERT_SECS_PER_FUSE * FUSE_COUNT as f32;
+    app.update();
+    let mut positions = app
+        .world_mut()
+        .query::<(&PanelFuseVisual, &Transform, &Visibility)>();
+    for (visual, transform, visibility) in positions.iter(app.world()) {
+        assert_eq!(*visibility, Visibility::Visible);
+        assert_eq!(transform.translation, panel_fuse_destination(visual.slot));
+    }
+}
 
 #[test]
 fn panel_fuses_insert_one_after_another() {

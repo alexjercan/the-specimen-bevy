@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, time::Duration};
+use std::{any::TypeId, f32::consts::PI, time::Duration};
 
 use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
@@ -29,6 +29,19 @@ fn app() -> (App, Entity) {
         .id();
     app.update();
     (app, player)
+}
+
+#[test]
+fn fuse_inventory_is_available_to_the_debug_inspector() {
+    let (app, player) = app();
+    let registry = app.world().resource::<AppTypeRegistry>();
+    let registry = registry.read();
+    let registration = registry.get(TypeId::of::<FuseInventory>()).unwrap();
+    assert!(registration.data::<ReflectComponent>().is_some());
+    assert_eq!(
+        app.world().get::<FuseInventory>(player),
+        Some(&FuseInventory(0))
+    );
 }
 
 fn door(app: &mut App, x: f32, z: f32, yaw: f32) -> Entity {

@@ -8,5 +8,6 @@ publish = false
 [dependencies]
 bevy.workspace = true
 game_settings.workspace = true
+gameplay.workspace = true
 bevy_egui.workspace = true
 bevy-inspector-egui.workspace = true

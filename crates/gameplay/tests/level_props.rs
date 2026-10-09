@@ -35,13 +35,13 @@ fn first_floor_props_and_lights_are_linked() {
             entity
         })
         .collect();
-    assert_eq!(lights.len(), 25);
+    assert_eq!(lights.len(), 27);
     assert_eq!(
         lights
             .iter()
             .filter(|&&e| world.get::<LightEffect>(e).is_some())
             .count(),
-        11
+        12
     );
     assert!(world.query::<&PointLight>().iter(world).count() == lights.len());
 }
@@ -428,7 +428,7 @@ fn rendered_props_have_visible_parents() {
         checked += 1;
     }
     assert!(checked > 0);
-    assert_eq!(sign_children, 16);
+    assert_eq!(sign_children, 18);
 }
 
 #[test]

@@ -260,28 +260,24 @@ fn attach_panel_fuses(
     });
     commands.entity(added.entity).with_children(|children| {
         for slot in 0..FUSE_COUNT {
-            let fuse = children
+            children
                 .spawn((
                     Name::new(format!("panel fuse {}", slot + 1)),
                     PanelFuseVisual { slot, from },
                     Transform::from_translation(from),
                     Visibility::Hidden,
                 ))
-                .id();
-            if let Some(module) = module {
-                children.spawn((
-                    WorldAssetRoot(module.clone()),
-                    Transform::IDENTITY,
-                    ChildOf(fuse),
-                ));
-            } else if let Some((mesh, material)) = &fallback {
-                children.spawn((
-                    Mesh3d(mesh.clone()),
-                    MeshMaterial3d(material.clone()),
-                    Transform::from_rotation(Quat::from_rotation_z(FRAC_PI_2)),
-                    ChildOf(fuse),
-                ));
-            }
+                .with_children(|children| {
+                    if let Some(module) = module {
+                        children.spawn((WorldAssetRoot(module.clone()), Transform::IDENTITY));
+                    } else if let Some((mesh, material)) = &fallback {
+                        children.spawn((
+                            Mesh3d(mesh.clone()),
+                            MeshMaterial3d(material.clone()),
+                            Transform::from_rotation(Quat::from_rotation_z(FRAC_PI_2)),
+                        ));
+                    }
+                });
         }
     });
 }

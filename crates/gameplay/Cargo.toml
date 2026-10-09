@@ -13,3 +13,6 @@ rand_core.workspace = true
 game_assets.workspace = true
 game_audio.workspace = true
 game_settings.workspace = true
+
+[dev-dependencies]
+bevy_asset_loader.workspace = true

@@ -52,6 +52,7 @@ pub fn spawn_first_floor_actors(
         Visibility::default(),
     ));
     commands.spawn((
+        Name::new("Player"),
         PlayerController,
         Transform::from_xyz(2.5, EYE_HEIGHT, -27.5),
     ));

@@ -2603,6 +2603,7 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy_egui",
  "game_settings",
+ "gameplay",
 ]
 
 [[package]]
@@ -3120,6 +3121,7 @@ name = "gameplay"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_asset_loader",
  "bevy_enhanced_input",
  "bevy_rand",
  "game_assets",
