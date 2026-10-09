@@ -206,6 +206,91 @@ pub(super) fn spawn(commands: &mut Commands) {
         ))
         .id();
 
+    let west_west_wing = commands
+        .spawn(passage("west hall / west wing", Vec2::new(-5.0, 3.75)))
+        .id();
+    let east_east_wing = commands
+        .spawn(passage("east hall / east wing", Vec2::new(5.0, 3.75)))
+        .id();
+    let west_wing_rear = commands
+        .spawn(passage("west wing / rear hall", Vec2::new(-5.0, 16.25)))
+        .id();
+    let east_wing_rear = commands
+        .spawn(passage("east wing / rear hall", Vec2::new(5.0, 16.25)))
+        .id();
+    let west_wing_workshop = commands
+        .spawn(door(
+            "west wing / workshop",
+            Vec2::new(-6.25, 7.5),
+            -FRAC_PI_2,
+            FRAME,
+            PANEL,
+        ))
+        .id();
+    let workshop_archive = commands
+        .spawn(door(
+            "workshop / archive",
+            Vec2::new(-10.0, 11.25),
+            0.0,
+            FRAME,
+            PANEL,
+        ))
+        .id();
+    let archive_rear = commands
+        .spawn(door(
+            "archive / rear hall",
+            Vec2::new(-10.0, 16.25),
+            0.0,
+            FRAME,
+            PANEL,
+        ))
+        .id();
+    let west_wing_assembly = commands
+        .spawn(door(
+            "west wing / assembly",
+            Vec2::new(-3.75, 10.0),
+            -FRAC_PI_2,
+            FRAME,
+            PANEL,
+        ))
+        .id();
+    let assembly_east_wing = commands
+        .spawn(door(
+            "assembly / east wing",
+            Vec2::new(3.75, 10.0),
+            FRAC_PI_2,
+            FRAME,
+            PANEL,
+        ))
+        .id();
+    let east_wing_fabrication = commands
+        .spawn(door(
+            "east wing / fabrication",
+            Vec2::new(6.25, 7.5),
+            FRAC_PI_2,
+            FRAME,
+            PANEL,
+        ))
+        .id();
+    let fabrication_sample_store = commands
+        .spawn(door(
+            "fabrication / sample store",
+            Vec2::new(10.0, 11.25),
+            0.0,
+            FRAME,
+            PANEL,
+        ))
+        .id();
+    let sample_store_rear = commands
+        .spawn(door(
+            "sample store / rear hall",
+            Vec2::new(10.0, 16.25),
+            0.0,
+            FRAME,
+            PANEL,
+        ))
+        .id();
+
     commands
         .spawn(room(
             "maintenance",
@@ -316,7 +401,8 @@ pub(super) fn spawn(commands: &mut Commands) {
         .with_related::<DoorOf>(DoorRef(west_utility))
         .with_related::<DoorOf>(DoorRef(west_west_link))
         .with_related::<DoorOf>(DoorRef(west_boiler))
-        .with_related::<DoorOf>(DoorRef(west_lab));
+        .with_related::<DoorOf>(DoorRef(west_lab))
+        .with_related::<DoorOf>(DoorRef(west_west_wing));
     commands
         .spawn(room(
             "reception",
@@ -343,7 +429,8 @@ pub(super) fn spawn(commands: &mut Commands) {
         .with_related::<DoorOf>(DoorRef(east_link_east))
         .with_related::<DoorOf>(DoorRef(lab_east))
         .with_related::<DoorOf>(DoorRef(east_hiding))
-        .with_related::<DoorOf>(DoorRef(east_prep));
+        .with_related::<DoorOf>(DoorRef(east_prep))
+        .with_related::<DoorOf>(DoorRef(east_east_wing));
     commands
         .spawn(room(
             "storage",
@@ -405,4 +492,90 @@ pub(super) fn spawn(commands: &mut Commands) {
             CEILING_TILE,
         ))
         .with_related::<DoorOf>(DoorRef(west_boiler));
+    commands
+        .spawn(room(
+            "west_wing",
+            Rect::new(-6.25, 3.75, -3.75, 16.25),
+            FLOOR_TILE,
+            WALL_CONDUIT,
+            CEILING_TILE,
+        ))
+        .with_related::<DoorOf>(DoorRef(west_west_wing))
+        .with_related::<DoorOf>(DoorRef(west_wing_workshop))
+        .with_related::<DoorOf>(DoorRef(west_wing_assembly))
+        .with_related::<DoorOf>(DoorRef(west_wing_rear));
+    commands
+        .spawn(room(
+            "east_wing",
+            Rect::new(3.75, 3.75, 6.25, 16.25),
+            FLOOR_TILE,
+            WALL,
+            CEILING_TILE,
+        ))
+        .with_related::<DoorOf>(DoorRef(east_east_wing))
+        .with_related::<DoorOf>(DoorRef(assembly_east_wing))
+        .with_related::<DoorOf>(DoorRef(east_wing_fabrication))
+        .with_related::<DoorOf>(DoorRef(east_wing_rear));
+    commands
+        .spawn(room(
+            "workshop",
+            Rect::new(-13.75, 3.75, -6.25, 11.25),
+            FLOOR_TILE,
+            WALL_CONDUIT,
+            CEILING_TILE,
+        ))
+        .with_related::<DoorOf>(DoorRef(west_wing_workshop))
+        .with_related::<DoorOf>(DoorRef(workshop_archive));
+    commands
+        .spawn(room(
+            "archive",
+            Rect::new(-13.75, 11.25, -6.25, 16.25),
+            FLOOR_TILE,
+            WALL,
+            CEILING_TILE,
+        ))
+        .with_related::<DoorOf>(DoorRef(workshop_archive))
+        .with_related::<DoorOf>(DoorRef(archive_rear));
+    commands
+        .spawn(room(
+            "assembly",
+            Rect::new(-3.75, 3.75, 3.75, 16.25),
+            FLOOR_TILE_MARKED,
+            WALL,
+            CEILING_TILE,
+        ))
+        .with_related::<DoorOf>(DoorRef(west_wing_assembly))
+        .with_related::<DoorOf>(DoorRef(assembly_east_wing));
+    commands
+        .spawn(room(
+            "fabrication",
+            Rect::new(6.25, 3.75, 13.75, 11.25),
+            FLOOR_TILE,
+            WALL_CONDUIT,
+            CEILING_TILE,
+        ))
+        .with_related::<DoorOf>(DoorRef(east_wing_fabrication))
+        .with_related::<DoorOf>(DoorRef(fabrication_sample_store));
+    commands
+        .spawn(room(
+            "sample_store",
+            Rect::new(6.25, 11.25, 13.75, 16.25),
+            FLOOR_TILE,
+            WALL,
+            CEILING_TILE,
+        ))
+        .with_related::<DoorOf>(DoorRef(fabrication_sample_store))
+        .with_related::<DoorOf>(DoorRef(sample_store_rear));
+    commands
+        .spawn(room(
+            "rear_hall",
+            Rect::new(-13.75, 16.25, 13.75, 18.75),
+            FLOOR_TILE_MARKED,
+            WALL_CONDUIT,
+            CEILING_TILE,
+        ))
+        .with_related::<DoorOf>(DoorRef(archive_rear))
+        .with_related::<DoorOf>(DoorRef(west_wing_rear))
+        .with_related::<DoorOf>(DoorRef(east_wing_rear))
+        .with_related::<DoorOf>(DoorRef(sample_store_rear));
 }

@@ -8,7 +8,7 @@ use gameplay::{
     levels::{
         build_first_floor, select_fuse_slots, Door, DoorOf, DoorPlugin, DoorRef, DoorState,
         FacilityPower, FacilityPowerPlugin, FuseSeed, HidingPlugin, Monster, MonsterPlugin, Prop,
-        Room, ToggleDoor,
+        Room, ToggleDoor, FUSE_TABLES,
     },
 };
 use serde_json::Value;
@@ -103,10 +103,13 @@ fn map_appears_once_and_describes_the_first_floor() {
 
     let map = &responses[0]["map"];
     assert!(!map.to_string().contains("has_fuse"));
-    assert_eq!(map["rooms"].as_array().unwrap().len(), 18);
-    assert_eq!(map["doors"].as_array().unwrap().len(), 18);
-    assert_eq!(map["passages"].as_array().unwrap().len(), 10);
-    assert_eq!(map["fuse_candidates"].as_array().unwrap().len(), 6);
+    assert_eq!(map["rooms"].as_array().unwrap().len(), 26);
+    assert_eq!(map["doors"].as_array().unwrap().len(), 26);
+    assert_eq!(map["passages"].as_array().unwrap().len(), 14);
+    assert_eq!(
+        map["fuse_candidates"].as_array().unwrap().len(),
+        FUSE_TABLES.len()
+    );
     assert!(map["doors"]
         .as_array()
         .unwrap()
@@ -215,7 +218,7 @@ fn candidate_has_fuse_reflects_whether_the_seed_selected_that_slot() {
         let mut output = Vec::new();
         assert_eq!(
             run(
-                first_floor_app(seed, Vec3::new(12.5, 1.6, 2.5)),
+                first_floor_app(seed, Vec3::new(3.0, 1.6, -18.2)),
                 Cursor::new("{\"tick\":1}\n"),
                 &mut output,
             ),

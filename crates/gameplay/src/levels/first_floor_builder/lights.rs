@@ -131,6 +131,78 @@ pub(super) fn spawn(commands: &mut Commands) {
         Transform::from_xyz(5.0, 0.0, 2.5),
     ));
     commands.spawn(prop(
+        "ceiling_light_dead",
+        "ceiling_light_dead",
+        Transform::from_xyz(-5.0, 0.0, 7.5),
+    ));
+    commands.spawn((
+        prop(
+            CEILING_LIGHT_COOL,
+            CEILING_LIGHT_COOL,
+            Transform::from_xyz(-5.0, 0.0, 12.5),
+        ),
+        LightConfig::flicker(2.4),
+    ));
+    commands.spawn((
+        prop(
+            CEILING_LIGHT_COOL,
+            CEILING_LIGHT_COOL,
+            Transform::from_xyz(5.0, 0.0, 7.5),
+        ),
+        LightConfig::flicker(-3.7),
+    ));
+    commands.spawn(prop(
+        "ceiling_light_dead",
+        "ceiling_light_dead",
+        Transform::from_xyz(5.0, 0.0, 12.5),
+    ));
+    commands.spawn(prop(
+        "ceiling_light_amber",
+        "ceiling_light_amber",
+        Transform::from_xyz(-10.0, 0.0, 7.5),
+    ));
+    commands.spawn(prop(
+        "ceiling_light_dead",
+        "ceiling_light_dead",
+        Transform::from_xyz(-10.0, 0.0, 13.75),
+    ));
+    commands.spawn((
+        prop(
+            CEILING_LIGHT_COOL,
+            CEILING_LIGHT_COOL,
+            Transform::from_xyz(0.0, 0.0, 7.5),
+        ),
+        LightConfig::flicker(4.1),
+    ));
+    commands.spawn(prop(
+        "ceiling_light_dead",
+        "ceiling_light_dead",
+        Transform::from_xyz(0.0, 0.0, 12.5),
+    ));
+    commands.spawn(prop(
+        CEILING_LIGHT_COOL,
+        CEILING_LIGHT_COOL,
+        Transform::from_xyz(10.0, 0.0, 7.5),
+    ));
+    commands.spawn(prop(
+        "ceiling_light_amber",
+        "ceiling_light_amber",
+        Transform::from_xyz(10.0, 0.0, 13.75),
+    ));
+    commands.spawn(prop(
+        "ceiling_light_dead",
+        "ceiling_light_dead",
+        Transform::from_xyz(-7.5, 0.0, 17.5),
+    ));
+    commands.spawn((
+        prop(
+            CEILING_LIGHT_COOL,
+            CEILING_LIGHT_COOL,
+            Transform::from_xyz(7.5, 0.0, 17.5),
+        ),
+        LightConfig::flicker(-5.3),
+    ));
+    commands.spawn(prop(
         EXIT_SIGN,
         EXIT_SIGN,
         Transform::from_xyz(0.0, 2.62, -31.15).with_rotation(Quat::from_rotation_y(PI)),

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use bevy::prelude::*;
 use gameplay::levels::{
-    Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Passage, Room, build_first_floor,
+    build_first_floor, Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Passage, Room,
 };
 
 #[test]
@@ -15,7 +15,7 @@ fn every_first_floor_room_has_a_ceiling() {
     let world = app.world_mut();
     let mut rooms = world.query::<(&Room, &Ceiling)>();
     let rooms: Vec<_> = rooms.iter(world).collect();
-    assert_eq!(rooms.len(), 18);
+    assert_eq!(rooms.len(), 26);
     assert!(rooms.iter().all(|(_, ceiling)| ceiling.0 == "ceiling_tile"));
 }
 
@@ -39,7 +39,7 @@ fn first_floor_openings_link_rooms_and_align_with_walls() {
             )
         })
         .collect();
-    assert_eq!(rooms.len(), 18);
+    assert_eq!(rooms.len(), 26);
 
     let mut door_query = world.query::<(Entity, &Door)>();
     let doors: Vec<_> = door_query
@@ -55,7 +55,7 @@ fn first_floor_openings_link_rooms_and_align_with_walls() {
             )
         })
         .collect();
-    assert_eq!(doors.len(), 18);
+    assert_eq!(doors.len(), 26);
     assert!(doors.iter().all(|(_, _, _, state, frame, panel)| {
         *state == DoorState::Closed && frame == "wall_doorway" && panel == "door_panel"
     }));
@@ -65,16 +65,16 @@ fn first_floor_openings_link_rooms_and_align_with_walls() {
         .iter(world)
         .map(|(entity, passage)| (entity, passage.0))
         .collect();
-    assert_eq!(passages.len(), 10);
+    assert_eq!(passages.len(), 14);
 
     let mut names = world.query_filtered::<&Name, Or<(With<Door>, With<Passage>)>>();
     let names: Vec<_> = names
         .iter(world)
         .map(|name| name.as_str().to_owned())
         .collect();
-    assert_eq!(names.len(), 28);
+    assert_eq!(names.len(), 40);
     assert!(names.iter().all(|name| !name.is_empty()));
-    assert_eq!(names.iter().collect::<HashSet<_>>().len(), 28);
+    assert_eq!(names.iter().collect::<HashSet<_>>().len(), 40);
 
     assert!(doors.iter().any(|(_, at, rotation, _, _, _)| {
         *at == Vec2::new(0.0, -31.25) && *rotation == Quat::from_rotation_y(std::f32::consts::PI)

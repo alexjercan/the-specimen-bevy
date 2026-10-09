@@ -31,7 +31,7 @@ fn headless_builder_enters_ready_and_builds_first_floor() {
     app.cleanup();
     app.update();
     let mut rooms = app.world_mut().query::<&Room>();
-    assert_eq!(rooms.iter(app.world()).count(), 18);
+    assert_eq!(rooms.iter(app.world()).count(), 26);
 }
 
 #[test]
@@ -73,7 +73,7 @@ fn headless_transport_reports_the_spawned_player() {
     let lines = snapshots(&output);
     assert_eq!(lines.len(), 2);
     assert_eq!(lines[0]["tick"], 0);
-    assert_eq!(lines[0]["map"]["rooms"].as_array().unwrap().len(), 18);
+    assert_eq!(lines[0]["map"]["rooms"].as_array().unwrap().len(), 26);
     let snapshot = &lines[1];
     assert_eq!(snapshot["tick"], 2);
     assert_eq!(snapshot["player"]["position"][1], 1.6);
@@ -88,7 +88,7 @@ fn headless_ignores_menu_and_builds_first_floor() {
     app.update();
     assert!(!app.world().contains_resource::<State<GameState>>());
     let mut rooms = app.world_mut().query::<&Room>();
-    assert_eq!(rooms.iter(app.world()).count(), 18);
+    assert_eq!(rooms.iter(app.world()).count(), 26);
 }
 
 #[test]

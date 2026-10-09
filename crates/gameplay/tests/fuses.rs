@@ -86,28 +86,34 @@ fn exists(app: &App, entity: Entity) -> bool {
 }
 
 #[test]
-fn eligible_tables_are_six_distinct_rooms_on_table_tops() {
-    assert_eq!(FUSE_TABLES.len(), 6);
+fn eligible_tables_are_distinct_rooms_on_table_tops() {
+    assert_eq!(FUSE_TABLES.len(), 9);
     let rooms: HashSet<_> = FUSE_TABLES.iter().map(|table| table.room).collect();
     assert_eq!(rooms.len(), FUSE_TABLES.len());
-    for zone in [FuseZone::Far, FuseZone::Middle, FuseZone::Exit] {
-        assert_eq!(
-            FUSE_TABLES
-                .iter()
-                .filter(|table| table.zone == zone)
-                .count(),
-            2,
-            "expected two eligible rooms in {zone:?}"
-        );
-    }
+    assert_eq!(
+        FUSE_TABLES
+            .iter()
+            .filter(|table| table.zone == FuseZone::Front)
+            .count(),
+        4,
+        "expected four eligible rooms in Front"
+    );
+    assert_eq!(
+        FUSE_TABLES
+            .iter()
+            .filter(|table| table.zone == FuseZone::Back)
+            .count(),
+        5,
+        "expected five eligible rooms in Back"
+    );
     assert!(FUSE_TABLES
         .iter()
-        .filter(|table| table.zone == FuseZone::Far)
-        .all(|table| table.position.z >= -8.75));
+        .filter(|table| table.zone == FuseZone::Front)
+        .all(|table| table.position.z <= -8.75));
     assert!(FUSE_TABLES
         .iter()
-        .filter(|table| table.zone == FuseZone::Exit)
-        .all(|table| table.position.z <= -16.25));
+        .filter(|table| table.zone == FuseZone::Back)
+        .all(|table| table.position.z >= 3.75));
 
     let mut app = first_floor(0);
     let world = app.world_mut();
@@ -173,19 +179,24 @@ fn eligible_tables_are_six_distinct_rooms_on_table_tops() {
 #[test]
 fn seed_selects_three_distinct_reproducible_slots_covering_every_combination() {
     let mut combinations = HashSet::new();
-    for seed in 0..500 {
+    for seed in 0..2000 {
         let slots = select_fuse_slots(seed);
         assert_eq!(slots, select_fuse_slots(seed));
         assert!(slots.windows(2).all(|pair| pair[0] < pair[1]));
         assert!(slots.iter().all(|&slot| slot < FUSE_TABLES.len()));
-        let zones: HashSet<_> = slots.iter().map(|&slot| FUSE_TABLES[slot].zone).collect();
-        assert_eq!(
-            zones,
-            HashSet::from([FuseZone::Far, FuseZone::Middle, FuseZone::Exit])
-        );
+        let front_count = slots
+            .iter()
+            .filter(|&&slot| FUSE_TABLES[slot].zone == FuseZone::Front)
+            .count();
+        let back_slots: HashSet<_> = slots
+            .iter()
+            .filter(|&&slot| FUSE_TABLES[slot].zone == FuseZone::Back)
+            .collect();
+        assert_eq!(front_count, 1, "expected exactly one Front slot");
+        assert_eq!(back_slots.len(), 2, "expected two distinct Back slots");
         combinations.insert(slots);
     }
-    assert_eq!(combinations.len(), 8);
+    assert_eq!(combinations.len(), 40);
 }
 
 #[test]

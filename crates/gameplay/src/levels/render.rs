@@ -14,6 +14,7 @@ use super::builder::{
 };
 use super::{
     animation::DoorSwing,
+    devices::DevicePlaceholder,
     doors::{panel_transform, DoorPanel},
     fuses::{FusePickup, FUSE_LENGTH, FUSE_MODULE, FUSE_RADIUS},
     menu_background::MenuBackground,
@@ -32,6 +33,15 @@ const GLOWING_MATERIALS: [&str; 5] = [
 const FUSE_OUTLINE_WIDTH: f32 = 0.008;
 const FUSE_OUTLINE: Color = Color::srgb(1.0, 0.72, 0.22);
 const FUSE_PLACEHOLDER: Color = Color::srgb(0.78, 0.74, 0.64);
+const DEVICE_OUTLINE_WIDTH: f32 = 0.01;
+const DEVICE_OUTLINE: Color = Color::srgb(0.55, 0.85, 1.0);
+const FLASHBANG_RADIUS: f32 = 0.035;
+const FLASHBANG_LENGTH: f32 = 0.12;
+const FLASHBANG_BODY: Color = Color::srgb(0.16, 0.24, 0.14);
+const DETECTOR_SIZE: Vec3 = Vec3::new(0.16, 0.07, 0.1);
+const DETECTOR_BODY: Color = Color::srgb(0.32, 0.33, 0.34);
+const DETECTOR_FACE: Color = Color::srgb(1.0, 0.62, 0.18);
+const DETECTOR_FACE_SIZE: Vec3 = Vec3::new(0.1, 0.004, 0.06);
 
 pub struct LevelRenderPlugin;
 
@@ -55,6 +65,9 @@ struct PendingPropRender;
 
 #[derive(Component)]
 struct PendingFuseRender;
+
+#[derive(Component)]
+struct PendingDeviceRender;
 
 #[derive(Component)]
 struct GlowSurface {
@@ -92,10 +105,17 @@ impl Plugin for LevelRenderPlugin {
             .add_observer(mark_door_for_render)
             .add_observer(mark_prop_for_render)
             .add_observer(mark_fuse_for_render)
+            .add_observer(mark_device_for_render)
             .add_observer(attach_prop_glow)
             .add_systems(
                 PostUpdate,
-                (render_rooms, render_doors, render_props, render_fuses),
+                (
+                    render_rooms,
+                    render_doors,
+                    render_props,
+                    render_fuses,
+                    render_devices,
+                ),
             )
             .add_systems(Update, (animate_lights, animate_surfaces));
     }
@@ -115,6 +135,90 @@ fn mark_prop_for_render(added: On<Add, Prop>, mut commands: Commands) {
 
 fn mark_fuse_for_render(added: On<Add, FusePickup>, mut commands: Commands) {
     commands.entity(added.entity).insert(PendingFuseRender);
+}
+
+fn mark_device_for_render(added: On<Add, DevicePlaceholder>, mut commands: Commands) {
+    commands.entity(added.entity).insert(PendingDeviceRender);
+}
+
+fn render_devices(
+    devices: Query<(Entity, &DevicePlaceholder), With<PendingDeviceRender>>,
+    assets: Option<Res<FacilityAssets>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut commands: Commands,
+) {
+    if assets.is_none() || devices.is_empty() {
+        return;
+    }
+    let outline = materials.add(StandardMaterial {
+        base_color: DEVICE_OUTLINE,
+        unlit: true,
+        cull_mode: Some(Face::Front),
+        ..default()
+    });
+    for (entity, device) in &devices {
+        let parts = match device {
+            DevicePlaceholder::Flashbang => {
+                let shape = Transform::from_xyz(0.0, FLASHBANG_LENGTH / 2.0, 0.0);
+                vec![
+                    (
+                        meshes.add(Cylinder::new(FLASHBANG_RADIUS, FLASHBANG_LENGTH)),
+                        materials.add(StandardMaterial {
+                            base_color: FLASHBANG_BODY,
+                            perceptual_roughness: 0.6,
+                            ..default()
+                        }),
+                        shape,
+                    ),
+                    (
+                        meshes.add(Cylinder::new(
+                            FLASHBANG_RADIUS + DEVICE_OUTLINE_WIDTH,
+                            FLASHBANG_LENGTH + 2.0 * DEVICE_OUTLINE_WIDTH,
+                        )),
+                        outline.clone(),
+                        shape,
+                    ),
+                ]
+            }
+            DevicePlaceholder::Detector => {
+                let shape = Transform::from_xyz(0.0, DETECTOR_SIZE.y / 2.0, 0.0);
+                vec![
+                    (
+                        meshes.add(Cuboid::from_size(DETECTOR_SIZE)),
+                        materials.add(StandardMaterial {
+                            base_color: DETECTOR_BODY,
+                            perceptual_roughness: 0.5,
+                            ..default()
+                        }),
+                        shape,
+                    ),
+                    (
+                        meshes.add(Cuboid::from_size(DETECTOR_FACE_SIZE)),
+                        materials.add(StandardMaterial {
+                            base_color: DETECTOR_FACE,
+                            emissive: LinearRgba::from(DETECTOR_FACE) * 2.0,
+                            ..default()
+                        }),
+                        Transform::from_xyz(0.0, DETECTOR_SIZE.y, 0.0),
+                    ),
+                    (
+                        meshes.add(Cuboid::from_size(
+                            DETECTOR_SIZE + Vec3::splat(2.0 * DEVICE_OUTLINE_WIDTH),
+                        )),
+                        outline.clone(),
+                        shape,
+                    ),
+                ]
+            }
+        };
+        commands.entity(entity).with_children(|children| {
+            for (mesh, material, transform) in parts {
+                children.spawn((Mesh3d(mesh), MeshMaterial3d(material), transform));
+            }
+        });
+        commands.entity(entity).remove::<PendingDeviceRender>();
+    }
 }
 
 fn render_fuses(

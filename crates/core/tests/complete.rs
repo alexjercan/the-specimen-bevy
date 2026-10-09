@@ -102,7 +102,7 @@ fn assert_fresh_run(app: &mut App) {
     assert_eq!(game_state(app), GameState::Playing);
     let power = app.world().resource::<FacilityPower>();
     assert!(power.on && power.outage_pending);
-    assert_eq!(count::<With<Room>>(app), 18);
+    assert_eq!(count::<With<Room>>(app), 26);
     let player = single::<With<PlayerController>>(app);
     assert_eq!(app.world().get::<FuseInventory>(player).unwrap().0, 0);
     assert!(app.world().get::<Escaped>(player).is_none());

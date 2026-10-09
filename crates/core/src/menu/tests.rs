@@ -383,8 +383,8 @@ fn play_pause_and_main_menu_cycle_without_duplicate_worlds() {
     assert_eq!(game_state(&app), GameState::Playing);
     assert_eq!(count::<With<MainMenu>>(&mut app), 0);
     assert_eq!(count::<With<Camera2d>>(&mut app), 0);
-    assert_eq!(count::<With<Room>>(&mut app), 18);
-    assert_eq!(count::<With<LevelRoot>>(&mut app), 2);
+    assert_eq!(count::<With<Room>>(&mut app), 26);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 4);
     assert_eq!(
         count::<(With<IsResource>, With<DespawnOnExit<GameState>>)>(&mut app),
         0
@@ -434,7 +434,7 @@ fn play_pause_and_main_menu_cycle_without_duplicate_worlds() {
     assert_eq!(count::<With<PointLight>>(&mut app), 0);
 
     press(&mut app, MenuAction::Play);
-    assert_eq!(count::<With<Room>>(&mut app), 18);
+    assert_eq!(count::<With<Room>>(&mut app), 26);
     assert_eq!(count::<With<PlayerController>>(&mut app), 1);
     assert_eq!(count::<Without<IsResource>>(&mut app), playing);
 }
@@ -448,7 +448,7 @@ fn escape_transitions_to_completion_and_returns_to_menu() {
     ready(&mut app);
     press(&mut app, MenuAction::Play);
     assert!(count::<With<NonLevelRoot>>(&mut app) > 0);
-    assert_eq!(count::<With<LevelRoot>>(&mut app), 2);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 4);
     let playing = count::<(Without<IsResource>, Without<NonLevelRoot>)>(&mut app);
     let player = app
         .world_mut()
@@ -480,8 +480,8 @@ fn escape_transitions_to_completion_and_returns_to_menu() {
     assert_eq!(count::<With<MainMenu>>(&mut app), 1);
     press(&mut app, MenuAction::Play);
     assert_eq!(game_state(&app), GameState::Playing);
-    assert_eq!(count::<With<Room>>(&mut app), 18);
-    assert_eq!(count::<With<LevelRoot>>(&mut app), 2);
+    assert_eq!(count::<With<Room>>(&mut app), 26);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 4);
     assert_eq!(count::<With<PlayerController>>(&mut app), 1);
     assert_eq!(
         count::<(Without<IsResource>, Without<NonLevelRoot>)>(&mut app),

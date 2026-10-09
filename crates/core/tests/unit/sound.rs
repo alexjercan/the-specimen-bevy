@@ -37,7 +37,7 @@ fn ambience_layout_has_one_bed_and_local_facility_sources() {
     };
     assert_eq!(listener_count, 1);
     let sources = &app.world().resource::<AmbientEmitters>().0;
-    assert_eq!(sources.len(), 21);
+    assert_eq!(sources.len(), 26);
     assert!(sources.iter().any(|emitter| {
         emitter.sound == AmbientSound::Boiler
             && app
@@ -88,7 +88,7 @@ fn ambience_layout_has_one_bed_and_local_facility_sources() {
             .iter()
             .filter(|emitter| emitter.sound == AmbientSound::CoolBuzz)
             .count(),
-        10
+        15
     );
     assert!(sources
         .iter()
@@ -114,7 +114,7 @@ fn ambience_layout_has_one_bed_and_local_facility_sources() {
         .resource_mut::<gameplay::levels::FacilityPower>()
         .restore();
     app.update();
-    assert_eq!(app.world().resource::<AmbientEmitters>().0.len(), 21);
+    assert_eq!(app.world().resource::<AmbientEmitters>().0.len(), 26);
 }
 
 const FAUCET: Vec3 = Vec3::new(-13.4, 1.5, 0.0);

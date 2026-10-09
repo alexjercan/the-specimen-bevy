@@ -21,7 +21,7 @@ fn first_floor_props_and_lights_are_linked() {
     for prop in props.iter(world) {
         *actual.entry(prop.0.clone()).or_default() += 1;
     }
-    assert_eq!(actual.get("sign_hanger"), Some(&5));
+    assert_eq!(actual.get("sign_hanger"), Some(&9));
     assert_eq!(actual.get("boiler_unit"), Some(&1));
     assert_eq!(actual.get("concept_containment_tank"), Some(&1));
 
@@ -35,13 +35,13 @@ fn first_floor_props_and_lights_are_linked() {
             entity
         })
         .collect();
-    assert_eq!(lights.len(), 18);
+    assert_eq!(lights.len(), 25);
     assert_eq!(
         lights
             .iter()
             .filter(|&&e| world.get::<LightEffect>(e).is_some())
             .count(),
-        7
+        11
     );
     assert!(world.query::<&PointLight>().iter(world).count() == lights.len());
 }
@@ -59,15 +59,12 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
         .iter(world)
         .map(|(prop, transform)| (prop.0.clone(), *transform))
         .collect();
-    let plate = placements
-        .iter()
-        .find(|(module, _)| module == "sign_label_boiler_room")
-        .unwrap()
-        .1;
-    assert_eq!(plate.translation, Vec3::new(-6.10, 2.6, 0.0));
-    assert!((plate.rotation * Vec3::NEG_Z).distance(Vec3::X) < 0.001);
-
     for (module, position, facing) in [
+        (
+            "sign_label_boiler_room",
+            Vec3::new(-6.10, 2.6, 0.0),
+            Vec3::X,
+        ),
         ("sign_label_utility", Vec3::new(-6.15, 2.6, -10.0), Vec3::X),
         ("sign_label_lab", Vec3::new(3.85, 2.6, 0.0), Vec3::X),
         (
@@ -79,19 +76,19 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
     ] {
         let sign = placements
             .iter()
-            .find(|(name, _)| name == module)
+            .find(|(name, transform)| name == module && transform.translation == position)
             .unwrap_or_else(|| panic!("missing {module}"))
             .1;
-        assert_eq!(sign.translation, position);
         assert!((sign.rotation * Vec3::NEG_Z).distance(facing) < 0.001);
     }
 
     let pegboard = placements
         .iter()
-        .find(|(module, _)| module == "tool_pegboard")
+        .find(|(module, transform)| {
+            module == "tool_pegboard" && transform.translation == Vec3::new(-13.64, 1.6, 2.3)
+        })
         .unwrap()
         .1;
-    assert_eq!(pegboard.translation, Vec3::new(-13.64, 1.6, 2.3));
     assert!((pegboard.rotation * Vec3::NEG_Z).distance(Vec3::X) < 0.001);
     assert!((pegboard.translation.x - -13.65).abs() < 0.02);
 
@@ -293,6 +290,41 @@ fn first_floor_workbenches_face_open_space_from_walls() {
                 ("storage_crate", Vec2::new(12.0, -8.0), Vec2::new(0.5, 0.4)),
             ][..],
         ),
+        (
+            "workshop",
+            Vec2::new(-13.0, 6.0),
+            -FRAC_PI_2,
+            Vec2::new(-13.75, 6.0),
+            &[][..],
+        ),
+        (
+            "archive",
+            Vec2::new(-13.0, 13.75),
+            -FRAC_PI_2,
+            Vec2::new(-13.75, 13.75),
+            &[][..],
+        ),
+        (
+            "assembly",
+            Vec2::new(0.0, 15.7),
+            0.0,
+            Vec2::new(0.0, 16.25),
+            &[][..],
+        ),
+        (
+            "fabrication",
+            Vec2::new(13.0, 6.0),
+            FRAC_PI_2,
+            Vec2::new(13.75, 6.0),
+            &[][..],
+        ),
+        (
+            "sample_store",
+            Vec2::new(13.0, 13.75),
+            FRAC_PI_2,
+            Vec2::new(13.75, 13.75),
+            &[][..],
+        ),
     ] {
         let transform = props
             .iter()
@@ -302,7 +334,7 @@ fn first_floor_workbenches_face_open_space_from_walls() {
             .unwrap_or_else(|| panic!("missing {room} workbench"))
             .1;
         assert!(transform.rotation.dot(Quat::from_rotation_y(yaw)).abs() > 0.9999);
-        let horizontal = yaw.abs() == PI;
+        let horizontal = yaw == 0.0 || yaw.abs() == PI;
         let half = if horizontal {
             Vec2::new(0.8, 0.35)
         } else {
@@ -396,7 +428,7 @@ fn rendered_props_have_visible_parents() {
         checked += 1;
     }
     assert!(checked > 0);
-    assert_eq!(sign_children, 8);
+    assert_eq!(sign_children, 16);
 }
 
 #[test]
@@ -414,13 +446,12 @@ fn signs_group_labels_and_arrows_under_their_mounts() {
             continue;
         }
         count += 1;
-        assert_eq!(children.len(), 4);
         let labels = children
             .iter()
             .filter(|&child| {
                 world
                     .get::<Prop>(child)
-                    .is_some_and(|p| p.0 == "sign_label_exit")
+                    .is_some_and(|p| p.0.starts_with("sign_label_"))
             })
             .count();
         let arrows = children
@@ -431,7 +462,9 @@ fn signs_group_labels_and_arrows_under_their_mounts() {
                     .is_some_and(|p| p.0 == "sign_arrow")
             })
             .count();
-        assert_eq!((labels, arrows), (2, 2));
+        assert!(labels == 1 || labels == 2);
+        assert_eq!(labels, arrows);
+        assert_eq!(children.len(), labels + arrows);
     }
-    assert_eq!(count, 5);
+    assert_eq!(count, 9);
 }

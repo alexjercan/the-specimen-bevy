@@ -2,6 +2,7 @@ use std::f32::consts::{FRAC_PI_2, PI};
 
 use crate::levels::{
     builder::prop,
+    devices::DevicePlaceholder,
     module_names::{
         BOILER_UNIT, CONCEPT_CONTAINMENT_TANK, CONCEPT_LOCKER, CONCEPT_TABLE, PIPE_MANIFOLD,
         WALL_VENT,
@@ -104,6 +105,36 @@ pub(super) fn spawn_fixtures(commands: &mut Commands) {
         "trace_claw_marks",
         "trace_claw_marks",
         Transform::from_xyz(-13.65, 1.6, -22.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "trace_claw_marks",
+        "trace_claw_marks",
+        Transform::from_xyz(-3.85, 1.6, 13.5).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "trace_claw_marks",
+        "trace_claw_marks",
+        Transform::from_xyz(12.05, 1.5, 11.35).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "tool_pegboard",
+        "tool_pegboard",
+        Transform::from_xyz(-13.64, 1.6, 8.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "tool_pegboard",
+        "tool_pegboard",
+        Transform::from_xyz(-13.64, 1.6, 17.5).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "trace_claw_marks",
+        "trace_claw_marks",
+        Transform::from_xyz(13.65, 1.5, 17.2).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "trace_claw_marks",
+        "trace_claw_marks",
+        Transform::from_xyz(-3.0, 1.6, 18.65).with_rotation(Quat::from_rotation_y(PI)),
     ));
 }
 
@@ -397,5 +428,188 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         CONCEPT_CONTAINMENT_TANK,
         CONCEPT_CONTAINMENT_TANK,
         Transform::from_xyz(0.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "shelf_unit_low",
+        "shelf_unit_low",
+        Transform::from_xyz(-2.0, 0.0, 3.5).with_rotation(Quat::from_rotation_y(PI)),
+    ));
+    commands.spawn(prop(
+        "workbench",
+        "workbench",
+        Transform::from_xyz(-13.0, 0.0, 6.0).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        CONCEPT_LOCKER,
+        CONCEPT_LOCKER,
+        Transform::from_xyz(-13.35, 0.0, 9.75).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "work_island",
+        "work_island",
+        Transform::from_xyz(-9.5, 0.0, 6.0).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "storage_crate",
+        "storage_crate",
+        Transform::from_xyz(-7.0, 0.0, 4.4).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "clutter_tools",
+        "clutter_tools",
+        Transform::from_xyz(-9.0, 0.0, 9.0).with_rotation(Quat::from_rotation_y(0.6)),
+    ));
+    commands.spawn(prop(
+        "workbench",
+        "workbench",
+        Transform::from_xyz(-13.0, 0.0, 13.75).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        CONCEPT_TABLE,
+        CONCEPT_TABLE,
+        Transform::from_xyz(-7.5, 0.0, 13.75).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "shelf_unit",
+        "shelf_unit",
+        Transform::from_xyz(-12.6, 0.0, 15.95).with_rotation(Quat::from_rotation_y(PI)),
+    ));
+    commands.spawn(prop(
+        "shelf_unit_bins",
+        "shelf_unit_bins",
+        Transform::from_xyz(-12.6, 0.0, 11.55).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "clutter_papers",
+        "clutter_papers",
+        Transform::from_xyz(-9.0, 0.0, 14.5).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "workbench",
+        "workbench",
+        Transform::from_xyz(0.0, 0.0, 15.7).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "work_island",
+        "work_island",
+        Transform::from_xyz(0.0, 0.0, 7.0).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        CONCEPT_TABLE,
+        CONCEPT_TABLE,
+        Transform::from_xyz(-1.5, 0.0, 12.5).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        CONCEPT_LOCKER,
+        CONCEPT_LOCKER,
+        Transform::from_xyz(3.35, 0.0, 13.75).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "chair_tipped",
+        "chair_tipped",
+        Transform::from_xyz(1.8, 0.0, 12.6).with_rotation(Quat::from_rotation_y(0.4)),
+    ));
+    commands.spawn(prop(
+        "clutter_papers",
+        "clutter_papers",
+        Transform::from_xyz(-1.2, 0.0, 9.0).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "workbench",
+        "workbench",
+        Transform::from_xyz(13.0, 0.0, 6.0).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        CONCEPT_LOCKER,
+        CONCEPT_LOCKER,
+        Transform::from_xyz(13.35, 0.0, 9.5).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "shelf_unit",
+        "shelf_unit",
+        Transform::from_xyz(9.0, 0.0, 4.05).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "steel_drum",
+        "steel_drum",
+        Transform::from_xyz(7.0, 0.0, 10.5).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "storage_crate",
+        "storage_crate",
+        Transform::from_xyz(11.0, 0.0, 6.2).with_rotation(Quat::from_rotation_y(0.3)),
+    ));
+    commands.spawn(prop(
+        "workbench",
+        "workbench",
+        Transform::from_xyz(13.0, 0.0, 13.75).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "shelf_unit_bins",
+        "shelf_unit_bins",
+        Transform::from_xyz(6.65, 0.0, 13.75).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "storage_crate",
+        "storage_crate",
+        Transform::from_xyz(7.8, 0.0, 15.6).with_rotation(Quat::from_rotation_y(PI)),
+    ));
+    commands.spawn(prop(
+        "steel_drum",
+        "steel_drum",
+        Transform::from_xyz(12.6, 0.0, 11.8).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "steel_drum",
+        "steel_drum",
+        Transform::from_xyz(-12.8, 0.0, 18.2).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "storage_crate",
+        "storage_crate",
+        Transform::from_xyz(12.8, 0.0, 18.2).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "drum_spilled",
+        "drum_spilled",
+        Transform::from_xyz(1.5, 0.0, 18.2).with_rotation(Quat::from_rotation_y(PI)),
+    ));
+    commands.spawn(prop(
+        "trace_drag_marks",
+        "trace_drag_marks",
+        Transform::from_xyz(-2.5, 0.0, 17.5).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+    ));
+    commands.spawn(prop(
+        "vent_grille",
+        "vent_grille",
+        Transform::from_xyz(-12.6, 0.0, 17.0).with_rotation(Quat::from_rotation_y(0.0)),
+    ));
+    commands.spawn(prop(
+        "clutter_tools",
+        "clutter_tools",
+        Transform::from_xyz(12.3, 0.0, 17.0).with_rotation(Quat::from_rotation_y(0.8)),
+    ));
+    commands.spawn(prop(
+        "shelf_unit_low",
+        "shelf_unit_low",
+        Transform::from_xyz(-7.5, 0.0, 18.5).with_rotation(Quat::from_rotation_y(PI)),
+    ));
+    commands.spawn(prop(
+        "shelf_unit_low",
+        "shelf_unit_low",
+        Transform::from_xyz(7.5, 0.0, 18.5).with_rotation(Quat::from_rotation_y(PI)),
+    ));
+}
+
+pub(super) fn spawn_devices(commands: &mut Commands) {
+    commands.spawn((
+        Name::new("flashbang placeholder"),
+        DevicePlaceholder::Flashbang,
+        Transform::from_xyz(7.2, 0.7, -15.5).with_rotation(Quat::from_rotation_y(0.5)),
+    ));
+    commands.spawn((
+        Name::new("detector placeholder"),
+        DevicePlaceholder::Detector,
+        Transform::from_xyz(-2.0, 1.0, 3.5).with_rotation(Quat::from_rotation_y(PI - 0.3)),
     ));
 }
