@@ -1,0 +1,84 @@
+name: Deploy HTML5 game to itch.io
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, for example v0.1.0
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: itch-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: itch-production
+    steps:
+      - name: Validate request and configuration
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          ITCH_TARGET: ${{ vars.ITCH_TARGET }}
+          BUTLER_VERSION: ${{ vars.BUTLER_VERSION }}
+          BUTLER_SHA256_LINUX_AMD64: ${{ vars.BUTLER_SHA256_LINUX_AMD64 }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must have the form vX.Y.Z" >&2; exit 1; }
+          [[ "$ITCH_TARGET" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || { echo "ITCH_TARGET must have the form user/project" >&2; exit 1; }
+          [[ "$BUTLER_VERSION" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "BUTLER_VERSION is not configured" >&2; exit 1; }
+          [[ "$BUTLER_SHA256_LINUX_AMD64" =~ ^[A-Fa-f0-9]{64}$ ]] || { echo "BUTLER_SHA256_LINUX_AMD64 must be a SHA-256 digest" >&2; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: cachix/install-nix-action@v31
+      - name: Build HTML5 game from tagged source
+        run: nix develop --command trunk build --release
+      - name: Verify upload contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          test -d dist/assets
+          find dist -maxdepth 1 -type f -name '*_bg.wasm' -print -quit | grep -q .
+          (cd dist && find . -type f -print | LC_ALL=C sort > ../upload-inventory.txt)
+          (cd dist && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > ../upload-sha256.txt)
+      - name: Install pinned Butler
+        shell: bash
+        env:
+          BUTLER_VERSION: ${{ vars.BUTLER_VERSION }}
+          BUTLER_SHA256_LINUX_AMD64: ${{ vars.BUTLER_SHA256_LINUX_AMD64 }}
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/butler.zip"
+          install_dir="$RUNNER_TEMP/butler"
+          curl --fail --location --silent --show-error \
+            "https://broth.itch.zone/butler/linux-amd64/${BUTLER_VERSION}/archive/default" \
+            --output "$archive"
+          printf '%s  %s\n' "$BUTLER_SHA256_LINUX_AMD64" "$archive" | sha256sum --check
+          mkdir "$install_dir"
+          unzip -q "$archive" -d "$install_dir"
+          chmod +x "$install_dir/butler"
+          echo "$install_dir" >> "$GITHUB_PATH"
+          "$install_dir/butler" -V
+      - name: Upload HTML5 channel
+        shell: bash
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_TARGET: ${{ vars.ITCH_TARGET }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          test -n "$BUTLER_API_KEY" || { echo "BUTLER_API_KEY is not configured" >&2; exit 1; }
+          butler push dist "${ITCH_TARGET}:html5" --userversion "${RELEASE_TAG#v}"
+      - name: Store upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: itch-html5-${{ inputs.tag }}
+          path: |
+            upload-inventory.txt
+            upload-sha256.txt
+          if-no-files-found: warn
