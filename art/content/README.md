@@ -12,7 +12,7 @@
 | `REPLACE_WITH_BOILER_RESTORE_GIF_PATH` | `gifs/boiler-restore.gif` |
 | `REPLACE_WITH_FUSE_INSTALL_GIF_PATH` | `gifs/fuse-install.gif` |
 
-`screenshots/lab-blackout.png` is an extra gallery candidate. `trailer.mp4` is a separate video asset; do not paste a local path into the HTML description. Check the trailer's audio sample provenance before publishing it.
+`screenshots/lab-blackout.png` is an extra gallery candidate. Upload `cover.png` (630x500) as the itch.io cover image and `banner.png` (960x240) as the page banner; these are separate page settings, not images for the description. `trailer.mp4` is a separate video asset; do not paste a local path into the HTML description. Check the trailer's audio sample provenance before publishing it.
 
 ## Suggested itch.io settings
 
@@ -28,7 +28,7 @@
 | Text Font | Lato |
 | Size | Large |
 | Screenshots layout | Auto |
-| Banner | None until a legible dedicated banner is made |
+| Banner | Upload `banner.png` (960x240), made from the v0.1.1 pinned lab-blackout gallery capture |
 | Background image | None; use the solid BG color |
 | Embed BG | `#080C10` |
 

@@ -23,7 +23,7 @@
 ## Delivery
 
 - Add `art/content/itch.html` with accurate gameplay copy and `https://img.itch.zone/` placeholders for `assembly-stalker.png`, `fuse-table.png`, `hide-prompt.png`, `exit-locked.png`, `locker-watch.gif`, `boiler-restore.gif`, and `fuse-install.gif`. Copy five screenshots to `art/content/screenshots/`, three GIFs to `art/content/gifs/`, and the trailer to `art/content/trailer.mp4`. Preserve user authorship and avoid promises about unverified browser behavior.
-- Keep the upload checklist, image-placeholder mapping, palette, and presentation settings in `art/content/README.md` for use during manual page setup.
+- Keep the upload checklist, image-placeholder mapping, palette, and presentation settings in `art/content/README.md` for use during manual page setup. `art/content/banner.png` is a 960x240 itch.io header and `art/content/cover.png` is a 630x500 itch.io cover, both composed from a v0.1.1 pinned game capture.
 
 ## Verification
 
