@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-09
+
+### Distribution
+
+- Publish Linux, Windows, and HTML5 archives together as a GitHub Release after all tagged builds pass.
+- Deploy itch.io channels from published GitHub Release assets instead of temporary Actions artifacts.
+
 ## [0.1.0] - 2026-10-09
 
 First playable release of The Specimen.
@@ -18,5 +25,6 @@ First playable release of The Specimen.
 - Manual workflows deploy the browser game to GitHub Pages and reuse tagged release artifacts for the itch.io HTML5, Windows, and Linux channels.
 - Debug inspector shows grouped entities and lets testers edit the player's fuse inventory.
 
-[Unreleased]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/alexjercan/the-specimen-bevy/tree/v0.1.0
