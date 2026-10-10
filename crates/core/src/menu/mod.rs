@@ -1,3 +1,4 @@
+mod achievements;
 mod background;
 mod cinematic;
 mod complete;
@@ -32,6 +33,7 @@ pub enum GameState {
     Complete,
     GameOver,
     Credits,
+    Achievements,
 }
 
 #[derive(SubStates, Default, Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -49,6 +51,7 @@ enum MenuAction {
     Resume,
     MainMenu,
     Credits,
+    Achievements,
     #[cfg(not(target_arch = "wasm32"))]
     Quit,
 }
@@ -62,6 +65,7 @@ impl Plugin for MenuPlugin {
         }
         app.init_resource::<game_settings::GameSettings>()
             .init_resource::<game_settings::SettingsDirty>()
+            .init_resource::<gameplay::achievements::AchievementProgress>()
             .add_message::<PlaySound>()
             .add_sub_state::<GameState>()
             .add_sub_state::<PauseState>()
@@ -74,6 +78,7 @@ impl Plugin for MenuPlugin {
                 credits::plugin,
                 game_over::plugin,
                 settings::plugin,
+                achievements::plugin,
             ))
             .add_systems(Update, (activate_buttons, hover_buttons));
     }
@@ -115,6 +120,10 @@ fn activate_buttons(
             MenuAction::Credits => {
                 *route = credits::CreditsRoute::MainMenu;
                 game.set(GameState::Credits);
+                Sound::UiConfirm
+            }
+            MenuAction::Achievements => {
+                game.set(GameState::Achievements);
                 Sound::UiConfirm
             }
             #[cfg(not(target_arch = "wasm32"))]

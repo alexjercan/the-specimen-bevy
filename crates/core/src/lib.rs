@@ -120,7 +120,8 @@ impl AppBuilder {
             filter: LOG_FILTER.into(),
             ..default()
         };
-        app.add_plugins(GameSettingsPlugin { persist: menu });
+        app.add_plugins(GameSettingsPlugin { persist: menu })
+            .add_plugins(game_achievements::AchievementStorePlugin { persist: menu });
         if self.headless {
             app.add_plugins(
                 MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_millis(10))),

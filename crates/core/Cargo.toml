@@ -7,11 +7,13 @@ publish = false
 
 [features]
 debug = ["dep:debug"]
+steam = ["game_achievements/steam"]
 
 [dependencies]
 bevy.workspace = true
 capture.workspace = true
 bevy_enhanced_input.workspace = true
+game_achievements.workspace = true
 game_assets.workspace = true
 game_audio.workspace = true
 bevy_rand.workspace = true

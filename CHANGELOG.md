@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Achievements
+
+- Track seven achievements and save them on the device (native file or browser storage).
+- Show all achievements with their status in a new Achievements screen below Credits, and show a toast when one unlocks.
+- Optional `steam` build feature syncs achievements with Steam when Steam is available. See `docs/achievements.md`.
+
 ## [0.1.1] - 2026-10-09
 
 ### Distribution

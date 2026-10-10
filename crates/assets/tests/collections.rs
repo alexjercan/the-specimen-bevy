@@ -32,6 +32,32 @@ fn declared_scenes_match_promoted_manifest() {
 }
 
 #[test]
+fn declared_achievement_icons_exist_in_locked_and_unlocked_pairs() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
+    let declared: Vec<_> = include_str!("../src/lib.rs")
+        .lines()
+        .filter_map(|line| {
+            line.trim()
+                .trim_end_matches(',')
+                .strip_prefix("\"ui/achievements/")
+                .and_then(|path| path.strip_suffix(".png\""))
+        })
+        .collect();
+    let unique: BTreeSet<_> = declared.iter().copied().collect();
+    assert_eq!(declared.len(), 14);
+    assert_eq!(unique.len(), 14, "duplicate achievement icon path");
+    for name in unique {
+        assert!(root.join(format!("ui/achievements/{name}.png")).is_file());
+        let stem = name
+            .strip_suffix("-locked")
+            .or_else(|| name.strip_suffix("-unlocked"))
+            .expect("icon variant suffix");
+        assert!(declared.contains(&format!("{stem}-locked").as_str()));
+        assert!(declared.contains(&format!("{stem}-unlocked").as_str()));
+    }
+}
+
+#[test]
 fn declared_key_glyphs_match_mapping_and_exist() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
     let declared: Vec<_> = include_str!("../src/lib.rs")

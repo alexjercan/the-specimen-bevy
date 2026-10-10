@@ -40,12 +40,47 @@ impl Achievement {
             Self::EscapeUndetected => "ESCAPE_UNDETECTED",
         }
     }
+
+    pub fn from_id(id: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|achievement| achievement.id() == id)
+    }
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::EscapeWithoutFlashbang => "Escape empty-handed",
+            Self::EscapeWithoutDetector => "Trust your ears",
+            Self::FlashbangHitMonster => "Buy some time",
+            Self::EscapeWithoutBoiler => "In the dark",
+            Self::RestoreBoiler => "Let there be light",
+            Self::CaughtAfterExitOpen => "So close",
+            Self::EscapeUndetected => "Unseen",
+        }
+    }
+
+    pub const fn criteria(self) -> &'static str {
+        match self {
+            Self::EscapeWithoutFlashbang => "Escape without picking up a flashbang during the run.",
+            Self::EscapeWithoutDetector => "Escape without picking up the detector during the run.",
+            Self::FlashbangHitMonster => "Land a flashbang burst on the monster.",
+            Self::EscapeWithoutBoiler => "Escape without restoring the boiler during the run.",
+            Self::RestoreBoiler => "Restore power at the boiler.",
+            Self::CaughtAfterExitOpen => {
+                "Open the unlocked exit door, then get caught before you leave the facility."
+            }
+            Self::EscapeUndetected => {
+                "Escape without the monster ever detecting you during the run."
+            }
+        }
+    }
 }
 
 #[derive(Resource, Default, Debug)]
 pub struct AchievementProgress {
     pub unlocked: HashSet<Achievement>,
 }
+
+#[derive(Event, Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AchievementUnlocked(pub Achievement);
 
 #[derive(Component, Default, Debug)]
 pub struct RunAchievements {
@@ -94,6 +129,7 @@ fn record_signal(
     signal: On<AchievementSignal>,
     mut runs: Query<&mut RunAchievements, With<PlayerController>>,
     mut progress: ResMut<AchievementProgress>,
+    mut commands: Commands,
 ) {
     let Ok(mut run) = runs.get_mut(signal.player) else {
         return;
@@ -103,12 +139,12 @@ fn record_signal(
         AchievementSignalKind::PickedDetector => run.picked_detector = true,
         AchievementSignalKind::RestoredBoiler => {
             run.restored_boiler = true;
-            progress.unlocked.insert(Achievement::RestoreBoiler);
+            unlock(&mut progress, &mut commands, Achievement::RestoreBoiler);
         }
         AchievementSignalKind::ExitOpened => run.exit_opened = true,
         AchievementSignalKind::Detected => run.detected = true,
         AchievementSignalKind::FlashbangHitMonster => {
-            progress.unlocked.insert(Achievement::FlashbangHitMonster);
+            unlock(&mut progress, &mut commands, Achievement::FlashbangHitMonster);
         }
     }
 }
@@ -117,23 +153,20 @@ fn record_escape(
     added: On<Add, Escaped>,
     runs: Query<&RunAchievements, With<PlayerController>>,
     mut progress: ResMut<AchievementProgress>,
+    mut commands: Commands,
 ) {
     let Ok(run) = runs.get(added.entity) else {
         return;
     };
-    if !run.picked_flashbang {
-        progress
-            .unlocked
-            .insert(Achievement::EscapeWithoutFlashbang);
-    }
-    if !run.picked_detector {
-        progress.unlocked.insert(Achievement::EscapeWithoutDetector);
-    }
-    if !run.restored_boiler {
-        progress.unlocked.insert(Achievement::EscapeWithoutBoiler);
-    }
-    if !run.detected {
-        progress.unlocked.insert(Achievement::EscapeUndetected);
+    for (earned, achievement) in [
+        (!run.picked_flashbang, Achievement::EscapeWithoutFlashbang),
+        (!run.picked_detector, Achievement::EscapeWithoutDetector),
+        (!run.restored_boiler, Achievement::EscapeWithoutBoiler),
+        (!run.detected, Achievement::EscapeUndetected),
+    ] {
+        if earned {
+            unlock(&mut progress, &mut commands, achievement);
+        }
     }
 }
 
@@ -141,9 +174,16 @@ fn record_caught(
     added: On<Add, Caught>,
     runs: Query<&RunAchievements, With<PlayerController>>,
     mut progress: ResMut<AchievementProgress>,
+    mut commands: Commands,
 ) {
     if runs.get(added.entity).is_ok_and(|run| run.exit_opened) {
-        progress.unlocked.insert(Achievement::CaughtAfterExitOpen);
+        unlock(&mut progress, &mut commands, Achievement::CaughtAfterExitOpen);
+    }
+}
+
+fn unlock(progress: &mut AchievementProgress, commands: &mut Commands, achievement: Achievement) {
+    if progress.unlocked.insert(achievement) {
+        commands.trigger(AchievementUnlocked(achievement));
     }
 }
 

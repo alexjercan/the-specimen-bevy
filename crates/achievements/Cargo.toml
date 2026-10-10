@@ -1,0 +1,21 @@
+[package]
+name = "game_achievements"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+steam = ["dep:steamworks"]
+
+[dependencies]
+bevy.workspace = true
+gameplay.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+steamworks = { version = "0.13.1", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = ["Storage", "Window"] }

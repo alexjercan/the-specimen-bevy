@@ -34,7 +34,7 @@
 <header>
   <div class="eyebrow">The Specimen / Steam concept sheet</div>
   <h1>Achievements</h1>
-  <p>Seven achievement concepts for a facility escape. The icons and tiles below are art drafts for review, not live Steam achievements. No unlock logic or Steamworks integration exists yet.</p>
+  <p>Seven achievement concepts for a facility escape. The icons and tiles below are art drafts for review, not live Steam achievements. The game tracks and saves these achievements locally. Steam sync is an optional build feature; no Steam app or published achievements exist yet. See docs/achievements.md.</p>
 </header>
 <main>
   <div class="controls"><span class="note">Unlocked and locked icon previews. All artwork is local.</span><button type="button" id="toggle" aria-pressed="false">Show locked icons</button></div>
@@ -48,14 +48,14 @@
     <article><img src="achievements/unseen-unlocked.png" data-key="unseen" alt="Crossed-out eye icon"><div><h2>Unseen</h2><p>Escape without the monster ever detecting you during this run.</p><code>ESCAPE_UNDETECTED</code></div></article>
   </div>
   <section class="rules">
-    <h2>Unlock rules for a future implementation</h2>
+    <h2>Unlock rules</h2>
     <ul>
       <li>Track run eligibility from the start of a fresh game. Reset it on replay. Check escape conditions only when the player actually escapes.</li>
       <li>Record flashbang and detector pickups, not current inventory. Using or dropping an item must not restore a no-pickup condition.</li>
-      <li>Buy some time now uses a local confirmed-hit signal when the monster is within the flashbang burst area and in clear line of sight. A throw, sound, or temporary protection for the player alone does not count. Steam sync remains pending.</li>
+      <li>Buy some time now uses a local confirmed-hit signal when the monster is within the flashbang burst area and in clear line of sight. A throw, sound, or temporary protection for the player alone does not count.</li>
       <li>Record completed boiler repairs. For So close, record the exit door actually opening after unlock and require the player to be caught before the escape event.</li>
       <li>Count detection when the monster first enters pursuit of the player through sight or sound. Escaping pursuit later does not restore Unseen eligibility.</li>
-      <li>Keep gameplay rules independent of the Steamworks adapter. Steamworks API IDs above are drafts; publish nothing until implementation and playtest verification.</li>
+      <li>Keep gameplay rules independent of the Steamworks adapter. The Steamworks API names must match the IDs above; publish nothing until playtest verification on Steam.</li>
     </ul>
     <p>Icon sources and exports: <a href="achievements/render.py">achievements/render.py</a>. Each concept has a 256 x 256 unlocked PNG and a dim locked PNG. The matching SVG files are editable masters.</p>
   </section>

@@ -18,7 +18,9 @@ The replica renders the About section from the BBCode below by hand. If you
 change the copy, change both. Its screenshot strip uses JavaScript; without
 JavaScript, the first thumbnail opens the trailer and the others open the full image. The store links and the
 wishlist button are inert. The separate [achievement preview](achievements.html)
-shows planned icons and rules; no Steam achievements are implemented yet.
+shows planned icons and rules. The game tracks and saves these achievements
+locally; Steam sync is an optional build feature with no App ID yet. See
+`docs/achievements.md`.
 
 ## Source and provenance
 

@@ -546,7 +546,10 @@ fn spawn_overlay(
         GameState::Playing => {
             root.insert(DespawnOnExit(PauseState::Paused));
         }
-        GameState::Complete | GameState::GameOver | GameState::Credits => {
+        GameState::Complete
+        | GameState::GameOver
+        | GameState::Credits
+        | GameState::Achievements => {
             return;
         }
     }

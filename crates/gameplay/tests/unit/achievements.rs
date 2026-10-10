@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::{
     Achievement, AchievementPlugin, AchievementProgress, AchievementSignal, AchievementSignalKind,
-    RunAchievements,
+    AchievementUnlocked, RunAchievements,
 };
 use crate::{
     controller::PlayerController,
@@ -77,6 +77,47 @@ fn caught_requires_player_opened_exit() {
         .entity_mut(replay)
         .insert(Caught::new(monster));
     assert!(has(&app, Achievement::CaughtAfterExitOpen));
+}
+
+#[derive(Resource, Default)]
+struct Unlocks(Vec<Achievement>);
+
+#[test]
+fn unlock_event_fires_once_for_new_unlocks_only() {
+    let (mut app, player) = app();
+    app.init_resource::<Unlocks>().add_observer(
+        |unlocked: On<AchievementUnlocked>, mut unlocks: ResMut<Unlocks>| {
+            unlocks.0.push(unlocked.0);
+        },
+    );
+    app.world_mut()
+        .resource_mut::<AchievementProgress>()
+        .unlocked
+        .insert(Achievement::EscapeUndetected);
+    signal(&mut app, player, AchievementSignalKind::FlashbangHitMonster);
+    signal(&mut app, player, AchievementSignalKind::FlashbangHitMonster);
+    app.world_mut().entity_mut(player).insert(Escaped);
+    let mut unlocks = app.world().resource::<Unlocks>().0.clone();
+    unlocks.sort_by_key(|achievement| achievement.id());
+    assert_eq!(
+        unlocks,
+        [
+            Achievement::EscapeWithoutBoiler,
+            Achievement::EscapeWithoutDetector,
+            Achievement::EscapeWithoutFlashbang,
+            Achievement::FlashbangHitMonster,
+        ]
+    );
+}
+
+#[test]
+fn every_achievement_has_text_and_round_trips_its_id() {
+    for achievement in Achievement::ALL {
+        assert_eq!(Achievement::from_id(achievement.id()), Some(achievement));
+        assert!(!achievement.name().is_empty());
+        assert!(!achievement.criteria().is_empty());
+    }
+    assert_eq!(Achievement::from_id("UNKNOWN"), None);
 }
 
 #[test]

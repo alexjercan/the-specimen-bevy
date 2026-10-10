@@ -249,6 +249,26 @@ pub struct UiAssets {
         collection(mapped, typed)
     )]
     pub key_glyphs: HashMap<AssetFileStem, Handle<Image>>,
+    #[asset(
+        paths(
+            "ui/achievements/buy-some-time-locked.png",
+            "ui/achievements/buy-some-time-unlocked.png",
+            "ui/achievements/empty-handed-locked.png",
+            "ui/achievements/empty-handed-unlocked.png",
+            "ui/achievements/in-the-dark-locked.png",
+            "ui/achievements/in-the-dark-unlocked.png",
+            "ui/achievements/let-there-be-light-locked.png",
+            "ui/achievements/let-there-be-light-unlocked.png",
+            "ui/achievements/so-close-locked.png",
+            "ui/achievements/so-close-unlocked.png",
+            "ui/achievements/trust-your-ears-locked.png",
+            "ui/achievements/trust-your-ears-unlocked.png",
+            "ui/achievements/unseen-locked.png",
+            "ui/achievements/unseen-unlocked.png"
+        ),
+        collection(mapped, typed)
+    )]
+    pub achievement_icons: HashMap<AssetFileStem, Handle<Image>>,
     #[asset(path = "ui/fonts/SGr-IosevkaTerm-Medium.ttf")]
     pub font: Handle<Font>,
 }
@@ -256,6 +276,12 @@ pub struct UiAssets {
 impl UiAssets {
     pub fn key_glyph(&self, key: &str) -> Option<Handle<Image>> {
         self.key_glyphs.get(key_glyph_stem(key)?).cloned()
+    }
+
+    pub fn achievement_icon(&self, stem: &str, unlocked: bool) -> Option<Handle<Image>> {
+        let suffix = if unlocked { "unlocked" } else { "locked" };
+        let key = format!("{stem}-{suffix}");
+        self.achievement_icons.get(key.as_str()).cloned()
     }
 }
 

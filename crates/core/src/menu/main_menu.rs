@@ -83,6 +83,11 @@ fn spawn_main_menu(
                     MenuAction::Credits,
                     menu_button("Credits", font.clone()),
                 ),
+                (
+                    Name::new("Achievements button"),
+                    MenuAction::Achievements,
+                    menu_button("Achievements", font.clone()),
+                ),
             ],
         ))
         .id();

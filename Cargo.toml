@@ -12,6 +12,7 @@ name = "game"
 
 [workspace]
 members = [
+    "crates/achievements",
     "crates/assets",
     "crates/audio",
     "crates/autopilot",
@@ -42,6 +43,7 @@ bevy_egui = { version = "0.40.1", default-features = false, features = ["bevy_ui
 bevy-inspector-egui = { version = "0.37.0", default-features = false, features = ["bevy"] }
 autopilot = { path = "crates/autopilot" }
 capture = { path = "crates/capture" }
+game_achievements = { path = "crates/achievements" }
 game_core = { path = "crates/core" }
 game_assets = { path = "crates/assets" }
 game_audio = { path = "crates/audio" }
@@ -66,6 +68,7 @@ debug = 0
 
 [features]
 debug = ["game_core/debug"]
+steam = ["game_core/steam"]
 
 [dependencies]
 bevy.workspace = true
