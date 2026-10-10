@@ -3,8 +3,8 @@ use std::time::Duration;
 use bevy::{prelude::*, time::TimeUpdateStrategy};
 
 use super::{
-    point, room_at, route, CHASE_TURN_SPEED, GRID, MODEL_LIFT, MODEL_PIVOT, MODEL_SCALE,
-    SEARCH_RADIUS, SEARCH_TIME, TURN_SPEED,
+    long_patrol_route, point, room_at, route, CHASE_TURN_SPEED, GRID, MODEL_LIFT, MODEL_PIVOT,
+    MODEL_SCALE, SEARCH_RADIUS, SEARCH_TIME, SHORT_PATROL_LEGS, TURN_SPEED,
 };
 use crate::presets::{GameMode, GamePreset};
 
@@ -134,12 +134,19 @@ fn measure_chase(mode: GameMode) -> Vec<f32> {
         .spawn(Room(Rect::new(-5.0, -25.0, 5.0, 5.0)));
     let monster = app
         .world_mut()
-        .spawn((Monster::default(), Transform::IDENTITY))
+        .spawn((
+            Monster {
+                long_patrol_running: true,
+                ..Default::default()
+            },
+            Transform::IDENTITY,
+        ))
         .id();
     app.world_mut()
         .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -15.0)));
     app.update();
     assert!(monster_state(&app, monster).pursuit.is_some());
+    assert!(!monster_state(&app, monster).long_patrol_running);
     let mut previous = app.world().get::<Transform>(monster).unwrap().translation;
     let mut steps = Vec::new();
     for _ in 0..8 {
@@ -1190,6 +1197,94 @@ fn detection_and_attack_emit_one_source_attached_cue_each() {
 }
 
 #[test]
+fn long_patrol_only_selects_reachable_distant_rooms() {
+    let rooms = [
+        (
+            Entity::from_raw_u32(1).unwrap(),
+            Rect::new(-30.0, -1.0, 0.0, 1.0),
+        ),
+        (
+            Entity::from_raw_u32(2).unwrap(),
+            Rect::new(0.0, -1.0, 30.0, 1.0),
+        ),
+        (
+            Entity::from_raw_u32(3).unwrap(),
+            Rect::new(30.0, -1.0, 50.0, 1.0),
+        ),
+    ];
+    let start = Vec2::new(-15.0, 0.0);
+    let path = long_patrol_route(start, &rooms, &[]).unwrap();
+    assert_eq!(path.back().unwrap().x, 40.0);
+    let sealed = [(
+        Vec2::ZERO,
+        Vec2::new(1.0, 0.125),
+        std::f32::consts::FRAC_PI_2,
+    )];
+    assert!(long_patrol_route(start, &rooms, &sealed).is_none());
+}
+
+#[test]
+fn patrol_schedules_a_distant_room_after_short_legs() {
+    use crate::levels::{DoorOf, DoorRef, Monster, Room};
+
+    let mut running = Vec::new();
+    let mut walking = Vec::new();
+    for seed in 0..16 {
+        let mut app = monster_app(seed);
+        let door = app
+            .world_mut()
+            .spawn(crate::levels::builder::door(
+                "patrol passage",
+                Vec2::ZERO,
+                std::f32::consts::FRAC_PI_2,
+                "wall_doorway",
+                "door_panel",
+            ))
+            .id();
+        app.world_mut()
+            .spawn(Room(Rect::new(-30.0, -1.25, 0.0, 1.25)))
+            .with_related::<DoorOf>(DoorRef(door));
+        app.world_mut()
+            .spawn(Room(Rect::new(0.0, -1.25, 30.0, 1.25)))
+            .with_related::<DoorOf>(DoorRef(door));
+        let start = Vec2::new(-15.0, 0.0);
+        let monster = app
+            .world_mut()
+            .spawn((
+                Monster {
+                    patrol_legs: SHORT_PATROL_LEGS,
+                    ..Default::default()
+                },
+                Transform::from_xyz(start.x, 0.0, start.y),
+            ))
+            .id();
+        app.update();
+        let state = monster_state(&app, monster);
+        assert_eq!(state.patrol_legs, 0);
+        assert!(state.route.back().unwrap().distance(start) >= 24.0);
+        let runs = state.long_patrol_running;
+        for _ in 0..30 {
+            app.update();
+        }
+        let travelled = app
+            .world()
+            .get::<Transform>(monster)
+            .unwrap()
+            .translation
+            .xz()
+            .distance(start);
+        if runs {
+            running.push(travelled);
+        } else {
+            walking.push(travelled);
+        }
+    }
+    assert!(!running.is_empty() && !walking.is_empty());
+    assert!(running.iter().all(|distance| *distance > 3.0));
+    assert!(walking.iter().all(|distance| *distance < 3.0));
+}
+
+#[test]
 fn patrol_path_uses_opening_and_avoids_solid_props() {
     let rooms = [
         (
@@ -1645,6 +1740,36 @@ fn locked_exit_is_not_a_patrol_neighbor() {
         world.query::<&Door>().single(world).unwrap().state,
         crate::levels::DoorState::Closed
     );
+}
+
+#[test]
+fn authored_floor_has_a_reachable_long_patrol_destination() {
+    use crate::levels::Monster;
+
+    let mut app = monster_app(42);
+    app.insert_resource(crate::levels::FuseSeed(42))
+        .add_observer(crate::controller::collision::attach_prop_collider)
+        .add_systems(
+            Startup,
+            (
+                crate::levels::build_first_floor,
+                crate::levels::spawn_first_floor_actors,
+            ),
+        );
+    app.update();
+    let world = app.world_mut();
+    let monster = world
+        .query_filtered::<Entity, With<Monster>>()
+        .single(world)
+        .unwrap();
+    let start = world.get::<Transform>(monster).unwrap().translation.xz();
+    let mut state = world.get_mut::<Monster>(monster).unwrap();
+    state.route.clear();
+    state.patrol_legs = SHORT_PATROL_LEGS;
+    app.update();
+    let state = monster_state(&app, monster);
+    assert_eq!(state.patrol_legs, 0);
+    assert!(state.route.back().unwrap().distance(start) >= 24.0);
 }
 
 #[test]

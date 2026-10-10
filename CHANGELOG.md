@@ -12,6 +12,7 @@
 
 ### Gameplay and debug tools
 
+- Send the monster toward the farthest reachable room at least 24 meters away after several local patrol legs; it sometimes runs there to avoid lingering near a hiding player.
 - Let the monster hear moving players through walls based only on distance and the selected walking or sprinting hearing range; sight and capture still require clear paths.
 - Let every flashbang in a stack launch, follow its own world-space gravity arc, and burst at its landing point without following the player. Each confirmed hit renews protection from that monster; misses give no protection.
 - Show the white flash overlay only when the player faces a nearby, unobstructed burst, independently of monster-hit protection.

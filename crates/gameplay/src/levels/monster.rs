@@ -27,6 +27,8 @@ const SEARCH_RADIUS: f32 = 2.5;
 const SEARCH_REACH: f32 = 10.0;
 const STALL_LIMIT: u8 = 3;
 const SEARCH_RETRY: f32 = 0.5;
+const LONG_PATROL_DISTANCE: f32 = 24.0;
+const SHORT_PATROL_LEGS: u8 = 3;
 pub(super) const ATTACK_REACH: f32 = 1.8;
 const ATTACK_DURATION: f32 = 40.0 / 24.0;
 const JUMPSCARE_TURN_SPEED: f32 = 9.0;
@@ -60,6 +62,8 @@ pub struct Monster {
     step_index: usize,
     route_retry: f32,
     stalls: u8,
+    patrol_legs: u8,
+    long_patrol_running: bool,
     pursuit: Option<Pursuit>,
 }
 
@@ -104,6 +108,8 @@ impl Default for Monster {
             step_index: 0,
             route_retry: 0.0,
             stalls: 0,
+            patrol_legs: 0,
+            long_patrol_running: false,
             pursuit: None,
         }
     }
@@ -237,7 +243,9 @@ fn animate_monster(
                     }
                     let clip = if attacking {
                         animations.attack
-                    } else if monster.pursuit.is_some() {
+                    } else if monster.pursuit.is_some()
+                        || (monster.long_patrol_running && !monster.route.is_empty())
+                    {
                         animations.chase
                     } else if monster.route.is_empty() {
                         animations.idle
@@ -384,6 +392,26 @@ fn route(
     None
 }
 
+fn long_patrol_route(
+    position: Vec2,
+    rooms: &[(Entity, Rect)],
+    blockers: &[(Vec2, Vec2, f32)],
+) -> Option<VecDeque<Vec2>> {
+    let mut centers: Vec<_> = rooms
+        .iter()
+        .map(|(_, bounds)| (bounds.min + bounds.max) * 0.5)
+        .filter(|center| position.distance(*center) >= LONG_PATROL_DISTANCE)
+        .collect();
+    centers.sort_by(|a, b| {
+        position
+            .distance_squared(*b)
+            .total_cmp(&position.distance_squared(*a))
+    });
+    centers
+        .into_iter()
+        .find_map(|center| route(position, center, rooms, blockers).filter(|path| !path.is_empty()))
+}
+
 fn clear_path(start: Vec2, end: Vec2, blockers: &[(Vec2, Vec2, f32)]) -> bool {
     collision::move_player(start, end - start, blockers).distance(end) < 0.01
 }
@@ -511,6 +539,7 @@ fn sense_player(
                 });
                 monster.route.clear();
                 monster.stalls = 0;
+                monster.long_patrol_running = false;
                 monster.pursuit = Some(Pursuit {
                     last_sensed: target,
                     remaining: SEARCH_TIME,
@@ -812,6 +841,16 @@ fn patrol(
             monster.route_retry -= delta;
             continue;
         }
+        if monster.route.is_empty()
+            && monster.pursuit.is_none()
+            && monster.patrol_legs >= SHORT_PATROL_LEGS
+        {
+            if let Some(path) = long_patrol_route(position, &rooms_data, &blockers) {
+                monster.route = path;
+                monster.patrol_legs = 0;
+                monster.long_patrol_running = rng.0.next_u32() % 2 == 0;
+            }
+        }
         if monster.route.is_empty() {
             if let Some(room) = room_at(position, &rooms_data) {
                 let neighbors: Vec<_> = rooms
@@ -856,6 +895,8 @@ fn patrol(
                     let center = (bounds.min + bounds.max) * 0.5;
                     if let Some(path) = route(position, center, &rooms_data, &blockers) {
                         monster.route = path;
+                        monster.patrol_legs = monster.patrol_legs.saturating_add(1);
+                        monster.long_patrol_running = false;
                     } else {
                         monster.route_retry = 1.0;
                     }
@@ -899,7 +940,7 @@ fn patrol(
         if !facing_waypoint {
             continue;
         }
-        let speed = if monster.pursuit.is_some() {
+        let speed = if monster.pursuit.is_some() || monster.long_patrol_running {
             preset.monster.chase_speed.value()
         } else {
             preset.monster.walk_speed.value()
@@ -937,7 +978,7 @@ fn patrol(
         transform.translation.x = moved.x;
         transform.translation.z = moved.y;
         monster.step_clock += delta;
-        let step_period = if monster.pursuit.is_some() {
+        let step_period = if monster.pursuit.is_some() || monster.long_patrol_running {
             CHASE_STEP_PERIOD
         } else {
             STEP_PERIOD
