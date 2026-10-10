@@ -171,3 +171,17 @@ fn shift_falls_back_to_walk_when_exhausted_and_emits_one_event() {
     app.update();
     assert_eq!(app.world().get::<Stamina>(player).unwrap().charge, charge);
 }
+
+#[test]
+fn spent_stamina_never_recovers_or_sprints() {
+    let mut stamina = Stamina::spent();
+    for _ in 0..10 {
+        assert!(!stamina.advance(false, false, SPRINT_RECHARGE_SECONDS));
+        assert!(!stamina.advance(true, true, SPRINT_RECHARGE_SECONDS));
+    }
+    assert_eq!(stamina, Stamina::spent());
+    stamina.charge = 1.0;
+    stamina.exhausted = false;
+    assert!(!stamina.advance(true, true, 0.1));
+    assert_eq!(stamina, Stamina::spent());
+}

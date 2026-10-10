@@ -5,10 +5,12 @@ use bevy::prelude::*;
 use crate::{
     controller::PlayerController,
     levels::{Caught, Escaped, FacilityPower},
+    presets::{GameMode, GamePreset},
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Achievement {
+    Escaped,
     EscapeWithoutFlashbang,
     EscapeWithoutDetector,
     FlashbangHitMonster,
@@ -16,10 +18,24 @@ pub enum Achievement {
     RestoreBoiler,
     CaughtAfterExitOpen,
     EscapeUndetected,
+    EscapeInsane,
 }
 
 impl Achievement {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 9] = [
+        Self::Escaped,
+        Self::EscapeWithoutFlashbang,
+        Self::EscapeWithoutDetector,
+        Self::FlashbangHitMonster,
+        Self::EscapeWithoutBoiler,
+        Self::RestoreBoiler,
+        Self::CaughtAfterExitOpen,
+        Self::EscapeUndetected,
+        Self::EscapeInsane,
+    ];
+
+    pub const INSANE_GATE: [Self; 8] = [
+        Self::Escaped,
         Self::EscapeWithoutFlashbang,
         Self::EscapeWithoutDetector,
         Self::FlashbangHitMonster,
@@ -31,6 +47,7 @@ impl Achievement {
 
     pub const fn id(self) -> &'static str {
         match self {
+            Self::Escaped => "ESCAPED",
             Self::EscapeWithoutFlashbang => "ESCAPE_WITHOUT_FLASHBANG",
             Self::EscapeWithoutDetector => "ESCAPE_WITHOUT_DETECTOR",
             Self::FlashbangHitMonster => "FLASHBANG_HIT_MONSTER",
@@ -38,6 +55,7 @@ impl Achievement {
             Self::RestoreBoiler => "RESTORE_BOILER",
             Self::CaughtAfterExitOpen => "CAUGHT_AFTER_EXIT_OPEN",
             Self::EscapeUndetected => "ESCAPE_UNDETECTED",
+            Self::EscapeInsane => "ESCAPE_INSANE",
         }
     }
 
@@ -49,6 +67,7 @@ impl Achievement {
 
     pub const fn name(self) -> &'static str {
         match self {
+            Self::Escaped => "Escaped",
             Self::EscapeWithoutFlashbang => "Escape empty-handed",
             Self::EscapeWithoutDetector => "Trust your ears",
             Self::FlashbangHitMonster => "Buy some time",
@@ -56,11 +75,17 @@ impl Achievement {
             Self::RestoreBoiler => "Let there be light",
             Self::CaughtAfterExitOpen => "So close",
             Self::EscapeUndetected => "Unseen",
+            Self::EscapeInsane => "Out of your mind",
         }
+    }
+
+    pub const fn hidden(self) -> bool {
+        matches!(self, Self::EscapeInsane)
     }
 
     pub const fn criteria(self) -> &'static str {
         match self {
+            Self::Escaped => "Escape the facility.",
             Self::EscapeWithoutFlashbang => "Escape without picking up a flashbang during the run.",
             Self::EscapeWithoutDetector => "Escape without picking up the detector during the run.",
             Self::FlashbangHitMonster => "Land a flashbang burst on the monster.",
@@ -74,6 +99,7 @@ impl Achievement {
             Self::EscapeUndetected => {
                 "Escape without the monster ever detecting you during the run."
             }
+            Self::EscapeInsane => "Escape in Insane mode.",
         }
     }
 }
@@ -81,6 +107,14 @@ impl Achievement {
 #[derive(Resource, Default, Debug)]
 pub struct AchievementProgress {
     pub unlocked: HashSet<Achievement>,
+}
+
+impl AchievementProgress {
+    pub fn insane_unlocked(&self) -> bool {
+        Achievement::INSANE_GATE
+            .iter()
+            .all(|achievement| self.unlocked.contains(achievement))
+    }
 }
 
 #[derive(Event, Clone, Copy, Debug, Eq, PartialEq)]
@@ -116,6 +150,7 @@ pub struct AchievementPlugin;
 impl Plugin for AchievementPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AchievementProgress>()
+            .init_resource::<GamePreset>()
             .add_observer(attach_run)
             .add_observer(record_signal)
             .add_observer(record_escape)
@@ -161,12 +196,14 @@ fn record_escape(
     added: On<Add, Escaped>,
     runs: Query<&RunAchievements, With<PlayerController>>,
     power: Option<Res<FacilityPower>>,
+    preset: Res<GamePreset>,
     mut progress: ResMut<AchievementProgress>,
     mut commands: Commands,
 ) {
     let Ok(run) = runs.get(added.entity) else {
         return;
     };
+    unlock(&mut progress, &mut commands, Achievement::Escaped);
     for (earned, achievement) in [
         (!run.picked_flashbang, Achievement::EscapeWithoutFlashbang),
         (!run.picked_detector, Achievement::EscapeWithoutDetector),
@@ -175,6 +212,7 @@ fn record_escape(
             Achievement::EscapeWithoutBoiler,
         ),
         (!run.detected, Achievement::EscapeUndetected),
+        (preset.mode == GameMode::Insane, Achievement::EscapeInsane),
     ] {
         if earned {
             unlock(&mut progress, &mut commands, achievement);

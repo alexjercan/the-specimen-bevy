@@ -158,6 +158,8 @@ fn first_floor_locks_only_the_outside_exit_and_adds_a_logical_panel() {
     assert_eq!(logical.installed, 0);
     assert!(world.get::<Prop>(panel).is_none());
     assert!(world.get::<ChildOf>(panel).is_none());
+    assert_eq!(world.get::<Visibility>(panel), Some(&Visibility::Inherited));
+    assert!(world.get::<InheritedVisibility>(panel).is_some());
     assert!(world
         .query::<(&Prop, &Transform)>()
         .iter(world)

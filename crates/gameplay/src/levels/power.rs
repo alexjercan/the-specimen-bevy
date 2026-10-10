@@ -29,6 +29,7 @@ pub struct FacilityPower {
     pub remaining_secs: f32,
     seed: u64,
     cycles: u64,
+    repairable: bool,
 }
 
 impl FacilityPower {
@@ -39,7 +40,23 @@ impl FacilityPower {
             remaining_secs: Self::delay(seed, 0),
             seed,
             cycles: 0,
+            repairable: true,
         }
+    }
+
+    pub fn blackout(seed: u64) -> Self {
+        Self {
+            on: false,
+            outage_pending: false,
+            remaining_secs: 0.0,
+            seed,
+            cycles: 0,
+            repairable: false,
+        }
+    }
+
+    pub fn repairable(&self) -> bool {
+        self.repairable && !self.on
     }
 
     fn delay(seed: u64, cycle: u64) -> f32 {
@@ -140,7 +157,7 @@ fn repair_boiler(
     power: Option<Res<FacilityPower>>,
     mut repairs: MessageWriter<RepairBoiler>,
 ) {
-    if !enabled.0 || !power.is_some_and(|power| !power.on) {
+    if !enabled.0 || !power.is_some_and(|power| power.repairable()) {
         return;
     }
     if let Some(entity) = players.iter().find_map(|(player, inventory, hidden)| {
@@ -163,7 +180,7 @@ fn process_repairs(
 ) {
     for repair in repairs.read() {
         if let (Some(power), Ok(())) = (power.as_deref_mut(), boilers.get(repair.0)) {
-            if !power.on {
+            if power.repairable() {
                 power.restore();
                 for player in &players {
                     commands.trigger(AchievementSignal {

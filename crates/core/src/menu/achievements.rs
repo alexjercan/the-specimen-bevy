@@ -72,6 +72,7 @@ fn status_text(unlocked: bool) -> (&'static str, Color) {
 
 fn icon_stem(achievement: Achievement) -> &'static str {
     match achievement {
+        Achievement::Escaped => "first-escape",
         Achievement::EscapeWithoutFlashbang => "empty-handed",
         Achievement::EscapeWithoutDetector => "trust-your-ears",
         Achievement::FlashbangHitMonster => "buy-some-time",
@@ -79,6 +80,7 @@ fn icon_stem(achievement: Achievement) -> &'static str {
         Achievement::RestoreBoiler => "let-there-be-light",
         Achievement::CaughtAfterExitOpen => "so-close",
         Achievement::EscapeUndetected => "unseen",
+        Achievement::EscapeInsane => "out-of-your-mind",
     }
 }
 
@@ -89,6 +91,9 @@ fn achievement_row(
     icon: Handle<Image>,
 ) -> impl Bundle {
     let (status, color) = status_text(unlocked);
+    let hidden = achievement.hidden() && !unlocked;
+    let name = if hidden { "?" } else { achievement.name() };
+    let criteria = if hidden { "" } else { achievement.criteria() };
     (
         Name::new(format!("{} row", achievement.name())),
         Node {
@@ -120,9 +125,9 @@ fn achievement_row(
                     ..default()
                 },
                 children![
-                    text(achievement.name(), 17.0, theme::TEXT, font.clone()),
+                    text(name, 17.0, theme::TEXT, font.clone()),
                     (
-                        text(achievement.criteria(), 13.0, theme::MUTED, font.clone()),
+                        text(criteria, 13.0, theme::MUTED, font.clone()),
                         TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
                         Node {
                             max_width: percent(100),

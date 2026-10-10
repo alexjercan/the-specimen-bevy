@@ -47,6 +47,8 @@ pub enum PauseState {
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
 enum MenuAction {
     Play,
+    PreviousMode,
+    NextMode,
     Retry,
     Resume,
     MainMenu,
@@ -66,6 +68,7 @@ impl Plugin for MenuPlugin {
         app.init_resource::<game_settings::GameSettings>()
             .init_resource::<game_settings::SettingsDirty>()
             .init_resource::<gameplay::achievements::AchievementProgress>()
+            .init_resource::<gameplay::presets::GamePreset>()
             .add_message::<PlaySound>()
             .add_sub_state::<GameState>()
             .add_sub_state::<PauseState>()
@@ -91,6 +94,8 @@ fn activate_buttons(
     mut game: ResMut<NextState<GameState>>,
     mut pause: ResMut<NextState<PauseState>>,
     mut route: ResMut<credits::CreditsRoute>,
+    mut preset: ResMut<gameplay::presets::GamePreset>,
+    mut selection: ResMut<main_menu::ModeSelection>,
     #[cfg(not(target_arch = "wasm32"))] mut exit: MessageWriter<AppExit>,
     mut sounds: MessageWriter<PlaySound>,
 ) {
@@ -103,8 +108,17 @@ fn activate_buttons(
         }
         let sound = match action {
             MenuAction::Play => {
+                *preset = gameplay::presets::GamePreset::of(selection.0);
                 game.set(GameState::Playing);
                 Sound::UiConfirm
+            }
+            MenuAction::PreviousMode => {
+                selection.cycle(-1);
+                Sound::UiPress
+            }
+            MenuAction::NextMode => {
+                selection.cycle(1);
+                Sound::UiPress
             }
             MenuAction::Retry => {
                 game.set(GameState::Playing);

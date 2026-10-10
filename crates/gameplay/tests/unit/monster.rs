@@ -3,9 +3,10 @@ use std::time::Duration;
 use bevy::{prelude::*, time::TimeUpdateStrategy};
 
 use super::{
-    point, room_at, route, CHASE_SPEED, CHASE_TURN_SPEED, GRID, MODEL_LIFT, MODEL_PIVOT,
-    MODEL_SCALE, SEARCH_RADIUS, SEARCH_TIME, TURN_SPEED,
+    point, room_at, route, CHASE_TURN_SPEED, GRID, MODEL_LIFT, MODEL_PIVOT, MODEL_SCALE,
+    SEARCH_RADIUS, SEARCH_TIME, TURN_SPEED,
 };
+use crate::presets::{GameMode, GamePreset};
 
 #[test]
 fn patrol_turns_at_a_bounded_rate_before_moving_in_a_new_direction() {
@@ -123,13 +124,12 @@ fn monster_state(app: &App, monster: Entity) -> &crate::levels::Monster {
     app.world().get::<crate::levels::Monster>(monster).unwrap()
 }
 
-#[test]
-fn chase_runs_one_meter_per_second_faster_than_a_sprint() {
-    use crate::controller::{PlayerController, RUN_SPEED};
+fn measure_chase(mode: GameMode) -> Vec<f32> {
+    use crate::controller::PlayerController;
     use crate::levels::{Monster, Room};
 
-    assert!((CHASE_SPEED - RUN_SPEED - 1.0).abs() < 0.001);
     let mut app = monster_app(7);
+    app.insert_resource(GamePreset::of(mode));
     app.world_mut()
         .spawn(Room(Rect::new(-5.0, -25.0, 5.0, 5.0)));
     let monster = app
@@ -137,20 +137,46 @@ fn chase_runs_one_meter_per_second_faster_than_a_sprint() {
         .spawn((Monster::default(), Transform::IDENTITY))
         .id();
     app.world_mut()
-        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -11.5)));
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -15.0)));
     app.update();
     assert!(monster_state(&app, monster).pursuit.is_some());
     let mut previous = app.world().get::<Transform>(monster).unwrap().translation;
+    let mut steps = Vec::new();
     for _ in 0..8 {
         app.update();
         let current = app.world().get::<Transform>(monster).unwrap().translation;
-        let travelled = current.distance(previous);
+        steps.push(current.distance(previous));
+        previous = current;
+    }
+    steps
+}
+
+#[test]
+fn chase_runs_one_meter_per_second_faster_than_a_sprint() {
+    use crate::controller::RUN_SPEED;
+
+    let chase = GamePreset::of(GameMode::Normal).monster.chase_speed.value();
+    assert!((chase - RUN_SPEED - 1.0).abs() < 0.001);
+    for travelled in measure_chase(GameMode::Normal) {
         assert!(
-            (travelled - CHASE_SPEED * 0.1).abs() < 0.01,
+            (travelled - chase * 0.1).abs() < 0.01,
             "chase must keep full speed on a clear line, travelled {travelled}"
         );
         assert!(travelled > RUN_SPEED * 0.1);
-        previous = current;
+    }
+}
+
+#[test]
+fn insane_chase_runs_at_double_sprint_speed() {
+    use crate::controller::RUN_SPEED;
+
+    let chase = GamePreset::of(GameMode::Insane).monster.chase_speed.value();
+    assert!((chase - RUN_SPEED * 2.0).abs() < 0.001);
+    for travelled in measure_chase(GameMode::Insane) {
+        assert!(
+            (travelled - chase * 0.1).abs() < 0.01,
+            "insane chase must keep full speed on a clear line, travelled {travelled}"
+        );
     }
 }
 
@@ -963,6 +989,37 @@ fn sprint_is_heard_from_behind_but_walking_at_that_distance_is_not() {
         .unwrap()
         .pursuit
         .is_some());
+}
+
+#[test]
+fn insane_hears_walking_where_normal_does_not() {
+    use crate::controller::{PlayerController, PlayerInput};
+    use crate::levels::{Monster, Room};
+
+    for (mode, heard) in [(GameMode::Normal, false), (GameMode::Insane, true)] {
+        let mut app = monster_app(7);
+        app.insert_resource(GamePreset::of(mode));
+        app.world_mut()
+            .spawn(Room(Rect::new(-5.0, -5.0, 5.0, 15.0)));
+        let monster = app
+            .world_mut()
+            .spawn((Monster::default(), Transform::IDENTITY))
+            .id();
+        let player = app
+            .world_mut()
+            .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, 5.0)))
+            .id();
+        app.world_mut()
+            .get_mut::<PlayerInput>(player)
+            .unwrap()
+            .movement = Vec2::Y;
+        app.update();
+        assert_eq!(
+            monster_state(&app, monster).pursuit.is_some(),
+            heard,
+            "{mode:?}"
+        );
+    }
 }
 
 #[test]

@@ -78,3 +78,17 @@ fn never_unlocks_remote_for_ids_not_locally_unlocked() {
     assert!(!local.contains(&Achievement::RestoreBoiler));
     assert_eq!(remote.store_calls, 0);
 }
+
+#[test]
+fn hidden_insane_escape_syncs_both_ways() {
+    let mut local = HashSet::from([Achievement::EscapeInsane]);
+    let mut remote = FakeRemote::default().with(Achievement::EscapeInsane.id(), false);
+    let result = reconcile(&mut local, &mut remote);
+    assert_eq!(result.pushed, vec![Achievement::EscapeInsane]);
+
+    let mut local = HashSet::new();
+    let mut remote = FakeRemote::default().with(Achievement::EscapeInsane.id(), true);
+    let result = reconcile(&mut local, &mut remote);
+    assert_eq!(result.pulled, vec![Achievement::EscapeInsane]);
+    assert!(local.contains(&Achievement::EscapeInsane));
+}

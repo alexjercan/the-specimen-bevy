@@ -72,7 +72,7 @@ impl InteractTargets<'_, '_> {
                     .map(|distance| (InteractTarget::Panel(entity), center, distance))
             });
         let boilers = self.boilers.iter().filter_map(|(entity, prop, transform)| {
-            (prop.0 == BOILER_UNIT && self.power.as_ref().is_some_and(|power| !power.on))
+            (prop.0 == BOILER_UNIT && self.power.as_ref().is_some_and(|power| power.repairable()))
                 .then(|| {
                     let center = transform.translation + Vec3::Y * 1.2;
                     fuse_panel_hit(origin, forward, center)

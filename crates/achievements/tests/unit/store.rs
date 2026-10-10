@@ -29,3 +29,16 @@ fn encode_sorts_ids_and_round_trips_through_decode() {
 fn decode_rejects_invalid_json() {
     assert!(decode(b"not json").is_err());
 }
+
+#[test]
+fn hidden_insane_escape_persists_and_restores_the_insane_gate() {
+    let known: HashSet<Achievement> = Achievement::ALL.into_iter().collect();
+    let data = encode(&known, &HashSet::new());
+    assert!(String::from_utf8(data.clone()).unwrap().contains("ESCAPE_INSANE"));
+    let decoded = decode(&data).unwrap();
+    assert!(decoded.known.contains(&Achievement::EscapeInsane));
+    let progress = gameplay::achievements::AchievementProgress {
+        unlocked: decoded.known,
+    };
+    assert!(progress.insane_unlocked());
+}

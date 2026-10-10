@@ -44,8 +44,8 @@ fn declared_achievement_icons_exist_in_locked_and_unlocked_pairs() {
         })
         .collect();
     let unique: BTreeSet<_> = declared.iter().copied().collect();
-    assert_eq!(declared.len(), 14);
-    assert_eq!(unique.len(), 14, "duplicate achievement icon path");
+    assert_eq!(declared.len(), 18);
+    assert_eq!(unique.len(), 18, "duplicate achievement icon path");
     for name in unique {
         assert!(root.join(format!("ui/achievements/{name}.png")).is_file());
         let stem = name

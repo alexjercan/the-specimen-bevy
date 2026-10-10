@@ -601,12 +601,15 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
     ));
 }
 
-pub(super) fn spawn_devices(commands: &mut Commands) {
+pub(super) fn spawn_flashbang(commands: &mut Commands) {
     commands.spawn((
         Name::new("flashbang"),
         PickupKind::Flashbang,
         Transform::from_xyz(7.2, 0.7, -15.5).with_rotation(Quat::from_rotation_y(0.5)),
     ));
+}
+
+pub(super) fn spawn_detector(commands: &mut Commands) {
     commands.spawn((
         Name::new("detector"),
         PickupKind::Detector,

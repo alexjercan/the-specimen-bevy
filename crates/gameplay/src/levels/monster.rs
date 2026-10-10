@@ -9,8 +9,9 @@ use rand_core::Rng;
 use crate::{
     achievements::{AchievementSignal, AchievementSignalKind},
     controller::{
-        collision, player::apply_input, PlayerController, PlayerControlsEnabled, Stamina, RUN_SPEED,
+        collision, player::apply_input, PlayerController, PlayerControlsEnabled, Stamina,
     },
+    presets::GamePreset,
 };
 
 use super::{
@@ -20,11 +21,7 @@ use super::{
     HidingPhase, Passage, PropCollider, Room, ToggleDoor,
 };
 
-const SPEED: f32 = 0.51;
-const CHASE_SPEED: f32 = RUN_SPEED + 1.0;
 pub(super) const SIGHT_COS: f32 = 0.45;
-const WALK_HEARING: f32 = 3.0;
-const RUN_HEARING: f32 = 9.0;
 const SEARCH_TIME: f32 = 8.0;
 const SEARCH_RADIUS: f32 = 2.5;
 const SEARCH_REACH: f32 = 10.0;
@@ -135,7 +132,8 @@ pub struct MonsterPlugin;
 
 impl Plugin for MonsterPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<ToggleDoor>()
+        app.init_resource::<GamePreset>()
+            .add_message::<ToggleDoor>()
             .add_message::<PlaySourceSound>()
             .add_observer(attach_monster_sounds)
             .add_systems(
@@ -443,6 +441,7 @@ pub(super) fn sees_player(pose: &Transform, target: Vec2, sight: &StructuralSigh
 fn sense_player(
     time: Res<Time>,
     enabled: Option<Res<PlayerControlsEnabled>>,
+    preset: Res<GamePreset>,
     sight: StructuralSight,
     players: Query<
         (
@@ -484,9 +483,9 @@ fn sense_player(
                 let heard = input.movement.length_squared() > 0.01
                     && distance
                         <= if stamina.sprinting {
-                            RUN_HEARING
+                            preset.monster.run_hearing.value()
                         } else {
-                            WALK_HEARING
+                            preset.monster.walk_hearing.value()
                         };
                 (visible || (heard && sight.clear_sight(position, target)))
                     .then_some((player_entity, target))
@@ -716,6 +715,7 @@ fn manage_doors(
 fn patrol(
     time: Res<Time>,
     enabled: Option<Res<PlayerControlsEnabled>>,
+    preset: Res<GamePreset>,
     mut rng: Option<ResMut<PatrolRng>>,
     rooms: Query<(Entity, &Room, Option<&Doors>)>,
     room_walls: Query<(&Room, Option<&Doors>)>,
@@ -901,9 +901,9 @@ fn patrol(
             continue;
         }
         let speed = if monster.pursuit.is_some() {
-            CHASE_SPEED
+            preset.monster.chase_speed.value()
         } else {
-            SPEED
+            preset.monster.walk_speed.value()
         };
         let mut travel = (speed * delta).min(position.distance(next));
         if let Some(pursuit) = monster

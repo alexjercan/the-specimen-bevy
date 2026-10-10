@@ -28,3 +28,19 @@ fn seeded_outages_repeat_after_each_repair() {
     power.tick(power.remaining_secs);
     assert!(!power.on);
 }
+
+#[test]
+fn blackout_starts_dark_and_never_schedules_or_allows_repair() {
+    let mut power = FacilityPower::blackout(42);
+    assert!(!power.on);
+    assert!(!power.outage_pending);
+    assert!(!power.repairable());
+    power.tick(1000.0);
+    assert!(!power.on);
+    assert!(!power.repairable());
+
+    let mut normal = FacilityPower::new(42);
+    assert!(!normal.repairable());
+    normal.outage();
+    assert!(normal.repairable());
+}

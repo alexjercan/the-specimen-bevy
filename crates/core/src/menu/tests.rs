@@ -17,11 +17,15 @@ use game_audio::{PlaySound, Sound};
 use game_settings::{GameSettings, MAX_SENSITIVITY, SettingsDirty};
 use game_ui::SliderFill;
 use gameplay::{
-    controller::{Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
-    levels::{
-        Caught, Door, DoorPlugin, DoorRef, DoorState, Escaped, ExitDoor, FusePanel, LevelRoot,
-        Monster, MonsterFigure, Room,
+    achievements::{Achievement, AchievementProgress},
+    controller::{
+        Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, Stamina,
     },
+    levels::{
+        Caught, Door, DoorPlugin, DoorRef, DoorState, Escaped, ExitDoor, FacilityPower, FusePanel,
+        LevelRoot, Monster, MonsterFigure, PickupKind, Room,
+    },
+    presets::{GameMode, GamePreset},
 };
 
 use super::{
@@ -1125,4 +1129,174 @@ fn quit_requests_app_exit() {
     ready(&mut app);
     press(&mut app, MenuAction::Quit);
     assert_eq!(app.should_exit(), Some(AppExit::Success));
+}
+
+fn insane_gate_unlocked() -> AchievementProgress {
+    AchievementProgress {
+        unlocked: Achievement::INSANE_GATE.into_iter().collect(),
+    }
+}
+
+fn named(app: &mut App, name: &str) -> Option<Entity> {
+    app.world_mut()
+        .query::<(Entity, &Name)>()
+        .iter(app.world())
+        .find_map(|(entity, candidate)| (candidate.as_str() == name).then_some(entity))
+}
+
+fn mode_label(app: &mut App) -> String {
+    let label = named(app, "Mode label").unwrap();
+    let text = app.world().get::<Children>(label).unwrap()[0];
+    app.world().get::<Text>(text).unwrap().0.clone()
+}
+
+fn select_mode(app: &mut App, action: MenuAction) {
+    press(app, action);
+    app.update();
+}
+
+fn devices(app: &mut App) -> (usize, usize) {
+    let kinds: Vec<PickupKind> = app
+        .world_mut()
+        .query::<&PickupKind>()
+        .iter(app.world())
+        .copied()
+        .collect();
+    (
+        kinds
+            .iter()
+            .filter(|kind| **kind == PickupKind::Flashbang)
+            .count(),
+        kinds
+            .iter()
+            .filter(|kind| **kind == PickupKind::Detector)
+            .count(),
+    )
+}
+
+fn stamina(app: &mut App) -> Stamina {
+    *app.world_mut()
+        .query_filtered::<&Stamina, With<PlayerController>>()
+        .single(app.world())
+        .unwrap()
+}
+
+fn assert_insane_run(app: &mut App) {
+    assert_eq!(game_state(app), GameState::Playing);
+    assert_eq!(app.world().resource::<GamePreset>().mode, GameMode::Insane);
+    assert_eq!(stamina(app), Stamina::spent());
+    assert_eq!(devices(app), (0, 0));
+    let power = *app.world().resource::<FacilityPower>();
+    assert!(!power.on && !power.repairable());
+}
+
+fn assert_normal_run(app: &mut App) {
+    assert_eq!(game_state(app), GameState::Playing);
+    assert_eq!(app.world().resource::<GamePreset>().mode, GameMode::Normal);
+    assert_eq!(stamina(app), Stamina::default());
+    assert_eq!(devices(app), (1, 1));
+    assert!(app.world().resource::<FacilityPower>().on);
+}
+
+#[test]
+fn mode_selector_stays_hidden_until_the_seven_visible_achievements_unlock() {
+    let mut almost = insane_gate_unlocked();
+    almost.unlocked.remove(&Achievement::EscapeUndetected);
+    let mut hidden_too = insane_gate_unlocked();
+    hidden_too.unlocked.remove(&Achievement::EscapeUndetected);
+    hidden_too.unlocked.insert(Achievement::EscapeInsane);
+    for progress in [
+        AchievementProgress::default(),
+        AchievementProgress {
+            unlocked: [Achievement::EscapeInsane].into_iter().collect(),
+        },
+        almost,
+        hidden_too,
+    ] {
+        let mut app = app();
+        app.world_mut().insert_resource(progress);
+        ready(&mut app);
+        assert!(named(&mut app, "Play button").is_some());
+        assert!(named(&mut app, "Mode selector").is_none());
+        assert_eq!(count::<With<MenuAction>>(&mut app), 4);
+        assert!(!has_text(&mut app, "Insane"));
+        assert!(!has_text(&mut app, "Normal"));
+        press(&mut app, MenuAction::Play);
+        assert_normal_run(&mut app);
+    }
+}
+
+#[test]
+fn mode_selector_starts_at_normal_and_cycles_both_ways_after_unlock() {
+    let mut app = app();
+    app.world_mut().insert_resource(insane_gate_unlocked());
+    ready(&mut app);
+    let row = named(&mut app, "Play row").unwrap();
+    let selector = named(&mut app, "Mode selector").unwrap();
+    let play = named(&mut app, "Play button").unwrap();
+    let row_children = app.world().get::<Children>(row).unwrap();
+    assert_eq!(&row_children[..], &[play, selector]);
+    assert_eq!(mode_label(&mut app), "Normal");
+
+    select_mode(&mut app, MenuAction::NextMode);
+    assert_eq!(mode_label(&mut app), "Insane");
+    select_mode(&mut app, MenuAction::NextMode);
+    assert_eq!(mode_label(&mut app), "Normal");
+    select_mode(&mut app, MenuAction::PreviousMode);
+    assert_eq!(mode_label(&mut app), "Insane");
+    select_mode(&mut app, MenuAction::PreviousMode);
+    assert_eq!(mode_label(&mut app), "Normal");
+    assert_eq!(game_state(&app), GameState::MainMenu);
+    assert_eq!(app.world().resource::<GamePreset>().mode, GameMode::Normal);
+}
+
+#[test]
+fn play_launches_the_selected_mode_and_the_menu_resets_to_normal() {
+    let mut app = app();
+    app.world_mut().insert_resource(insane_gate_unlocked());
+    ready(&mut app);
+    select_mode(&mut app, MenuAction::PreviousMode);
+    assert_eq!(mode_label(&mut app), "Insane");
+    press(&mut app, MenuAction::Play);
+    assert_insane_run(&mut app);
+
+    escape(&mut app);
+    press(&mut app, MenuAction::MainMenu);
+    assert_eq!(game_state(&app), GameState::MainMenu);
+    assert_eq!(mode_label(&mut app), "Normal");
+    press(&mut app, MenuAction::Play);
+    assert_normal_run(&mut app);
+}
+
+#[test]
+fn retry_after_an_insane_game_over_keeps_insane_and_rebuilds_a_fresh_run() {
+    let mut app = app();
+    app.world_mut().insert_resource(insane_gate_unlocked());
+    ready(&mut app);
+    select_mode(&mut app, MenuAction::NextMode);
+    press(&mut app, MenuAction::Play);
+    assert_insane_run(&mut app);
+    let first = run_player(&mut app);
+    catch(&mut app);
+    assert_eq!(game_state(&app), GameState::GameOver);
+    run_for(&mut app, REVEAL_AT + 0.2);
+    press(&mut app, MenuAction::Retry);
+    assert_insane_run(&mut app);
+    let retry = run_player(&mut app);
+    assert_ne!(first, retry);
+    assert!(app.world().get::<Caught>(retry).is_none());
+}
+
+#[test]
+fn retry_after_a_normal_game_over_keeps_normal() {
+    let mut app = app();
+    app.world_mut().insert_resource(insane_gate_unlocked());
+    ready(&mut app);
+    press(&mut app, MenuAction::Play);
+    assert_normal_run(&mut app);
+    catch(&mut app);
+    assert_eq!(game_state(&app), GameState::GameOver);
+    run_for(&mut app, REVEAL_AT + 0.2);
+    press(&mut app, MenuAction::Retry);
+    assert_normal_run(&mut app);
 }

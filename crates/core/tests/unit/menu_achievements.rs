@@ -98,18 +98,31 @@ fn button_names(app: &mut App) -> Vec<String> {
         .collect()
 }
 
-fn row_status(app: &mut App, achievement: Achievement) -> String {
+fn row_entity(app: &mut App, achievement: Achievement) -> Entity {
     let name = format!("{} row", achievement.name());
-    let row = app
-        .world_mut()
+    app.world_mut()
         .query::<(Entity, &Name)>()
         .iter(app.world())
         .find_map(|(entity, candidate)| (candidate.as_str() == name).then_some(entity))
-        .unwrap();
+        .unwrap()
+}
+
+fn row_status(app: &mut App, achievement: Achievement) -> String {
+    let row = row_entity(app, achievement);
     let children = app.world().get::<Children>(row).unwrap();
     assert!(app.world().get::<ImageNode>(children[0]).is_some());
     let status = children[2];
     app.world().get::<Text>(status).unwrap().0.clone()
+}
+
+fn row_name_and_criteria(app: &mut App, achievement: Achievement) -> (String, String) {
+    let row = row_entity(app, achievement);
+    let column = app.world().get::<Children>(row).unwrap()[1];
+    let texts = app.world().get::<Children>(column).unwrap();
+    (
+        app.world().get::<Text>(texts[0]).unwrap().0.clone(),
+        app.world().get::<Text>(texts[1]).unwrap().0.clone(),
+    )
 }
 
 #[test]
@@ -173,7 +186,7 @@ fn achievements_screen_lists_all_entries_with_counts_and_status() {
         theme::PANEL
     );
     assert_eq!(app.world().get::<Node>(panel).unwrap().width, px(560));
-    assert!(has_text(&mut app, "2 / 7 unlocked"));
+    assert!(has_text(&mut app, "2 / 9 unlocked"));
 
     for achievement in Achievement::ALL {
         let expected = if matches!(
@@ -185,7 +198,9 @@ fn achievements_screen_lists_all_entries_with_counts_and_status() {
             "LOCKED"
         };
         assert_eq!(row_status(&mut app, achievement), expected);
-        assert!(has_text(&mut app, achievement.name()));
+        if !achievement.hidden() {
+            assert!(has_text(&mut app, achievement.name()));
+        }
     }
 }
 
@@ -223,6 +238,33 @@ fn back_button_and_escape_both_return_to_main_menu_and_clean_up() {
     assert_eq!(game_state(&app), GameState::MainMenu);
     assert_eq!(count::<With<AchievementsScreen>>(&mut app), 0);
     assert_eq!(count::<With<Camera2d>>(&mut app), 1);
+}
+
+#[test]
+fn locked_hidden_achievement_hides_its_name_and_criteria() {
+    let mut app = app();
+    ready(&mut app);
+    press(&mut app, MenuAction::Achievements);
+    assert_eq!(row_status(&mut app, Achievement::EscapeInsane), "LOCKED");
+    let (name, criteria) = row_name_and_criteria(&mut app, Achievement::EscapeInsane);
+    assert_eq!(name, "?");
+    assert_eq!(criteria, "");
+    assert!(!has_text(&mut app, "Out of your mind"));
+    assert!(!has_text(&mut app, "Escape in Insane mode."));
+}
+
+#[test]
+fn unlocked_hidden_achievement_reveals_its_name_and_criteria() {
+    let mut app = app();
+    ready(&mut app);
+    app.insert_resource(AchievementProgress {
+        unlocked: [Achievement::EscapeInsane].into_iter().collect(),
+    });
+    press(&mut app, MenuAction::Achievements);
+    assert_eq!(row_status(&mut app, Achievement::EscapeInsane), "UNLOCKED");
+    let (name, criteria) = row_name_and_criteria(&mut app, Achievement::EscapeInsane);
+    assert_eq!(name, "Out of your mind");
+    assert_eq!(criteria, "Escape in Insane mode.");
 }
 
 #[test]

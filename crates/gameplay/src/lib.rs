@@ -1,6 +1,7 @@
 pub mod achievements;
 pub mod controller;
 pub mod levels;
+pub mod presets;
 
 pub mod prelude {
     pub use crate::controller::{

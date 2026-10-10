@@ -7,6 +7,7 @@ use super::{
 use crate::{
     controller::PlayerController,
     levels::{Caught, Escaped, FacilityPower},
+    presets::{GameMode, GamePreset},
 };
 
 fn app() -> (App, Entity) {
@@ -33,6 +34,7 @@ fn escape_checks_pickup_history_detection_and_repair_not_current_inventory() {
     signal(&mut app, player, AchievementSignalKind::PickedFlashbang);
     signal(&mut app, player, AchievementSignalKind::Detected);
     app.world_mut().entity_mut(player).insert(Escaped);
+    assert!(has(&app, Achievement::Escaped));
     assert!(!has(&app, Achievement::EscapeWithoutFlashbang));
     assert!(has(&app, Achievement::EscapeWithoutDetector));
     assert!(!has(&app, Achievement::EscapeWithoutBoiler));
@@ -79,7 +81,7 @@ fn restored_boiler_and_confirmed_hit_unlock_once_across_replays() {
     assert!(has(&app, Achievement::EscapeWithoutBoiler));
     assert_eq!(
         app.world().resource::<AchievementProgress>().unlocked.len(),
-        6
+        7
     );
 }
 
@@ -125,6 +127,7 @@ fn unlock_event_fires_once_for_new_unlocks_only() {
     assert_eq!(
         unlocks,
         [
+            Achievement::Escaped,
             Achievement::EscapeWithoutBoiler,
             Achievement::EscapeWithoutDetector,
             Achievement::EscapeWithoutFlashbang,
@@ -145,10 +148,56 @@ fn every_achievement_has_text_and_round_trips_its_id() {
 
 #[test]
 fn ids_match_preview_definitions() {
-    assert_eq!(Achievement::ALL.len(), 7);
+    assert_eq!(Achievement::ALL.len(), 9);
+    assert_eq!(Achievement::Escaped.id(), "ESCAPED");
+    assert_eq!(Achievement::EscapeInsane.id(), "ESCAPE_INSANE");
     assert_eq!(
         Achievement::FlashbangHitMonster.id(),
         "FLASHBANG_HIT_MONSTER"
     );
     assert_eq!(Achievement::EscapeUndetected.id(), "ESCAPE_UNDETECTED");
+}
+
+#[test]
+fn insane_gate_needs_all_visible_achievements() {
+    let mut progress = AchievementProgress::default();
+    assert!(!progress.insane_unlocked());
+    for achievement in Achievement::INSANE_GATE {
+        assert!(!achievement.hidden());
+        assert!(!progress.insane_unlocked());
+        progress.unlocked.insert(achievement);
+    }
+    assert!(progress.insane_unlocked());
+    assert!(!Achievement::INSANE_GATE.contains(&Achievement::EscapeInsane));
+    assert!(Achievement::EscapeInsane.hidden());
+    assert_eq!(
+        Achievement::ALL
+            .iter()
+            .filter(|achievement| !achievement.hidden())
+            .count(),
+        Achievement::INSANE_GATE.len()
+    );
+
+    let mut hidden_only = AchievementProgress::default();
+    hidden_only.unlocked.insert(Achievement::EscapeInsane);
+    assert!(!hidden_only.insane_unlocked());
+}
+
+#[test]
+fn only_an_insane_escape_unlocks_the_hidden_achievement() {
+    let (mut app, player) = app();
+    app.world_mut().entity_mut(player).insert(Escaped);
+    assert!(!has(&app, Achievement::EscapeInsane));
+
+    app.insert_resource(GamePreset::of(GameMode::Insane));
+    let monster = app.world_mut().spawn_empty().id();
+    let caught = app.world_mut().spawn(PlayerController).id();
+    app.world_mut()
+        .entity_mut(caught)
+        .insert(Caught::new(monster));
+    assert!(!has(&app, Achievement::EscapeInsane));
+
+    let replay = app.world_mut().spawn(PlayerController).id();
+    app.world_mut().entity_mut(replay).insert(Escaped);
+    assert!(has(&app, Achievement::EscapeInsane));
 }

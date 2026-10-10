@@ -210,7 +210,12 @@ pub(super) fn spawn(commands: &mut Commands) {
     let fuse_panel =
         Transform::from_xyz(5.0, 1.85, -31.15).with_rotation(Quat::from_rotation_y(PI));
     commands.spawn(prop("fuse_panel", "fuse_panel", fuse_panel));
-    commands.spawn((Name::new("fuse panel"), FusePanel::default(), fuse_panel));
+    commands.spawn((
+        Name::new("fuse panel"),
+        FusePanel::default(),
+        fuse_panel,
+        Visibility::Inherited,
+    ));
     commands.spawn(prop(
         WALL_LAMP_RED,
         WALL_LAMP_RED,

@@ -10,6 +10,7 @@ pub struct Stamina {
     pub charge: f32,
     pub sprinting: bool,
     pub exhausted: bool,
+    pub locked: bool,
 }
 
 impl Default for Stamina {
@@ -18,12 +19,26 @@ impl Default for Stamina {
             charge: 1.0,
             sprinting: false,
             exhausted: false,
+            locked: false,
         }
     }
 }
 
 impl Stamina {
+    pub fn spent() -> Self {
+        Self {
+            charge: 0.0,
+            sprinting: false,
+            exhausted: true,
+            locked: true,
+        }
+    }
+
     pub fn advance(&mut self, wants_run: bool, moving: bool, seconds: f32) -> bool {
+        if self.locked {
+            *self = Self::spent();
+            return false;
+        }
         if !wants_run && self.charge >= RESTART_CHARGE {
             self.exhausted = false;
         }
