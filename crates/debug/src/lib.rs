@@ -13,7 +13,8 @@ pub use game_ui::{fps_label, FpsText};
 use gameplay::{
     controller::{Flashlight, PlayerController, Stamina},
     levels::{
-        Detector, Door, Flashbangs, FuseInventory, FusePanel, Monster, PickupKind, Prop, Room,
+        Detector, Door, FacilityPower, Flashbangs, FuseInventory, FusePanel, Monster, PickupKind,
+        Prop, Room,
     },
 };
 
@@ -117,6 +118,7 @@ fn inspector_ui(world: &mut World) {
     let mut wireframe = world.resource::<DebugSettings>().wireframe;
     egui::Window::new("Inspector").show(context.get_mut(), |ui| {
         ui.checkbox(&mut wireframe, "Wireframe");
+        facility_power_ui(world, ui);
         ui.collapsing("Player cheats", |ui| {
             let mut players = world.query_filtered::<Entity, With<PlayerController>>();
             let entities: Vec<_> = players.iter(world).collect();
@@ -144,6 +146,24 @@ fn inspector_ui(world: &mut World) {
     let mut settings = world.resource_mut::<DebugSettings>();
     if settings.wireframe != wireframe {
         settings.wireframe = wireframe;
+    }
+}
+
+fn facility_power_ui(world: &mut World, ui: &mut egui::Ui) {
+    if let Some(mut on) = world.get_resource::<FacilityPower>().map(|power| power.on) {
+        if ui.checkbox(&mut on, "Facility power").changed() {
+            set_facility_power(world, on);
+        }
+    }
+}
+
+fn set_facility_power(world: &mut World, on: bool) {
+    if let Some(mut power) = world.get_resource_mut::<FacilityPower>() {
+        if on {
+            power.restore();
+        } else {
+            power.outage();
+        }
     }
 }
 
