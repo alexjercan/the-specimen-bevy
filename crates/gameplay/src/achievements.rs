@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::{
     controller::PlayerController,
-    levels::{Caught, Escaped},
+    levels::{Caught, Escaped, FacilityPower},
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -42,7 +42,9 @@ impl Achievement {
     }
 
     pub fn from_id(id: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|achievement| achievement.id() == id)
+        Self::ALL
+            .into_iter()
+            .find(|achievement| achievement.id() == id)
     }
 
     pub const fn name(self) -> &'static str {
@@ -62,7 +64,9 @@ impl Achievement {
             Self::EscapeWithoutFlashbang => "Escape without picking up a flashbang during the run.",
             Self::EscapeWithoutDetector => "Escape without picking up the detector during the run.",
             Self::FlashbangHitMonster => "Land a flashbang burst on the monster.",
-            Self::EscapeWithoutBoiler => "Escape without restoring the boiler during the run.",
+            Self::EscapeWithoutBoiler => {
+                "Escape while the power is out, without restoring the boiler."
+            }
             Self::RestoreBoiler => "Restore power at the boiler.",
             Self::CaughtAfterExitOpen => {
                 "Open the unlocked exit door, then get caught before you leave the facility."
@@ -144,7 +148,11 @@ fn record_signal(
         AchievementSignalKind::ExitOpened => run.exit_opened = true,
         AchievementSignalKind::Detected => run.detected = true,
         AchievementSignalKind::FlashbangHitMonster => {
-            unlock(&mut progress, &mut commands, Achievement::FlashbangHitMonster);
+            unlock(
+                &mut progress,
+                &mut commands,
+                Achievement::FlashbangHitMonster,
+            );
         }
     }
 }
@@ -152,6 +160,7 @@ fn record_signal(
 fn record_escape(
     added: On<Add, Escaped>,
     runs: Query<&RunAchievements, With<PlayerController>>,
+    power: Option<Res<FacilityPower>>,
     mut progress: ResMut<AchievementProgress>,
     mut commands: Commands,
 ) {
@@ -161,7 +170,10 @@ fn record_escape(
     for (earned, achievement) in [
         (!run.picked_flashbang, Achievement::EscapeWithoutFlashbang),
         (!run.picked_detector, Achievement::EscapeWithoutDetector),
-        (!run.restored_boiler, Achievement::EscapeWithoutBoiler),
+        (
+            !run.restored_boiler && power.is_some_and(|power| !power.on),
+            Achievement::EscapeWithoutBoiler,
+        ),
         (!run.detected, Achievement::EscapeUndetected),
     ] {
         if earned {
@@ -177,7 +189,11 @@ fn record_caught(
     mut commands: Commands,
 ) {
     if runs.get(added.entity).is_ok_and(|run| run.exit_opened) {
-        unlock(&mut progress, &mut commands, Achievement::CaughtAfterExitOpen);
+        unlock(
+            &mut progress,
+            &mut commands,
+            Achievement::CaughtAfterExitOpen,
+        );
     }
 }
 

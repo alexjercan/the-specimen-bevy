@@ -8,9 +8,12 @@ use game_assets::UiAssets;
 use game_ui::{menu_button, panel, text, theme};
 use gameplay::controller::PlayerControlsEnabled;
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::{closure::Closure, JsCast};
+use wasm_bindgen::{JsCast, closure::Closure};
 
-use super::{release_cursor, settings::SettingsOverlay, GameState, MenuAction, PauseState};
+use super::{
+    GameState, MenuAction, PauseState, achievements::PauseAchievements, release_cursor,
+    settings::SettingsOverlay,
+};
 
 #[derive(Component)]
 pub(super) struct PauseMenu;
@@ -41,9 +44,10 @@ fn toggle_pause(
     keys: Res<ButtonInput<KeyCode>>,
     state: Res<State<PauseState>>,
     overlay: Query<(), With<SettingsOverlay>>,
+    achievements: Query<(), With<PauseAchievements>>,
     mut next: ResMut<NextState<PauseState>>,
 ) {
-    if overlay.is_empty() && keys.just_pressed(KeyCode::Escape) {
+    if overlay.is_empty() && achievements.is_empty() && keys.just_pressed(KeyCode::Escape) {
         next.set(match state.get() {
             PauseState::Running => PauseState::Paused,
             PauseState::Paused => PauseState::Running,
@@ -154,6 +158,11 @@ fn spawn_pause_menu(mut commands: Commands, assets: Res<UiAssets>) {
                     Name::new("Settings button"),
                     super::settings::SettingsAction::Open,
                     menu_button("Settings", font.clone()),
+                ),
+                (
+                    Name::new("Achievements button"),
+                    super::achievements::AchievementAction::Open,
+                    menu_button("Achievements", font.clone()),
                 ),
                 (
                     Name::new("Main menu button"),

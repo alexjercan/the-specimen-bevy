@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use bevy::{
     input::{
-        keyboard::{Key, KeyboardInput},
         ButtonState, InputPlugin,
+        keyboard::{Key, KeyboardInput},
     },
     state::app::StatesPlugin,
     time::TimeUpdateStrategy,
@@ -11,7 +11,7 @@ use bevy::{
 };
 
 use super::*;
-use crate::{menu::main_menu::MainMenu, menu::MenuPlugin, CoreState};
+use crate::{CoreState, menu::MenuPlugin, menu::main_menu::MainMenu};
 
 fn app() -> App {
     let mut app = App::new();
@@ -153,6 +153,15 @@ fn achievements_screen_lists_all_entries_with_counts_and_status() {
     press(&mut app, MenuAction::Achievements);
     assert_eq!(game_state(&app), GameState::Achievements);
     assert_eq!(count::<With<AchievementsScreen>>(&mut app), 1);
+    let screen = app
+        .world_mut()
+        .query_filtered::<Entity, With<AchievementsScreen>>()
+        .single(app.world())
+        .unwrap();
+    assert_eq!(
+        app.world().get::<BackgroundColor>(screen).unwrap().0,
+        Color::NONE
+    );
     let panel = app
         .world_mut()
         .query::<(Entity, &Name)>()
@@ -178,6 +187,22 @@ fn achievements_screen_lists_all_entries_with_counts_and_status() {
         assert_eq!(row_status(&mut app, achievement), expected);
         assert!(has_text(&mut app, achievement.name()));
     }
+}
+
+#[test]
+fn achievements_reuses_the_menu_room_when_facility_assets_are_loaded() {
+    let mut app = app();
+    app.insert_resource(FacilityAssets {
+        modules: Default::default(),
+    });
+    ready(&mut app);
+    press(&mut app, MenuAction::Achievements);
+    assert_eq!(game_state(&app), GameState::Achievements);
+    assert_eq!(count::<With<Camera3d>>(&mut app), 1);
+    assert_eq!(count::<With<IsDefaultUiCamera>>(&mut app), 1);
+    assert_eq!(count::<With<AchievementsScreen>>(&mut app), 1);
+    press(&mut app, MenuAction::MainMenu);
+    assert_eq!(count::<With<Camera3d>>(&mut app), 1);
 }
 
 #[test]

@@ -3,12 +3,14 @@ use bevy::{
     prelude::*,
     text::LineBreak,
 };
-use game_assets::UiAssets;
+use game_assets::{FacilityAssets, UiAssets};
 use game_audio::{PlaySound, Sound};
 use game_ui::{menu_button, text, theme};
 use gameplay::achievements::{Achievement, AchievementProgress, AchievementUnlocked};
 
-use super::{release_cursor, screen_camera, GameState, MenuAction};
+use super::{
+    GameState, MenuAction, PauseState, background, pause::PauseMenu, release_cursor, screen_camera,
+};
 
 const TOAST_SECS: f32 = 4.0;
 
@@ -18,6 +20,15 @@ mod tests;
 
 #[derive(Component)]
 pub(super) struct AchievementsScreen;
+
+#[derive(Component)]
+pub(super) struct PauseAchievements;
+
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+pub(super) enum AchievementAction {
+    Open,
+    Back,
+}
 
 #[derive(Component)]
 struct AchievementList;
@@ -38,9 +49,17 @@ pub(super) fn plugin(app: &mut App) {
         )
         .add_systems(
             Update,
-            (back_on_escape, scroll_achievements).run_if(in_state(GameState::Achievements)),
+            back_on_escape.run_if(in_state(GameState::Achievements)),
         )
-        .add_systems(Update, advance_toasts);
+        .add_systems(Update, back_from_pause.run_if(in_state(GameState::Playing)))
+        .add_systems(
+            Update,
+            (
+                activate_pause_achievements,
+                advance_toasts,
+                scroll_achievements,
+            ),
+        );
 }
 
 fn status_text(unlocked: bool) -> (&'static str, Color) {
@@ -126,83 +145,174 @@ fn achievement_row(
 fn spawn_achievements(
     mut commands: Commands,
     assets: Res<UiAssets>,
+    facility: Option<Res<FacilityAssets>>,
     progress: Res<AchievementProgress>,
 ) {
+    if facility.is_some() {
+        background::spawn(&mut commands, GameState::Achievements);
+    } else {
+        commands.spawn(screen_camera(GameState::Achievements));
+    }
+    spawn_panel(&mut commands, &assets, &progress, false);
+}
+
+fn spawn_panel(
+    commands: &mut Commands,
+    assets: &UiAssets,
+    progress: &AchievementProgress,
+    paused: bool,
+) {
     let font = assets.font.clone();
-    commands.spawn(screen_camera(GameState::Achievements));
     let unlocked = progress.unlocked.len();
     let total = Achievement::ALL.len();
-    commands
-        .spawn((
-            AchievementsScreen,
-            Name::new("Achievements screen"),
-            DespawnOnExit(GameState::Achievements),
-            Node {
-                width: percent(100),
-                height: percent(100),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            BackgroundColor(theme::BACKGROUND),
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn((
-                    Name::new("Achievements panel"),
-                    Node {
-                        width: px(560),
-                        max_width: percent(95),
-                        max_height: percent(95),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: px(8),
-                        padding: UiRect::all(px(16)),
-                        ..default()
-                    },
-                    BackgroundColor(theme::PANEL),
-                ))
-                .with_children(|panel| {
-                    panel.spawn(text("Achievements", 28.0, theme::TEXT, font.clone()));
-                    panel.spawn(text(
-                        format!("{unlocked} / {total} unlocked"),
-                        16.0,
-                        theme::MUTED,
-                        font.clone(),
+    let mut screen = commands.spawn((
+        AchievementsScreen,
+        Name::new("Achievements screen"),
+        Node {
+            width: percent(100),
+            height: percent(100),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        BackgroundColor(Color::NONE),
+    ));
+    if paused {
+        screen.insert((
+            PauseAchievements,
+            DespawnOnExit(PauseState::Paused),
+            GlobalZIndex(101),
+        ));
+    } else {
+        screen.insert(DespawnOnExit(GameState::Achievements));
+    }
+    screen.with_children(|parent| {
+        parent
+            .spawn((
+                Name::new("Achievements panel"),
+                Node {
+                    width: px(560),
+                    max_width: percent(95),
+                    max_height: percent(95),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: px(8),
+                    padding: UiRect::all(px(16)),
+                    ..default()
+                },
+                BackgroundColor(theme::PANEL),
+            ))
+            .with_children(|panel| {
+                panel.spawn(text("Achievements", 28.0, theme::TEXT, font.clone()));
+                panel.spawn(text(
+                    format!("{unlocked} / {total} unlocked"),
+                    16.0,
+                    theme::MUTED,
+                    font.clone(),
+                ));
+                panel
+                    .spawn((
+                        AchievementList,
+                        ScrollPosition::default(),
+                        Node {
+                            width: percent(100),
+                            flex_direction: FlexDirection::Column,
+                            flex_shrink: 1.0,
+                            row_gap: px(6),
+                            overflow: Overflow::scroll_y(),
+                            ..default()
+                        },
+                    ))
+                    .with_children(|list| {
+                        for achievement in Achievement::ALL {
+                            let unlocked = progress.unlocked.contains(&achievement);
+                            let icon = assets
+                                .achievement_icon(icon_stem(achievement), unlocked)
+                                .unwrap_or_default();
+                            list.spawn(achievement_row(achievement, unlocked, font.clone(), icon));
+                        }
+                    });
+                if paused {
+                    panel.spawn((
+                        Name::new("Back button"),
+                        AchievementAction::Back,
+                        menu_button("Back", font),
                     ));
-                    panel
-                        .spawn((
-                            AchievementList,
-                            ScrollPosition::default(),
-                            Node {
-                                width: percent(100),
-                                flex_direction: FlexDirection::Column,
-                                flex_shrink: 1.0,
-                                row_gap: px(6),
-                                overflow: Overflow::scroll_y(),
-                                ..default()
-                            },
-                        ))
-                        .with_children(|list| {
-                            for achievement in Achievement::ALL {
-                                let unlocked = progress.unlocked.contains(&achievement);
-                                let icon = assets
-                                    .achievement_icon(icon_stem(achievement), unlocked)
-                                    .unwrap_or_default();
-                                list.spawn(achievement_row(
-                                    achievement,
-                                    unlocked,
-                                    font.clone(),
-                                    icon,
-                                ));
-                            }
-                        });
+                } else {
                     panel.spawn((
                         Name::new("Back button"),
                         MenuAction::MainMenu,
                         menu_button("Back", font),
                     ));
+                }
+            });
+    });
+}
+
+fn activate_pause_achievements(
+    buttons: Query<(&Interaction, &AchievementAction), Changed<Interaction>>,
+    screens: Query<Entity, With<PauseAchievements>>,
+    mut pause_menus: Query<&mut Node, With<PauseMenu>>,
+    assets: Option<Res<UiAssets>>,
+    progress: Res<AchievementProgress>,
+    mut sounds: MessageWriter<PlaySound>,
+    mut commands: Commands,
+) {
+    for (interaction, action) in &buttons {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        match action {
+            AchievementAction::Open if screens.is_empty() => {
+                if let Some(assets) = assets.as_ref() {
+                    spawn_panel(&mut commands, assets, &progress, true);
+                    for mut node in &mut pause_menus {
+                        node.display = Display::None;
+                    }
+                    sounds.write(PlaySound {
+                        sound: Sound::UiConfirm,
+                        position: None,
+                    });
+                }
+            }
+            AchievementAction::Back if !screens.is_empty() => {
+                close_pause_achievements(&screens, &mut pause_menus, &mut commands);
+                sounds.write(PlaySound {
+                    sound: Sound::UiBack,
+                    position: None,
                 });
+            }
+            _ => {}
+        }
+    }
+}
+
+fn close_pause_achievements(
+    screens: &Query<Entity, With<PauseAchievements>>,
+    pause_menus: &mut Query<&mut Node, With<PauseMenu>>,
+    commands: &mut Commands,
+) {
+    for entity in screens {
+        commands.entity(entity).despawn();
+    }
+    for mut node in pause_menus {
+        node.display = Display::Flex;
+    }
+}
+
+fn back_from_pause(
+    keys: Res<ButtonInput<KeyCode>>,
+    screens: Query<Entity, With<PauseAchievements>>,
+    mut pause_menus: Query<&mut Node, With<PauseMenu>>,
+    mut sounds: MessageWriter<PlaySound>,
+    mut commands: Commands,
+) {
+    if keys.just_pressed(KeyCode::Escape) && !screens.is_empty() {
+        close_pause_achievements(&screens, &mut pause_menus, &mut commands);
+        sounds.write(PlaySound {
+            sound: Sound::UiBack,
+            position: None,
         });
+    }
 }
 
 fn scroll_achievements(

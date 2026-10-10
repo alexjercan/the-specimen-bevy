@@ -6,8 +6,8 @@ use std::{
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-pub const MIN_SENSITIVITY: f32 = 0.0005;
-pub const MAX_SENSITIVITY: f32 = 0.01;
+pub const MIN_SENSITIVITY: f32 = 0.0;
+pub const MAX_SENSITIVITY: f32 = 0.004;
 pub const DEFAULT_SENSITIVITY: f32 = 0.002;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -178,7 +178,7 @@ impl Default for GameSettings {
             keys: MovementKeys::default(),
             graphics: GraphicsQuality::High,
             display_mode: DisplayMode::Fullscreen,
-            fps_overlay: true,
+            fps_overlay: false,
         }
     }
 }

@@ -1,5 +1,6 @@
 mod device;
 mod flashlight;
+mod fps;
 mod hud;
 mod slider;
 mod stamina;
@@ -14,6 +15,7 @@ pub use device::{
     FlashbangPrompt, FlashbangStatus, TrackerEdge,
 };
 pub use flashlight::{flashlight_meter, FlashlightMeter, FlashlightPrompt};
+pub use fps::{fps_label, FpsOverlayPlugin, FpsText};
 pub use hud::{fuse_part_paint, fuse_slots, FuseIconPart, FuseSlot, FuseSlots, FUSE_SLOT_COUNT};
 pub use slider::{slider, SliderFill};
 pub use stamina::{stamina_meter, StaminaMeter};
@@ -23,7 +25,8 @@ pub struct GameUiPlugin;
 
 impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(bevy::ui_widgets::slider_self_update)
+        app.add_plugins(FpsOverlayPlugin)
+            .add_observer(bevy::ui_widgets::slider_self_update)
             .add_systems(
                 Update,
                 (

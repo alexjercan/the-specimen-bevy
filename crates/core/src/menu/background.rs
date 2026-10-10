@@ -7,11 +7,9 @@ use super::GameState;
 #[path = "../../tests/unit/menu_background.rs"]
 mod tests;
 
-pub(super) fn spawn(commands: &mut Commands) {
+pub(super) fn spawn(commands: &mut Commands, state: GameState) {
     let root = build_main_menu_background(commands);
-    commands
-        .entity(root)
-        .insert(DespawnOnExit(GameState::MainMenu));
+    commands.entity(root).insert(DespawnOnExit(state));
 
     commands.spawn((
         Name::new("Main menu room camera"),
@@ -22,7 +20,7 @@ pub(super) fn spawn(commands: &mut Commands) {
             ..default()
         },
         Transform::from_xyz(0.0, 1.65, 0.9).looking_at(Vec3::new(0.0, 1.3, -3.6), Vec3::Y),
-        DespawnOnExit(GameState::MainMenu),
+        DespawnOnExit(state),
     ));
     commands.spawn((
         Name::new("Main menu UI camera"),
@@ -33,7 +31,7 @@ pub(super) fn spawn(commands: &mut Commands) {
             order: 1,
             ..default()
         },
-        DespawnOnExit(GameState::MainMenu),
+        DespawnOnExit(state),
     ));
     commands.spawn((
         Name::new("Main menu flashlight accent"),

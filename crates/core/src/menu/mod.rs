@@ -87,13 +87,14 @@ impl Plugin for MenuPlugin {
 fn activate_buttons(
     buttons: Query<(&Interaction, &MenuAction), Changed<Interaction>>,
     overlay: Query<(), With<settings::SettingsOverlay>>,
+    achievements: Query<(), With<achievements::PauseAchievements>>,
     mut game: ResMut<NextState<GameState>>,
     mut pause: ResMut<NextState<PauseState>>,
     mut route: ResMut<credits::CreditsRoute>,
     #[cfg(not(target_arch = "wasm32"))] mut exit: MessageWriter<AppExit>,
     mut sounds: MessageWriter<PlaySound>,
 ) {
-    if !overlay.is_empty() {
+    if !overlay.is_empty() || !achievements.is_empty() {
         return;
     }
     for (interaction, action) in &buttons {

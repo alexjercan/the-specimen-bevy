@@ -1,5 +1,4 @@
 use bevy::camera::RenderTarget;
-use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::pbr::wireframe::{WireframeConfig, WireframePlugin};
 use bevy::pbr::PbrPlugin;
@@ -10,7 +9,7 @@ use bevy_egui::{
     EguiPrimaryContextPass, PrimaryEguiContext,
 };
 use bevy_inspector_egui::{bevy_inspector, DefaultInspectorConfigPlugin};
-use game_settings::GameSettings;
+pub use game_ui::{fps_label, FpsText};
 use gameplay::{
     controller::PlayerController,
     levels::{Detector, Door, Flashbangs, FusePanel, Monster, PickupKind, Prop, Room},
@@ -31,15 +30,12 @@ pub struct DebugSettings {
     pub wireframe: bool,
 }
 
-#[derive(Component)]
-pub struct FpsText;
-
 pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<FrameTimeDiagnosticsPlugin>() {
-            app.add_plugins(FrameTimeDiagnosticsPlugin::default());
+        if !app.is_plugin_added::<game_ui::GameUiPlugin>() {
+            app.add_plugins(game_ui::GameUiPlugin);
         }
         if app.is_plugin_added::<PbrPlugin>() && !app.is_plugin_added::<WireframePlugin>() {
             app.add_plugins(WireframePlugin::default());
@@ -58,70 +54,15 @@ impl Plugin for DebugPlugin {
                     inspector_ui.run_if(|settings: Res<DebugSettings>| settings.inspector),
                 );
         }
-        app.init_resource::<DebugSettings>()
-            .add_systems(Startup, spawn_fps_text)
-            .add_systems(
-                Update,
-                (
-                    toggle_inspector.run_if(input_just_pressed(INSPECTOR_TOGGLE_KEY)),
-                    update_fps_text,
-                    sync_fps_visibility,
-                    sync_wireframe.run_if(
-                        resource_exists::<WireframeConfig>
-                            .and_then(resource_changed::<DebugSettings>),
-                    ),
+        app.init_resource::<DebugSettings>().add_systems(
+            Update,
+            (
+                toggle_inspector.run_if(input_just_pressed(INSPECTOR_TOGGLE_KEY)),
+                sync_wireframe.run_if(
+                    resource_exists::<WireframeConfig>.and_then(resource_changed::<DebugSettings>),
                 ),
-            );
-    }
-}
-
-pub fn fps_label(fps: Option<f64>) -> String {
-    match fps {
-        Some(fps) => format!("FPS {fps:.0}"),
-        None => "FPS --".into(),
-    }
-}
-
-fn spawn_fps_text(mut commands: Commands) {
-    commands.spawn((
-        FpsText,
-        Visibility::Visible,
-        Text::new(fps_label(None)),
-        TextFont::from_font_size(16.0),
-        TextColor(Color::srgb(0.4, 1.0, 0.4)),
-        Node {
-            position_type: PositionType::Absolute,
-            top: px(8),
-            right: px(8),
-            ..default()
-        },
-        GlobalZIndex(i32::MAX),
-    ));
-}
-
-fn sync_fps_visibility(
-    settings: Option<Res<GameSettings>>,
-    mut texts: Query<&mut Visibility, With<FpsText>>,
-) {
-    let visible = settings.is_none_or(|settings| settings.fps_overlay);
-    for mut visibility in &mut texts {
-        *visibility = if visible {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
-    }
-}
-
-fn update_fps_text(diagnostics: Res<DiagnosticsStore>, mut texts: Query<&mut Text, With<FpsText>>) {
-    let fps = diagnostics
-        .get(&FrameTimeDiagnosticsPlugin::FPS)
-        .and_then(|fps| fps.smoothed());
-    let label = fps_label(fps);
-    for mut text in &mut texts {
-        if text.0 != label {
-            text.0.clone_from(&label);
-        }
+            ),
+        );
     }
 }
 

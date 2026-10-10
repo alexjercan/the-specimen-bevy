@@ -7,7 +7,7 @@ The game tracks seven achievements. Open **Achievements** below Credits on the m
 | Escape empty-handed | `ESCAPE_WITHOUT_FLASHBANG` | Escape without picking up a flashbang in that run. |
 | Trust your ears | `ESCAPE_WITHOUT_DETECTOR` | Escape without picking up the detector in that run. |
 | Buy some time | `FLASHBANG_HIT_MONSTER` | Hit the monster with a flashbang burst within 4 m and clear line of sight. This only affects the achievement and existing flash protection; it does not stun the monster. |
-| In the dark | `ESCAPE_WITHOUT_BOILER` | Escape without restoring the boiler in that run. |
+| In the dark | `ESCAPE_WITHOUT_BOILER` | Escape while the power is out, without restoring the boiler in that run. Escaping before the outage does not qualify. |
 | Let there be light | `RESTORE_BOILER` | Complete boiler restoration. |
 | So close | `CAUGHT_AFTER_EXIT_OPEN` | Open the unlocked exit, then get caught before escaping. |
 | Unseen | `ESCAPE_UNDETECTED` | Escape without ever being detected in that run. |

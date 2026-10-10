@@ -27,7 +27,7 @@ fn spawn_main_menu(
 ) {
     let font = assets.font.clone();
     if facility.is_some() {
-        background::spawn(&mut commands);
+        background::spawn(&mut commands, GameState::MainMenu);
     } else {
         commands.spawn(screen_camera(GameState::MainMenu));
     }

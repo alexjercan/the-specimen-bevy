@@ -48,8 +48,10 @@ fn persisted_fps_setting_controls_overlay_visibility() {
     let mut app = app();
     app.insert_resource(GameSettings::default());
     app.update();
-    let mut texts = app.world_mut().query_filtered::<&Visibility, With<FpsText>>();
-    assert_eq!(*texts.single(app.world()).unwrap(), Visibility::Visible);
+    let mut texts = app
+        .world_mut()
+        .query_filtered::<&Visibility, With<FpsText>>();
+    assert_eq!(*texts.single(app.world()).unwrap(), Visibility::Hidden);
 
     app.world_mut().resource_mut::<GameSettings>().fps_overlay = false;
     app.update();

@@ -1,16 +1,20 @@
 use bevy::{
+    input::mouse::{MouseScrollUnit, MouseWheel},
     prelude::*,
-    ui::FocusPolicy,
-    ui_widgets::{SliderDragState, SliderValue, ValueChange},
+    ui::{FocusPolicy, UiSystems},
+    ui_widgets::{
+        ControlOrientation, Scrollbar, ScrollbarThumb, SliderDragState, SliderValue, ValueChange,
+    },
 };
 use game_assets::UiAssets;
+use game_audio::{PlaySound, Sound};
 use game_settings::{
-    parse_binding, parse_key, GameSettings, SettingsDirty, DEFAULT_SENSITIVITY, MAX_SENSITIVITY,
-    MIN_SENSITIVITY,
+    DEFAULT_SENSITIVITY, GameSettings, MAX_SENSITIVITY, MIN_SENSITIVITY, SettingsDirty,
+    parse_binding, parse_key,
 };
-use game_ui::{menu_button, text, theme, MenuButton};
+use game_ui::{MenuButton, menu_button, text, theme};
 
-use super::{GameState, PauseState};
+use super::{GameState, PauseState, main_menu::MainMenu};
 
 const GLYPH_SIZE: f32 = 30.0;
 const CHIP_WIDTH: f32 = 230.0;
@@ -19,6 +23,12 @@ const AWAITING_TEXT: &str = "PRESS KEY OR MOUSE (Esc cancels)";
 
 #[derive(Component)]
 pub(super) struct SettingsOverlay;
+
+#[derive(Component)]
+struct SettingsScroll;
+
+#[derive(Component)]
+struct SettingsScrollbar;
 
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) enum SettingsTab {
@@ -186,7 +196,7 @@ impl SettingSlider {
 
     fn step(self) -> f32 {
         match self {
-            Self::Sensitivity => 0.0005,
+            Self::Sensitivity => 0.0001,
             _ => 0.05,
         }
     }
@@ -211,7 +221,7 @@ impl SettingSlider {
 
     pub(super) fn readout(self, value: f32) -> String {
         match self {
-            Self::Sensitivity => format!("{:.1}x", value / DEFAULT_SENSITIVITY),
+            Self::Sensitivity => format!("{:.1}", value / (DEFAULT_SENSITIVITY / 2.0)),
             _ => format!("{}%", (value * 100.0).round()),
         }
     }
@@ -257,7 +267,9 @@ pub(super) fn plugin(app: &mut App) {
                 refresh,
             )
                 .chain(),
-        );
+        )
+        .add_systems(Update, scroll_settings)
+        .add_systems(PostUpdate, show_scrollbar.after(UiSystems::Layout));
 }
 
 fn key_label(key: &str) -> &str {
@@ -394,9 +406,6 @@ fn spawn_row(
     settings: &GameSettings,
     assets: &UiAssets,
 ) {
-    if matches!(item, Row::Choice(SettingsAction::FpsOverlay)) && !cfg!(feature = "debug") {
-        return;
-    }
     let font = assets.font.clone();
     match *item {
         Row::Slider(field) => {
@@ -502,11 +511,7 @@ fn tab_button(tab: SettingsTab, selected: bool, font: Handle<Font>) -> impl Bund
 }
 
 fn tab_color(selected: bool) -> Color {
-    if selected {
-        theme::TEXT
-    } else {
-        theme::MUTED
-    }
+    if selected { theme::TEXT } else { theme::MUTED }
 }
 
 fn tab_display(selected: bool) -> Display {
@@ -537,7 +542,7 @@ fn spawn_overlay(
         },
         GlobalZIndex(200),
         FocusPolicy::Block,
-        BackgroundColor(theme::BACKGROUND),
+        BackgroundColor(Color::NONE),
     ));
     match state {
         GameState::MainMenu => {
@@ -558,7 +563,9 @@ fn spawn_overlay(
             .spawn((
                 Node {
                     width: px(560),
-                    max_height: percent(95),
+                    max_width: percent(95),
+                    height: px(620),
+                    max_height: percent(90),
                     flex_direction: FlexDirection::Column,
                     row_gap: px(8),
                     padding: UiRect::all(px(16)),
@@ -581,43 +588,116 @@ fn spawn_overlay(
                         bar.spawn(tab_button(tab, tab == active, font.clone()));
                     }
                 });
-                list.spawn((
-                    Name::new("Settings tab body"),
-                    Node {
-                        width: percent(100),
-                        min_height: px(410),
-                        flex_direction: FlexDirection::Column,
-                        ..default()
-                    },
-                ))
-                .with_children(|body| {
-                    for tab in SettingsTab::ALL {
-                        body.spawn((
-                            tab,
-                            Name::new(format!("{} page", tab.title())),
+                list.spawn(Node {
+                    width: percent(100),
+                    flex_grow: 1.0,
+                    flex_shrink: 1.0,
+                    min_height: px(0),
+                    column_gap: px(6),
+                    ..default()
+                })
+                .with_children(|row| {
+                    let scroll = row
+                        .spawn((
+                            Name::new("Settings tab body"),
+                            SettingsScroll,
+                            ScrollPosition::default(),
                             Node {
-                                width: percent(100),
+                                flex_grow: 1.0,
+                                flex_shrink: 1.0,
+                                min_width: px(0),
+                                min_height: px(0),
                                 flex_direction: FlexDirection::Column,
-                                row_gap: px(8),
-                                display: tab_display(tab == active),
+                                overflow: Overflow::scroll_y(),
                                 ..default()
                             },
                         ))
-                        .with_children(|page| {
-                            for kind in tab.groups() {
-                                page.spawn(group(*kind, font.clone()))
-                                    .with_children(|group| {
-                                        for item in kind.rows() {
-                                            spawn_row(group, item, settings, assets);
-                                        }
-                                    });
+                        .with_children(|body| {
+                            for tab in SettingsTab::ALL {
+                                body.spawn((
+                                    tab,
+                                    Name::new(format!("{} page", tab.title())),
+                                    Node {
+                                        width: percent(100),
+                                        flex_direction: FlexDirection::Column,
+                                        row_gap: px(8),
+                                        display: tab_display(tab == active),
+                                        ..default()
+                                    },
+                                ))
+                                .with_children(|page| {
+                                    for kind in tab.groups() {
+                                        page.spawn(group(*kind, font.clone())).with_children(
+                                            |group| {
+                                                for item in kind.rows() {
+                                                    spawn_row(group, item, settings, assets);
+                                                }
+                                            },
+                                        );
+                                    }
+                                });
                             }
-                        });
-                    }
+                        })
+                        .id();
+                    row.spawn((
+                        Name::new("Settings scrollbar"),
+                        SettingsScrollbar,
+                        Scrollbar::new(scroll, ControlOrientation::Vertical, 28.0),
+                        Visibility::Hidden,
+                        Node {
+                            width: px(8),
+                            height: percent(100),
+                            flex_shrink: 0.0,
+                            ..default()
+                        },
+                        BackgroundColor(theme::BACKGROUND),
+                    ))
+                    .with_children(|track| {
+                        track.spawn((
+                            ScrollbarThumb {
+                                border_radius: BorderRadius::all(px(4)),
+                                ..default()
+                            },
+                            BackgroundColor(theme::ACCENT),
+                        ));
+                    });
                 });
                 list.spawn((SettingsAction::Back, menu_button("Back", font)));
             });
     });
+}
+
+fn show_scrollbar(
+    scroll: Query<&ComputedNode, With<SettingsScroll>>,
+    mut bars: Query<(&Scrollbar, &mut Visibility), With<SettingsScrollbar>>,
+) {
+    for (bar, mut visibility) in &mut bars {
+        let Ok(node) = scroll.get(bar.target) else {
+            continue;
+        };
+        *visibility = if node.content_size().y > node.size().y - node.scrollbar_size.y + 1.0 {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+    }
+}
+
+fn scroll_settings(
+    mut wheel: MessageReader<MouseWheel>,
+    mut scroll: Query<&mut ScrollPosition, With<SettingsScroll>>,
+) {
+    let mut delta = 0.0;
+    for event in wheel.read() {
+        delta -= event.y
+            * match event.unit {
+                MouseScrollUnit::Line => 38.0,
+                MouseScrollUnit::Pixel => 1.0,
+            };
+    }
+    for mut position in &mut scroll {
+        position.0.y = (position.0.y + delta).max(0.0);
+    }
 }
 
 fn change_slider(
@@ -625,6 +705,7 @@ fn change_slider(
     fields: Query<&SettingSlider>,
     mut settings: ResMut<GameSettings>,
     mut pending: ResMut<PendingSave>,
+    mut sounds: MessageWriter<PlaySound>,
 ) {
     let Ok(field) = fields.get(change.source) else {
         return;
@@ -636,6 +717,10 @@ fn change_slider(
     }
     field.set(&mut settings, value);
     pending.0 = true;
+    sounds.write(PlaySound {
+        sound: Sound::UiFocus,
+        position: None,
+    });
 }
 
 fn save_sliders(
@@ -668,12 +753,16 @@ fn sync_sliders(
 fn activate(
     buttons: Query<(&Interaction, &SettingsAction), Changed<Interaction>>,
     overlay: Query<Entity, With<SettingsOverlay>>,
+    mut menu: Query<&mut Node, (With<MainMenu>, Without<super::pause::PauseMenu>)>,
+    mut pause_menu: Query<&mut Node, (With<super::pause::PauseMenu>, Without<MainMenu>)>,
+    mut scroll: Query<&mut ScrollPosition, With<SettingsScroll>>,
     state: Option<Res<State<GameState>>>,
     mut settings: ResMut<GameSettings>,
     mut dirty: ResMut<SettingsDirty>,
     mut awaiting: ResMut<AwaitingKey>,
     mut active: ResMut<ActiveTab>,
     assets: Option<Res<UiAssets>>,
+    mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
 ) {
     for (interaction, action) in &buttons {
@@ -684,28 +773,67 @@ fn activate(
             SettingsAction::Open if overlay.is_empty() => {
                 if let (Some(state), Some(assets)) = (state.as_ref(), assets.as_ref()) {
                     spawn_overlay(&mut commands, assets, &settings, *state.get(), active.0);
+                    sounds.write(PlaySound {
+                        sound: Sound::UiConfirm,
+                        position: None,
+                    });
+                    for mut node in &mut menu {
+                        node.display = Display::None;
+                    }
+                    for mut node in &mut pause_menu {
+                        node.display = Display::None;
+                    }
                 }
             }
             SettingsAction::Back => {
+                sounds.write(PlaySound {
+                    sound: Sound::UiBack,
+                    position: None,
+                });
                 for entity in &overlay {
                     commands.entity(entity).despawn();
                 }
                 awaiting.0 = None;
+                for mut node in &mut menu {
+                    node.display = Display::Flex;
+                }
+                for mut node in &mut pause_menu {
+                    node.display = Display::Flex;
+                }
             }
             _ if overlay.is_empty() => {}
             SettingsAction::Tab(tab) => {
+                sounds.write(PlaySound {
+                    sound: Sound::UiFocus,
+                    position: None,
+                });
                 active.0 = *tab;
                 awaiting.0 = None;
+                for mut position in &mut scroll {
+                    position.0.y = 0.0;
+                }
             }
             SettingsAction::Graphics => {
+                sounds.write(PlaySound {
+                    sound: Sound::UiPress,
+                    position: None,
+                });
                 settings.graphics = settings.graphics.next();
                 dirty.0 = true;
             }
             SettingsAction::DisplayMode => {
+                sounds.write(PlaySound {
+                    sound: Sound::UiPress,
+                    position: None,
+                });
                 settings.display_mode = settings.display_mode.next();
                 dirty.0 = true;
             }
             SettingsAction::FpsOverlay => {
+                sounds.write(PlaySound {
+                    sound: Sound::UiPress,
+                    position: None,
+                });
                 settings.fps_overlay = !settings.fps_overlay;
                 dirty.0 = true;
             }
@@ -715,7 +843,13 @@ fn activate(
             | SettingsAction::Right
             | SettingsAction::Interact
             | SettingsAction::Flashlight
-            | SettingsAction::Flashbang) => awaiting.0 = Some(*key),
+            | SettingsAction::Flashbang) => {
+                sounds.write(PlaySound {
+                    sound: Sound::UiFocus,
+                    position: None,
+                });
+                awaiting.0 = Some(*key);
+            }
             SettingsAction::Open => {}
         }
     }
@@ -728,14 +862,31 @@ fn capture_key(
     mut settings: ResMut<GameSettings>,
     mut dirty: ResMut<SettingsDirty>,
     overlays: Query<Entity, With<SettingsOverlay>>,
+    mut menu: Query<&mut Node, (With<MainMenu>, Without<super::pause::PauseMenu>)>,
+    mut pause_menu: Query<&mut Node, (With<super::pause::PauseMenu>, Without<MainMenu>)>,
+    mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
 ) {
     if keys.just_pressed(KeyCode::Escape) {
+        if awaiting.0.is_some() || !overlays.is_empty() {
+            sounds.write(PlaySound {
+                sound: Sound::UiBack,
+                position: None,
+            });
+        }
         if awaiting.0.is_some() {
             awaiting.0 = None;
         } else {
             for entity in &overlays {
                 commands.entity(entity).despawn();
+            }
+            if !overlays.is_empty() {
+                for mut node in &mut menu {
+                    node.display = Display::Flex;
+                }
+                for mut node in &mut pause_menu {
+                    node.display = Display::Flex;
+                }
             }
         }
         return;
@@ -784,6 +935,10 @@ fn capture_key(
     settings.keys = updated;
     awaiting.0 = None;
     dirty.0 = true;
+    sounds.write(PlaySound {
+        sound: Sound::UiConfirm,
+        position: None,
+    });
 }
 
 fn show_tab(

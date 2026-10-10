@@ -6,3 +6,4 @@ license.workspace = true
 
 [dependencies]
 bevy.workspace = true
+game_settings.workspace = true

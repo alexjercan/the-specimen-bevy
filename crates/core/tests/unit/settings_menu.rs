@@ -1,9 +1,10 @@
 use bevy::{
     asset::AssetPath,
+    input::touch::TouchPhase,
     input::{
-        keyboard::{Key, KeyboardInput},
-        mouse::MouseButtonInput,
         ButtonState, InputPlugin,
+        keyboard::{Key, KeyboardInput},
+        mouse::{MouseButtonInput, MouseScrollUnit, MouseWheel},
     },
     platform::collections::HashMap,
     state::app::StatesPlugin,
@@ -12,7 +13,7 @@ use bevy_asset_loader::mapped::{AssetFileStem, MapKey};
 use game_assets::key_glyph_stem;
 
 use super::*;
-use crate::{menu::MenuPlugin, CoreState};
+use crate::{CoreState, menu::MenuPlugin};
 
 fn glyphs(stems: &[&str]) -> (HashMap<AssetFileStem, Handle<Image>>, Vec<Handle<Image>>) {
     let mut map = HashMap::default();
@@ -137,6 +138,14 @@ fn chip(app: &mut App, action: SettingsAction) -> Shown {
     }
 }
 
+fn played_sounds(app: &mut App) -> Vec<Sound> {
+    app.world_mut()
+        .resource_mut::<Messages<PlaySound>>()
+        .drain()
+        .map(|cue| cue.sound)
+        .collect()
+}
+
 fn chip_text(app: &mut App, action: SettingsAction) -> String {
     match chip(app, action) {
         Shown::Text(text) => text,
@@ -211,9 +220,9 @@ fn settings_tabs_switch_pages_and_hold_labeled_groups() {
                 tabs += 1;
                 None
             }
-            SettingsAction::Graphics
-            | SettingsAction::DisplayMode
-            | SettingsAction::FpsOverlay => Some(SettingsGroup::Quality),
+            SettingsAction::Graphics | SettingsAction::DisplayMode | SettingsAction::FpsOverlay => {
+                Some(SettingsGroup::Quality)
+            }
             SettingsAction::Interact | SettingsAction::Flashlight | SettingsAction::Flashbang => {
                 Some(SettingsGroup::Interaction)
             }
@@ -264,19 +273,138 @@ fn settings_tabs_switch_pages_and_hold_labeled_groups() {
     assert_eq!(chip_text(&mut app, SettingsAction::Forward), "W");
 
     click(&mut app, SettingsAction::Back);
-    assert!(app
-        .world_mut()
-        .query::<&SettingsOverlay>()
-        .iter(app.world())
-        .next()
-        .is_none());
+    assert!(
+        app.world_mut()
+            .query::<&SettingsOverlay>()
+            .iter(app.world())
+            .next()
+            .is_none()
+    );
     click(&mut app, SettingsAction::Open);
     assert_eq!(visible_tabs(&mut app), vec![SettingsTab::Graphics]);
 }
 
 #[test]
+fn settings_panel_keeps_menu_visible_and_scrolls_controls() {
+    let mut app = app(UiAssets::default());
+    click(&mut app, SettingsAction::Open);
+    let menu = app
+        .world_mut()
+        .query_filtered::<Entity, With<MainMenu>>()
+        .single(app.world())
+        .unwrap();
+    assert_eq!(
+        app.world().get::<Node>(menu).unwrap().display,
+        Display::None
+    );
+    let overlay = app
+        .world_mut()
+        .query_filtered::<Entity, With<SettingsOverlay>>()
+        .single(app.world())
+        .unwrap();
+    assert_eq!(
+        app.world().get::<BackgroundColor>(overlay).unwrap().0,
+        Color::NONE
+    );
+    let panel = app.world().get::<Children>(overlay).unwrap()[0];
+    let panel_node = app.world().get::<Node>(panel).unwrap();
+    assert_eq!(panel_node.height, px(620));
+    assert_eq!(panel_node.max_height, percent(90));
+    let scroll = app
+        .world_mut()
+        .query_filtered::<Entity, With<SettingsScroll>>()
+        .single(app.world())
+        .unwrap();
+    assert_eq!(
+        app.world().get::<Node>(scroll).unwrap().overflow.y,
+        OverflowAxis::Scroll
+    );
+    let bar = app
+        .world_mut()
+        .query_filtered::<Entity, With<SettingsScrollbar>>()
+        .single(app.world())
+        .unwrap();
+    assert_eq!(app.world().get::<Scrollbar>(bar).unwrap().target, scroll);
+    assert_eq!(
+        app.world().get::<Visibility>(bar),
+        Some(&Visibility::Hidden)
+    );
+    let thumb = app.world().get::<Children>(bar).unwrap()[0];
+    assert!(app.world().get::<ScrollbarThumb>(thumb).is_some());
+    click(&mut app, SettingsAction::Tab(SettingsTab::Controls));
+    app.world_mut().write_message(MouseWheel {
+        unit: MouseScrollUnit::Line,
+        x: 0.0,
+        y: -3.0,
+        window: Entity::PLACEHOLDER,
+        phase: TouchPhase::Moved,
+    });
+    app.update();
+    assert_eq!(
+        app.world().get::<ScrollPosition>(scroll).unwrap().0.y,
+        114.0
+    );
+    click(&mut app, SettingsAction::Tab(SettingsTab::Audio));
+    assert_eq!(app.world().get::<ScrollPosition>(scroll).unwrap().0.y, 0.0);
+    click(&mut app, SettingsAction::Back);
+    assert_eq!(
+        app.world().get::<Node>(menu).unwrap().display,
+        Display::Flex
+    );
+    click(&mut app, SettingsAction::Open);
+    key(&mut app, KeyCode::Escape, Key::Escape);
+    assert_eq!(
+        app.world().get::<Node>(menu).unwrap().display,
+        Display::Flex
+    );
+}
+
+#[test]
+fn fps_setting_is_available_and_off_by_default() {
+    let mut app = app(UiAssets::default());
+    assert!(!app.world().resource::<GameSettings>().fps_overlay);
+    click(&mut app, SettingsAction::Open);
+    click(&mut app, SettingsAction::Tab(SettingsTab::Graphics));
+    click(&mut app, SettingsAction::FpsOverlay);
+    assert!(app.world().resource::<GameSettings>().fps_overlay);
+}
+
+#[test]
+fn settings_buttons_and_slider_changes_play_feedback() {
+    let mut app = app(UiAssets::default());
+    click(&mut app, SettingsAction::Open);
+    assert!(played_sounds(&mut app).contains(&Sound::UiConfirm));
+
+    click(&mut app, SettingsAction::Tab(SettingsTab::Graphics));
+    assert!(played_sounds(&mut app).contains(&Sound::UiFocus));
+    for action in [
+        SettingsAction::Graphics,
+        SettingsAction::DisplayMode,
+        SettingsAction::FpsOverlay,
+    ] {
+        click(&mut app, action);
+        assert!(played_sounds(&mut app).contains(&Sound::UiPress));
+    }
+    click(&mut app, SettingsAction::Tab(SettingsTab::Controls));
+    played_sounds(&mut app);
+    click(&mut app, SettingsAction::Flashlight);
+    assert!(played_sounds(&mut app).contains(&Sound::UiFocus));
+    mouse(&mut app, MouseButton::Middle);
+    assert!(played_sounds(&mut app).contains(&Sound::UiConfirm));
+
+    click(&mut app, SettingsAction::Back);
+    assert!(played_sounds(&mut app).contains(&Sound::UiBack));
+}
+
+#[test]
 fn key_chips_show_bound_glyphs_with_text_fallback() {
-    let (key_glyphs, handles) = glyphs(&["T_W_Key_Alt", "T_F_Key_Alt"]);
+    let (key_glyphs, handles) = glyphs(&[
+        "T_W_Key_Alt",
+        "T_F_Key_Alt",
+        "T_Mouse_Left_Key_Alt",
+        "T_Mouse_Right_Key_Alt",
+        "T_Mouse_Middle_Key_Alt",
+    ]);
     let mut app = app(UiAssets {
         key_glyphs,
         ..default()
@@ -286,7 +414,8 @@ fn key_chips_show_bound_glyphs_with_text_fallback() {
     assert_eq!(chip_glyph(&mut app, SettingsAction::Forward), handles[0]);
     assert_eq!(chip_glyph(&mut app, SettingsAction::Interact), handles[1]);
     assert_eq!(chip_text(&mut app, SettingsAction::Left), "A");
-    assert_eq!(chip_text(&mut app, SettingsAction::Flashlight), "MouseLeft");
+    assert_eq!(chip_glyph(&mut app, SettingsAction::Flashlight), handles[2]);
+    assert_eq!(chip_glyph(&mut app, SettingsAction::Flashbang), handles[3]);
 
     click(&mut app, SettingsAction::Forward);
     assert_eq!(chip_text(&mut app, SettingsAction::Forward), AWAITING_TEXT);
@@ -307,6 +436,10 @@ fn key_chips_show_bound_glyphs_with_text_fallback() {
     assert_eq!(app.world().resource::<GameSettings>().keys.left, "KeyW");
     assert_eq!(chip_glyph(&mut app, SettingsAction::Left), handles[0]);
     assert!(app.world().resource::<SettingsDirty>().0);
+
+    click(&mut app, SettingsAction::Flashlight);
+    mouse(&mut app, MouseButton::Middle);
+    assert_eq!(chip_glyph(&mut app, SettingsAction::Flashlight), handles[4]);
 }
 
 #[test]

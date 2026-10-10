@@ -1,13 +1,15 @@
 use bevy::prelude::*;
 use gameplay::levels::{DoorRef, LevelRoot};
 
-use super::{spawn, GameState};
+use super::{GameState, spawn};
 
 #[test]
 fn menu_room_and_cameras_are_state_scoped() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, |mut commands: Commands| spawn(&mut commands));
+        .add_systems(Startup, |mut commands: Commands| {
+            spawn(&mut commands, GameState::MainMenu)
+        });
     app.update();
 
     let world = app.world_mut();
@@ -32,7 +34,9 @@ fn menu_room_and_cameras_are_state_scoped() {
 fn menu_room_links_are_removed_on_each_visit() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
-        .add_systems(Update, |mut commands: Commands| spawn(&mut commands));
+        .add_systems(Update, |mut commands: Commands| {
+            spawn(&mut commands, GameState::MainMenu)
+        });
 
     for _ in 0..3 {
         app.update();

@@ -157,6 +157,9 @@ pub const KEY_GLYPHS: &[(&str, &str)] = &[
     ("Slash", "T_Slash_Key_Alt"),
     ("Semicolon", "T_Semicolon_Key_Alt"),
     ("Quote", "T_Quotation_Key_Alt"),
+    ("MouseLeft", "T_Mouse_Left_Key_Alt"),
+    ("MouseRight", "T_Mouse_Right_Key_Alt"),
+    ("MouseMiddle", "T_Mouse_Middle_Key_Alt"),
 ];
 
 pub fn key_glyph_stem(key: &str) -> Option<&'static str> {
@@ -219,6 +222,9 @@ pub struct UiAssets {
             "ui/input-prompts/T_Left_Key_Alt.png",
             "ui/input-prompts/T_M_Key_Alt.png",
             "ui/input-prompts/T_Minus_Key_Alt.png",
+            "ui/input-prompts/T_Mouse_Left_Key_Alt.png",
+            "ui/input-prompts/T_Mouse_Middle_Key_Alt.png",
+            "ui/input-prompts/T_Mouse_Right_Key_Alt.png",
             "ui/input-prompts/T_N_Key_Alt.png",
             "ui/input-prompts/T_NumLock_Key_Alt.png",
             "ui/input-prompts/T_O_Key_Alt.png",

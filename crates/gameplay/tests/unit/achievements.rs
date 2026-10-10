@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     controller::PlayerController,
-    levels::{Caught, Escaped},
+    levels::{Caught, Escaped, FacilityPower},
 };
 
 fn app() -> (App, Entity) {
@@ -35,8 +35,25 @@ fn escape_checks_pickup_history_detection_and_repair_not_current_inventory() {
     app.world_mut().entity_mut(player).insert(Escaped);
     assert!(!has(&app, Achievement::EscapeWithoutFlashbang));
     assert!(has(&app, Achievement::EscapeWithoutDetector));
-    assert!(has(&app, Achievement::EscapeWithoutBoiler));
+    assert!(!has(&app, Achievement::EscapeWithoutBoiler));
     assert!(!has(&app, Achievement::EscapeUndetected));
+}
+
+#[test]
+fn escaping_before_outage_or_after_repair_does_not_unlock_in_the_dark() {
+    let (mut app, player) = app();
+    app.insert_resource(FacilityPower::new(42));
+    app.world_mut().entity_mut(player).insert(Escaped);
+    assert!(!has(&app, Achievement::EscapeWithoutBoiler));
+
+    app.world_mut().despawn(player);
+    let replay = app.world_mut().spawn(PlayerController).id();
+    app.world_mut().resource_mut::<FacilityPower>().outage();
+    signal(&mut app, replay, AchievementSignalKind::RestoredBoiler);
+    app.world_mut().resource_mut::<FacilityPower>().restore();
+    app.world_mut().resource_mut::<FacilityPower>().outage();
+    app.world_mut().entity_mut(replay).insert(Escaped);
+    assert!(!has(&app, Achievement::EscapeWithoutBoiler));
 }
 
 #[test]
@@ -55,6 +72,9 @@ fn restored_boiler_and_confirmed_hit_unlock_once_across_replays() {
             .restored_boiler,
         false
     );
+    let mut power = FacilityPower::new(42);
+    power.outage();
+    app.insert_resource(power);
     app.world_mut().entity_mut(replay).insert(Escaped);
     assert!(has(&app, Achievement::EscapeWithoutBoiler));
     assert_eq!(
@@ -96,6 +116,9 @@ fn unlock_event_fires_once_for_new_unlocks_only() {
         .insert(Achievement::EscapeUndetected);
     signal(&mut app, player, AchievementSignalKind::FlashbangHitMonster);
     signal(&mut app, player, AchievementSignalKind::FlashbangHitMonster);
+    let mut power = FacilityPower::new(42);
+    power.outage();
+    app.insert_resource(power);
     app.world_mut().entity_mut(player).insert(Escaped);
     let mut unlocks = app.world().resource::<Unlocks>().0.clone();
     unlocks.sort_by_key(|achievement| achievement.id());

@@ -2603,6 +2603,7 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy_egui",
  "game_settings",
+ "game_ui",
  "gameplay",
 ]
 
@@ -3129,6 +3130,7 @@ name = "game_ui"
 version = "0.1.1"
 dependencies = [
  "bevy",
+ "game_settings",
 ]
 
 [[package]]

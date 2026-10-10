@@ -80,6 +80,8 @@ fn corrupt_values_cannot_break_input_or_volume() {
         ))
     );
     assert_eq!(settings.mouse_sensitivity, game_settings::MIN_SENSITIVITY);
+    assert_eq!(game_settings::MIN_SENSITIVITY, 0.0);
+    assert_eq!(game_settings::MAX_SENSITIVITY, 2.0 * DEFAULT_SENSITIVITY);
     assert_eq!(parse_key("Escape"), None);
     assert!(DEFAULT_SENSITIVITY > 0.0);
 }
@@ -93,5 +95,5 @@ fn missing_fields_keep_defaults() {
     assert_eq!(settings.music, 1.0);
     assert_eq!(settings.keys, MovementKeys::default());
     assert_eq!(settings.display_mode, DisplayMode::Fullscreen);
-    assert!(settings.fps_overlay);
+    assert!(!settings.fps_overlay);
 }
