@@ -3,14 +3,13 @@
 `facility.glb` is an original modular corridor and room, made by
 `scripts/generate_facility.py` in headless Blender. `facility.manifest.json`
 records module sizes, bounds, light anchors, the camera, and the GLB hash. It
-is a review artifact, not a shipped asset. It is the frozen baseline for the
-`facility_gallery` example.
+is a review artifact, not a shipped asset. It is a frozen visual-study baseline; the old gallery example was retired.
 
 `modules/` holds the source generator output as separate GLB files, plus
 original props and decorations. `scripts/promote-facility-modules.sh` verifies
-and copies the 51 GLBs and their manifest to `assets/facility/modules/` for
-distribution. The `facility_layout` example and the game load the promoted
-copy through `game_assets`. See "Module kit" below.
+and copies the validated GLBs and their manifest to `assets/facility/modules/`
+for distribution. The game and `facility_shots` load the promoted copy
+through `game_assets`. See "Module kit" below.
 
 ## Regenerate and check
 
@@ -210,10 +209,9 @@ it; and texture continuity. For continuity it checks that the UV period
 divides the tile and that each textured vertex has the UV of the box
 projection, modulo 1. Thus the UVs at the two sides of a joint agree.
 
-## Bevy composition (`facility_layout`)
+## Archived Bevy composition study
 
-`examples/facility_layout/` composes the kit in Bevy from the authored first
-floor in `crates/gameplay/src/levels/first_floor.rs`. The level is a
+The retired layout example composed the kit from the authored first floor. The level is a
 declaration made with the small builder in
 `crates/gameplay/src/facility/level.rs`: rooms as cell rectangles, openings
 (passage, open door with a swing angle, or the locked exit), ceiling lamps,
@@ -274,11 +272,10 @@ current plan.
 
 ```sh
 nix develop -c cargo test -p gameplay
-nix develop -c xvfb-run -a cargo run --example facility_layout
+BEVY_ASSET_ROOT="$PWD" nix develop -c xvfb-run -a cargo run --example facility_shots
 ```
 
-The current run writes `art/visuals/screenshots/facility_floor1_v2_*.png` and
-exits. The earlier `facility_floor1_*.png`, `facility_layout_*.png` baseline,
+The current run writes `target/facility-shots/*.png` and exits. The earlier `facility_floor1_*.png`, `facility_layout_*.png` baseline,
 and `facility_wayfinding_*.png` study are preserved. The plan view is
 orthographic from above, with ceilings
 and ceiling lights hidden. Other views are at 1.6 m eye height with distance
@@ -288,9 +285,9 @@ collision.
 ## Archived wayfinding study (`facility_wayfinding_*`)
 
 The area coordinates, fixture locations, line routes, and capture list below
-describe the earlier study, not the current `facility_layout` example.
+describe the earlier study, not the current `facility_shots` example.
 
-This was an earlier visual prototype in the `facility_layout` example. It
+This was an earlier visual prototype in the retired layout example. It
 included signs, colored floor route lines, a boiler room, a lab, clutter, and
 hiding-space silhouettes. It has no gameplay: no hiding, collision, interaction, monster,
 or encounter. The first encounter in the lab is a concept for review. It is
@@ -382,7 +379,7 @@ colors.
 scripts/generate-facility.sh
 python3 scripts/check_facility_modules.py
 nix develop -c cargo test -p gameplay
-nix develop -c xvfb-run -a cargo run --example facility_layout
+BEVY_ASSET_ROOT="$PWD" nix develop -c xvfb-run -a cargo run --example facility_shots
 ```
 
 The earlier run wrote `art/visuals/screenshots/facility_wayfinding_*.png`: `plan`,

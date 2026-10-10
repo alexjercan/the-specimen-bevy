@@ -146,6 +146,8 @@ def make_kit_materials(mats):
         "lamp_fire": material("lamp_fire", (1.0, 0.35, 0.08), roughness=0.4, emission=(1.0, 0.35, 0.08), strength=6.0),
         "void_black": material("void_black", (0.004, 0.004, 0.004), roughness=1.0),
         "plastic_bin": material("plastic_bin", (0.1, 0.3, 0.55), roughness=0.5),
+        "foliage_dark": material("foliage_dark", (0.08, 0.18, 0.1), roughness=0.85),
+        "foliage_dry": material("foliage_dry", (0.23, 0.24, 0.12), roughness=0.9),
         "glass_lab": material("glass_lab", (0.65, 0.88, 0.82), roughness=0.08, alpha=0.2),
         "specimen_fluid": material("specimen_fluid", (0.02, 0.14, 0.12), roughness=0.15, emission=(0.05, 0.3, 0.25), strength=0.3),
         "glass_edge": material("glass_edge", (0.75, 0.9, 0.9), roughness=0.15, emission=(0.5, 0.8, 0.8), strength=0.15),
@@ -285,10 +287,13 @@ def rotated_box(b, mn, mx, mat, angle, pivot, bevel=0.0, axis="Z"):
 
 def valve_wheel(b, x, z, y_face, mat, r=0.1):
     b.cylinder((x, y_face - 0.03, z), (x, y_face, z), r, mat, segments=16)
-    b.cylinder((x, y_face - 0.1, z), (x, y_face + 0.02, z), r * 0.25, mat, segments=8)
     s = r * 0.85
-    b.box((x - s, y_face - 0.03, z - 0.012), (x + s, y_face, z + 0.012), mat)
-    b.box((x - 0.012, y_face - 0.03, z - s), (x + 0.012, y_face, z + s), mat)
+    gap = r * 0.25
+    for x0, x1 in ((-s, -gap), (gap, s)):
+        b.box((x + x0, y_face - 0.02, z - 0.012), (x + x1, y_face + 0.01, z + 0.012), mat)
+    for z0, z1 in ((-s, -gap), (gap, s)):
+        b.box((x - 0.012, y_face - 0.02, z + z0), (x + 0.012, y_face + 0.01, z + z1), mat)
+    b.cylinder((x, y_face - 0.1, z), (x, y_face + 0.02, z), gap, mat, segments=8)
 
 
 GLYPHS = {
@@ -565,6 +570,32 @@ def fuse_pickup(palette):
     return b.build()
 
 
+def storage_crate_open(palette):
+    b = Builder("storage_crate_open", palette)
+    b.box((-0.5, -0.4, 0.0), (0.5, 0.4, 0.13), "paint_crate")
+    for x0, x1 in ((-0.5, -0.44), (0.44, 0.5)):
+        b.box((x0, -0.4, 0.13), (x1, 0.4, 0.7), "paint_crate")
+    for y0, y1 in ((-0.4, -0.34), (0.34, 0.4)):
+        b.box((-0.44, y0, 0.13), (0.44, y1, 0.7), "paint_crate")
+    b.box((-0.46, -0.34, 0.13), (0.46, 0.34, 0.145), "steel_dark")
+    for x in (-0.445, 0.405):
+        for y in (-0.345, 0.305):
+            b.box((x, y, 0.14), (x + 0.04, y + 0.04, 0.685), "steel_dark")
+    for z in (0.16, 0.58):
+        for y in (-0.41, 0.4):
+            b.box((-0.51, y, z), (0.51, y + 0.02, z + 0.045), "steel_dark")
+        for x in (-0.51, 0.49):
+            b.box((x, -0.4, z), (x + 0.02, 0.4, z + 0.045), "steel_dark")
+    b.box((-0.16, 0.423, 0.32), (0.16, 0.43, 0.48), "paint_hazard")
+    rotated_box(b, (-0.5, -0.8, -0.06), (0.5, 0.0, 0.0), "paint_crate", -math.radians(65), (0.0, -0.4, 0.7), axis="X")
+    for x in (-0.4, 0.35):
+        rotated_box(b, (x, -0.8, 0.002), (x + 0.05, 0.0, 0.025), "steel_dark", -math.radians(65), (0.0, -0.4, 0.7), axis="X")
+    b.cylinder((-0.42, -0.4, 0.7), (0.42, -0.4, 0.7), 0.025, "steel_dark", segments=10)
+    for x, y in ((-0.2, 0.1), (0.2, -0.08)):
+        b.box((x - 0.12, y - 0.12, 0.15), (x + 0.12, y + 0.12, 0.63), "steel_ceiling")
+    return b.build()
+
+
 def storage_crate(palette):
     b = Builder("storage_crate", palette)
     b.box((-0.5, -0.4, 0.06), (0.5, 0.4, 0.7), "paint_crate", bevel=0.02)
@@ -586,20 +617,27 @@ def steel_drum(palette):
     return b.build()
 
 
-def shelf_unit(palette):
-    b = Builder("shelf_unit", palette)
+def shelf_unit(palette, variant=False):
+    b = Builder("shelf_unit_alt" if variant else "shelf_unit", palette)
     for x in (-0.875, 0.875):
         for y in (-0.225, 0.225):
-            b.box((x - 0.025, y - 0.025, 0.0), (x + 0.025, y + 0.025, 2.0), "steel_dark", bevel=0.004)
+            b.box((x - 0.025, y - 0.025, 0.0), (x + 0.025, y + 0.025, 1.99), "steel_dark", bevel=0.004)
     for z in (0.12, 0.6, 1.1, 1.6, 1.98):
-        b.box((-0.9, -0.25, z - 0.02), (0.9, 0.25, z + 0.02), "steel_door", bevel=0.004)
+        b.box((-0.925, -0.275, z - 0.02), (0.925, 0.275, z + 0.025), "steel_door", bevel=0.004)
     for x in (-0.875, 0.875):
         b.cylinder((x, -0.25, 0.14), (-x, -0.25, 1.58), 0.008, "steel_dark", segments=6)
-    b.box((-0.7, -0.15, 0.14), (-0.3, 0.15, 0.44), "paint_crate", bevel=0.01)
-    b.box((0.1, -0.18, 0.62), (0.6, 0.18, 0.92), "paint_crate", bevel=0.01)
-    for x in (-0.55, -0.3):
-        b.cylinder((x, 0.0, 1.12), (x, 0.0, 1.37), 0.1, "paint_drum", segments=12)
-    b.box((0.3, -0.2, 1.62), (0.75, 0.2, 1.84), "steel_ceiling", bevel=0.01)
+    if variant:
+        b.box((0.18, -0.16, 0.14), (0.7, 0.16, 0.43), "paint_crate", bevel=0.01)
+        for x in (-0.57, -0.31):
+            b.cylinder((x, 0.0, 0.62), (x, 0.0, 0.92), 0.09, "paint_drum", segments=12)
+        b.box((-0.7, -0.2, 1.12), (-0.28, 0.2, 1.34), "steel_ceiling", bevel=0.01)
+        b.box((0.24, -0.15, 1.62), (0.68, 0.15, 1.87), "paint_crate", bevel=0.01)
+    else:
+        b.box((-0.7, -0.15, 0.14), (-0.3, 0.15, 0.44), "paint_crate", bevel=0.01)
+        b.box((0.1, -0.18, 0.62), (0.6, 0.18, 0.92), "paint_crate", bevel=0.01)
+        for x in (-0.55, -0.3):
+            b.cylinder((x, 0.0, 1.12), (x, 0.0, 1.37), 0.1, "paint_drum", segments=12)
+        b.box((0.3, -0.2, 1.62), (0.75, 0.2, 1.84), "steel_ceiling", bevel=0.01)
     return b.build()
 
 
@@ -614,6 +652,16 @@ def workbench(palette):
     b.box((0.52, 0.18, 0.9), (0.7, 0.34, 1.0), "conduit", bevel=0.006)
     b.box((-0.5, 0.0, 0.9), (-0.1, 0.22, 1.05), "paint_drum", bevel=0.008)
     b.box((-0.45, 0.06, 1.05), (-0.15, 0.16, 1.08), "steel_dark")
+    for x in (-0.64, 0.64):
+        b.box((x - 0.07, -0.295, 0.92), (x + 0.07, -0.275, 0.98), "paint_crate")
+        for z in (0.94, 0.97):
+            b.cylinder((x, -0.3, z), (x, -0.305, z), 0.012, "steel_dark", segments=8)
+    for x in (-0.65, 0.65):
+        b.box((x - 0.08, 0.05, 0.235), (x + 0.08, 0.07, 0.255), "steel_ceiling")
+    b.box((-0.46, -0.19, 0.23), (-0.12, 0.12, 0.42), "paint_crate", bevel=0.008)
+    b.box((0.14, -0.17, 0.23), (0.47, 0.11, 0.27), "steel_ceiling")
+    for x in (0.23, 0.36):
+        b.cylinder((x, -0.08, 0.27), (x, -0.08, 0.41), 0.035, "paint_drum", segments=10)
     return b.build()
 
 
@@ -678,7 +726,8 @@ def boiler_unit(palette):
     for x, z in ((-0.2, 1.6), (0.2, 1.8)):
         b.cylinder((x, 0.55, z), (x, 0.68, z), 0.07, "glass_dark", segments=12)
         b.cylinder((x, 0.52, z), (x, 0.56, z), 0.075, "steel_dark", segments=12)
-    valve_wheel(b, 0.35, 1.2, 0.68, "steel_dark", r=0.12)
+    b.cylinder((0.35, 0.46, 1.31), (0.35, 0.6, 1.31), 0.055, "steel_door", segments=12)
+    valve_wheel(b, 0.35, 1.31, 0.62, "steel_dark", r=0.12)
     b.cylinder((0.0, 0.0, 2.3), (0.0, 0.0, WALL_H), 0.15, "steel_dark", segments=16)
     return b.build()
 
@@ -691,6 +740,10 @@ def pipe_manifold(palette):
             b.cylinder((x - 0.015, 0.1, z), (x + 0.015, 0.1, z), 0.05, "steel_dark", segments=12)
     valve_wheel(b, -0.3, 0.15, 0.22, "steel_dark", r=0.07)
     valve_wheel(b, 0.3, -0.15, 0.22, "steel_dark", r=0.07)
+    for x in (-0.78, 0.0, 0.78):
+        b.box((x - 0.045, 0.0, -0.21), (x + 0.045, 0.11, 0.21), "steel_dark")
+        for z in (-0.18, 0.18):
+            b.cylinder((x, 0.0, z), (x, 0.008, z), 0.018, "conduit", segments=8)
     return b.build()
 
 
@@ -719,9 +772,9 @@ def shelf_unit_low(palette):
     b = Builder("shelf_unit_low", palette)
     for x in (-0.575, 0.575):
         for y in (-0.2, 0.2):
-            b.box((x - 0.02, y - 0.02, 0.0), (x + 0.02, y + 0.02, 1.0), "steel_dark", bevel=0.004)
+            b.box((x - 0.02, y - 0.02, 0.0), (x + 0.02, y + 0.02, 0.995), "steel_dark", bevel=0.004)
     for z in (0.02, 0.48, 0.98):
-        b.box((-0.6, -0.225, z), (0.6, 0.225, z + 0.02), "steel_door", bevel=0.004)
+        b.box((-0.625, -0.245, z), (0.625, 0.245, z + 0.025), "steel_door", bevel=0.004)
     b.box((-0.45, -0.17, 0.05), (-0.05, 0.17, 0.4), "paint_crate", bevel=0.01)
     b.box((0.05, -0.19, 0.51), (0.5, 0.19, 0.78), "paint_crate", bevel=0.01)
     return b.build()
@@ -734,16 +787,25 @@ def bin_row(b, x0, x1, z0, z1, depth):
     b.box((x1 - 0.015, -depth / 2, z0), (x1, depth / 2, z1), "plastic_bin")
 
 
+def shelf_bin_contents(palette):
+    b = Builder("shelf_bin_contents", palette)
+    for x, z in ((-0.6, 0.16), (0.38, 0.64), (0.38, 1.14)):
+        b.box((x - 0.12, -0.1, z), (x + 0.12, 0.1, z + 0.15), "paint_crate")
+    for x in (-0.73, -0.66, -0.59):
+        b.cylinder((x, 0.0, 1.14), (x, 0.0, 1.31), 0.026, "paint_drum", segments=8)
+    return b.build()
+
+
 def shelf_unit_bins(palette):
     b = Builder("shelf_unit_bins", palette)
     for x in (-0.875, 0.875):
         for y in (-0.225, 0.225):
-            b.box((x - 0.025, y - 0.025, 0.0), (x + 0.025, y + 0.025, 2.0), "steel_dark", bevel=0.004)
+            b.box((x - 0.025, y - 0.025, 0.0), (x + 0.025, y + 0.025, 1.99), "steel_dark", bevel=0.004)
     for z in (0.12, 0.6, 1.1, 1.6, 1.98):
-        b.box((-0.9, -0.25, z - 0.02), (0.9, 0.25, z + 0.02), "steel_door", bevel=0.004)
-    for z0 in (0.14, 0.62, 1.12):
-        for x0 in (-0.82, -0.33, 0.16):
-            bin_row(b, x0, x0 + 0.43, z0, z0 + 0.3, 0.44)
+        b.box((-0.925, -0.275, z - 0.02), (0.925, 0.275, z + 0.025), "steel_door", bevel=0.004)
+    for x0, z0 in ((-0.82, 0.14), (0.16, 0.14), (-0.33, 0.62),
+                   (0.16, 0.62), (-0.82, 1.12), (0.16, 1.12)):
+        bin_row(b, x0, x0 + 0.43, z0, z0 + 0.3, 0.44)
     return b.build()
 
 
@@ -791,9 +853,16 @@ def concept_crawl_vent(palette):
 
 def vent_grille(palette):
     b = Builder("vent_grille", palette)
-    b.box((-0.425, -0.325, 0.0), (0.425, 0.325, 0.015), "steel_dark", bevel=0.004)
-    for x0 in (-0.38, -0.25, -0.12, 0.01, 0.14, 0.27):
-        b.box((x0, -0.3, 0.015), (x0 + 0.1, 0.3, 0.03), "steel_dark")
+    b.box((-0.35, -0.25, 0.0), (0.35, 0.25, 0.006), "glass_dark")
+    for x in (-0.425, 0.38):
+        b.box((x, -0.325, 0.0), (x + 0.045, 0.325, 0.035), "steel_dark", bevel=0.004)
+    for y in (-0.325, 0.28):
+        b.box((-0.425, y, 0.0), (0.425, y + 0.045, 0.035), "steel_dark", bevel=0.004)
+    for y in (-0.23, -0.13, -0.03, 0.07, 0.17):
+        b.box((-0.37, y, 0.01), (0.37, y + 0.035, 0.029), "conduit")
+    for x in (-0.395, 0.395):
+        for y in (-0.295, 0.295):
+            b.cylinder((x, y, 0.035), (x, y, 0.045), 0.018, "steel_door", segments=8)
     return b.build()
 
 
@@ -881,19 +950,19 @@ def lab_console(palette):
     for x in (-0.68, 0.68):
         for y in (-0.28, 0.28):
             b.box((x - 0.03, y - 0.03, 0.0), (x + 0.03, y + 0.03, 0.86), "steel_dark")
-    angle = -math.radians(20)
-    pivot = (0.0, -0.25, 0.9)
+    angle = math.radians(55)
+    pivot = (0.0, 0.15, 0.9)
     rotated_box(b, (-0.4, -0.02, 0.0), (0.4, 0.02, 0.42), "steel_door", angle, pivot, bevel=0.006, axis="X")
-    rotated_box(b, (-0.25, -0.03, 0.22), (0.25, 0.0, 0.36), "glass_dark", angle, pivot, axis="X")
-    rotated_box(b, (-0.18, -0.032, 0.28), (0.18, -0.028, 0.3), "steel_dark", angle, pivot, axis="X")
+    rotated_box(b, (-0.25, 0.024, 0.22), (0.25, 0.035, 0.36), "glass_dark", angle, pivot, axis="X")
+    rotated_box(b, (-0.18, 0.036, 0.28), (0.18, 0.041, 0.3), "lamp_cool", angle, pivot, axis="X")
     for x in (-0.15, 0.0, 0.15):
-        rotated_box(b, (x - 0.02, -0.025, 0.05), (x + 0.02, -0.018, 0.09), "steel_dark", angle, pivot, axis="X")
-    b.box((0.35, 0.05, 0.9), (0.55, 0.22, 0.908), "steel_dark")
-    b.box((0.36, 0.06, 0.908), (0.54, 0.21, 0.911), "paper")
-    b.box((-0.55, 0.0, 0.9), (-0.35, 0.18, 0.93), "steel_dark")
+        rotated_box(b, (x - 0.02, 0.025, 0.05), (x + 0.02, 0.035, 0.09), "steel_dark", angle, pivot, axis="X")
+    b.box((0.38, -0.23, 0.9), (0.62, -0.06, 0.908), "steel_dark")
+    b.box((0.39, -0.22, 0.908), (0.61, -0.07, 0.911), "paper")
+    b.box((-0.66, -0.23, 0.9), (-0.45, -0.06, 0.93), "steel_dark")
     for k in range(4):
-        x0 = -0.52 + k * 0.045
-        b.cylinder((x0, 0.02, 0.935), (x0 + 0.05, 0.16, 0.955), 0.012, "glass_dark", segments=8)
+        x0 = -0.63 + k * 0.045
+        b.cylinder((x0, -0.21, 0.935), (x0 + 0.04, -0.09, 0.955), 0.012, "glass_dark", segments=8)
     b.cylinder((0.62, 0.15, 0.9), (0.62, 0.15, 0.975), 0.035, "steel_dark", segments=10)
     return b.build()
 
@@ -916,7 +985,6 @@ def work_island(palette):
     rotated_box(b, (-0.22, -0.015, 0.92), (0.22, 0.015, 0.928), "steel_dark", math.radians(40), (0.1, -0.3, 0.0))
     b.cylinder((0.25, -0.05, 0.925), (0.5, 0.05, 0.925), 0.015, "steel_dark", segments=8)
     b.cylinder((0.4, 0.2, 0.93), (0.4, 0.2, 1.0), 0.035, "steel_dark", segments=10)
-    rotated_box(b, (-0.14, -0.1, 0.0), (0.14, 0.1, 0.04), "steel_door", math.radians(-25), (-0.1, 0.25, 0.92), axis="X")
     return b.build()
 
 
@@ -937,15 +1005,67 @@ def clutter_papers(palette):
 
 def clutter_tools(palette):
     b = Builder("clutter_tools", palette)
-    b.box((-0.28, -0.13, 0.0), (0.28, 0.13, 0.18), "steel_door", bevel=0.01)
-    rotated_box(b, (-0.26, 0.0, 0.0), (0.26, 0.2, 0.018), "steel_door", math.radians(28), (0.0, 0.13, 0.18), axis="X")
-    for k in range(6):
-        x = -0.4 + k * 0.14
-        y = -0.3 + 0.08 * (k % 3)
-        b.cylinder((x, y, 0.012), (x, y, 0.024), 0.012, "steel_dark", segments=8)
-    rotated_box(b, (-0.22, -0.015, 0.0), (0.22, 0.015, 0.015), "steel_dark", math.radians(30), (0.1, -0.22, 0.0))
-    b.cylinder((-0.3, 0.2, 0.03), (-0.08, 0.26, 0.03), 0.014, "steel_dark", segments=8)
-    b.box((-0.1, 0.21, 0.0), (-0.02, 0.29, 0.03), "steel_dark")
+    b.box((-0.31, -0.18, 0.0), (0.31, 0.18, 0.045), "paint_drum", bevel=0.008)
+    b.box((-0.29, -0.16, 0.046), (0.29, 0.16, 0.05), "spill_dark")
+    for x in (-0.31, 0.29):
+        b.box((x, -0.18, 0.045), (x + 0.02, 0.18, 0.13), "paint_drum")
+    for y in (-0.18, 0.16):
+        b.box((-0.29, y, 0.045), (0.29, y + 0.02, 0.13), "paint_drum")
+    rotated_box(b, (-0.31, -0.035, 0.0), (0.31, 0.0, 0.23), "paint_drum", math.radians(22), (0.0, -0.18, 0.12), axis="X")
+    b.box((-0.07, -0.28, 0.31), (0.07, -0.26, 0.33), "steel_dark")
+    b.cylinder((-0.19, -0.06, 0.068), (0.16, -0.06, 0.068), 0.018, "steel_door", segments=10)
+    b.box((-0.24, -0.11, 0.055), (-0.18, -0.01, 0.08), "steel_door")
+    b.box((-0.25, -0.12, 0.055), (-0.22, -0.095, 0.085), "steel_dark")
+    b.cylinder((-0.12, 0.065, 0.074), (0.2, 0.065, 0.074), 0.015, "steel_dark", segments=10)
+    b.box((-0.13, 0.035, 0.055), (-0.025, 0.095, 0.095), "paint_hazard", bevel=0.003)
+    for x in (-0.4, -0.32, 0.34, 0.42):
+        b.cylinder((x, -0.28, 0.012), (x, -0.28, 0.034), 0.023, "steel_door", segments=8)
+        b.cylinder((x, -0.28, 0.034), (x, -0.28, 0.037), 0.011, "steel_dark", segments=8)
+    return b.build()
+
+
+def file_cabinet(palette, open_drawers=False):
+    b = Builder("file_cabinet_open" if open_drawers else "file_cabinet", palette)
+    b.box((-0.38, -0.24, 0.0), (0.38, 0.24, 1.32), "steel_dark", bevel=0.008)
+    b.box((-0.35, -0.245, 0.06), (0.35, 0.235, 1.28), "steel_ceiling")
+    for index, z in enumerate((0.15, 0.47, 0.79, 1.11)):
+        pull = 0.25 if open_drawers and index in (1, 3) else 0.0
+        drawer_z = z - 0.10
+        if pull:
+            b.box((-0.29, 0.235, drawer_z), (0.29, 0.25 + pull, drawer_z + 0.025), "steel_dark")
+            for x in (-0.29, 0.27):
+                b.box((x, 0.235, drawer_z), (x + 0.02, 0.25 + pull, drawer_z + 0.26), "steel_dark")
+            b.box((-0.2, 0.32, drawer_z + 0.03), (0.2, 0.43, drawer_z + 0.045), "paper")
+            b.box((-0.17, 0.34, drawer_z + 0.045), (0.16, 0.42, drawer_z + 0.055), "paper")
+        b.box((-0.32, 0.236 + pull, drawer_z), (0.32, 0.252 + pull, drawer_z + 0.26), "paint_crate", bevel=0.004)
+        b.box((-0.06, 0.253 + pull, drawer_z + 0.08), (0.06, 0.27 + pull, drawer_z + 0.12), "steel_dark")
+    for x in (-0.27, 0.27):
+        b.box((x - 0.025, -0.19, 0.0), (x + 0.025, 0.19, 0.07), "steel_dark")
+    return b.build()
+
+
+def toolbox(palette):
+    b = Builder("toolbox", palette)
+    b.box((-0.19, -0.1, 0.0), (0.19, 0.1, 0.14), "paint_drum", bevel=0.006)
+    b.box((-0.2, -0.11, 0.14), (0.2, 0.11, 0.175), "steel_dark", bevel=0.005)
+    b.box((-0.045, -0.12, 0.05), (0.045, -0.113, 0.09), "paint_hazard")
+    for x in (-0.08, 0.08):
+        b.box((x - 0.012, -0.012, 0.175), (x + 0.012, 0.012, 0.23), "steel_dark")
+    b.box((-0.09, -0.012, 0.225), (0.09, 0.012, 0.245), "steel_dark")
+    return b.build()
+
+
+def potted_plant(palette):
+    b = Builder("potted_plant", palette)
+    b.cylinder((0.0, 0.0, 0.0), (0.0, 0.0, 0.38), 0.19, "paint_drum", segments=12)
+    b.cylinder((0.0, 0.0, 0.36), (0.0, 0.0, 0.4), 0.205, "steel_dark", segments=12)
+    b.cylinder((0.0, 0.0, 0.4), (0.0, 0.0, 0.41), 0.17, "spill_dark", segments=12)
+    for x, y, top in ((0.0, 0.0, 1.08), (0.09, 0.02, 0.92), (-0.08, -0.06, 0.82)):
+        b.cylinder((0.0, 0.0, 0.41), (x, y, top), 0.018, "foliage_dry", segments=8)
+    for x, y, z in ((0.28, 0.0, 0.73), (-0.27, 0.06, 0.85), (0.1, 0.27, 0.94),
+                     (-0.08, -0.26, 0.67), (0.23, -0.2, 0.91), (-0.2, -0.19, 1.0)):
+        b.cylinder((0.0, 0.0, z - 0.2), (x, y, z), 0.012, "foliage_dry", segments=6)
+        b.box((x - 0.095, y - 0.055, z - 0.015), (x + 0.095, y + 0.055, z + 0.015), "foliage_dark")
     return b.build()
 
 
@@ -957,6 +1077,10 @@ def chair_tipped(palette):
     b.cylinder((0.18, -0.02, 0.03), (0.4, -0.3, 0.03), 0.018, "steel_dark", segments=8)
     b.cylinder((-0.18, 0.02, 0.4), (-0.35, 0.3, 0.1), 0.018, "steel_dark", segments=8)
     b.cylinder((0.18, 0.02, 0.4), (0.35, 0.3, 0.1), 0.018, "steel_dark", segments=8)
+    b.box((-0.19, -0.295, 0.421), (0.19, -0.04, 0.43), "paint_crate")
+    for x in (-0.18, 0.18):
+        b.cylinder((x, -0.26, 0.432), (x, -0.26, 0.435), 0.013, "steel_ceiling", segments=8)
+    bmesh.ops.scale(b.bm, vec=(1.28, 1.28, 1.28), verts=b.bm.verts[:])
     return b.build()
 
 
@@ -977,11 +1101,12 @@ TRACE_CLAW_MARKS = ((-0.18, 0.05, 25), (-0.06, 0.0, 28), (0.06, -0.02, 22), (0.1
 
 def trace_claw_marks(palette):
     b = Builder("trace_claw_marks", palette)
-    for dx, dz, ang_deg in TRACE_CLAW_MARKS:
+    for index, (dx, dz, ang_deg) in enumerate(TRACE_CLAW_MARKS):
         ang = math.radians(ang_deg)
+        depth = index * 0.003
         pivot = (dx, 0.0, dz)
-        rotated_box(b, (-0.15, 0.0, -0.01), (0.15, 0.012, 0.01), "steel_dark", ang, pivot, axis="Y")
-        rotated_box(b, (-0.13, 0.0, 0.009), (0.13, 0.004, 0.013), "concrete_wall", ang, pivot, axis="Y")
+        rotated_box(b, (-0.15, depth + 0.004, -0.01), (0.15, depth + 0.02, 0.01), "steel_dark", ang, pivot, axis="Y")
+        rotated_box(b, (-0.13, depth, 0.009), (0.13, depth + 0.006, 0.013), "concrete_wall", ang, pivot, axis="Y")
     return b.build()
 
 
@@ -1169,6 +1294,7 @@ KIT = {
     "storage_crate": ("prop", "floor", None, None),
     "steel_drum": ("prop", "floor", None, None),
     "shelf_unit": ("prop", "floor", None, None),
+    "shelf_unit_alt": ("prop", "floor", None, None),
     "workbench": ("prop", "floor", None, None),
     "route_line_orange": ("route", "floor_line", None, {"walkable": True}),
     "route_line_blue": ("route", "floor_line", None, {"walkable": True}),
@@ -1205,9 +1331,15 @@ KIT = {
     }),
     "lab_console": ("prop", "floor", None, None),
     "work_island": ("prop", "floor", None, None),
-    "clutter_papers": ("prop", "floor", None, {"walkable": True}),
-    "clutter_tools": ("prop", "floor", None, None),
+    "clutter_papers": ("decoration", "floor", None, {"walkable": True}),
+    "clutter_tools": ("decoration", "floor", None, None),
     "chair_tipped": ("prop", "floor", None, None),
+    "potted_plant": ("decoration", "floor", None, None),
+    "file_cabinet": ("prop", "floor", None, None),
+    "file_cabinet_open": ("prop", "floor", None, None),
+    "storage_crate_open": ("prop", "floor", None, None),
+    "shelf_bin_contents": ("decoration", "surface", None, None),
+    "toolbox": ("decoration", "surface", None, None),
     "drum_spilled": ("prop", "floor", None, None),
     "trace_claw_marks": ("decoration", "wall_mount", None, None),
     "trace_drag_marks": ("decoration", "floor", None, {"walkable": True}),
@@ -1220,6 +1352,7 @@ SNAPS = {
     "door_hinge": "Origin at the hinge edge on the floor plane. The leaf extends along +X. Closed: hinge at the edge center - 0.59 m along the wall, yaw of the doorway.",
     "wall_mount": "Origin at the back center, on the wall face. The fixture protrudes to -Z. Choose the height at placement.",
     "floor": "Origin at the bottom center on the floor top. The front faces -Z.",
+    "surface": "Local origin relative to a large prop. Place as a child with a fixed transform.",
     "floor_line": "Origin at the line center on the floor top (y = 0). x in [-0.5, 0.5], 0.1 m wide along Z, 3 mm high. Bevy scales along X to the run length.",
     "ceiling_hang": "Origin on the floor (y = 0) under the board center. The board hangs from rods to the ceiling.",
 }
@@ -1250,6 +1383,7 @@ def build_modules(palette, names):
         "storage_crate": lambda: storage_crate(palette),
         "steel_drum": lambda: steel_drum(palette),
         "shelf_unit": lambda: shelf_unit(palette),
+        "shelf_unit_alt": lambda: shelf_unit(palette, variant=True),
         "workbench": lambda: workbench(palette),
         "route_line_orange": lambda: route_line(palette, "route_line_orange", "route_orange"),
         "route_line_blue": lambda: route_line(palette, "route_line_blue", "route_blue"),
@@ -1271,6 +1405,12 @@ def build_modules(palette, names):
         "clutter_papers": lambda: clutter_papers(palette),
         "clutter_tools": lambda: clutter_tools(palette),
         "chair_tipped": lambda: chair_tipped(palette),
+        "potted_plant": lambda: potted_plant(palette),
+        "file_cabinet": lambda: file_cabinet(palette),
+        "file_cabinet_open": lambda: file_cabinet(palette, open_drawers=True),
+        "storage_crate_open": lambda: storage_crate_open(palette),
+        "shelf_bin_contents": lambda: shelf_bin_contents(palette),
+        "toolbox": lambda: toolbox(palette),
         "drum_spilled": lambda: drum_spilled(palette),
         "trace_claw_marks": lambda: trace_claw_marks(palette),
         "trace_drag_marks": lambda: trace_drag_marks(palette),

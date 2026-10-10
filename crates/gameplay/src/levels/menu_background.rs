@@ -1,3 +1,5 @@
+use std::f32::consts::FRAC_PI_2;
+
 use bevy::{math::Rect, prelude::*};
 
 use super::{
@@ -92,7 +94,8 @@ pub fn build_main_menu_background(commands: &mut Commands) -> Entity {
         prop(
             "Main menu workbench",
             "workbench",
-            Transform::from_xyz(2.2, 0.0, -4.6).with_rotation(Quat::from_rotation_y(-0.4)),
+            Transform::from_xyz(2.2, 0.0, -4.6)
+                .with_rotation(Quat::from_rotation_y(FRAC_PI_2 - 0.4)),
         ),
         ChildOf(root),
     ));

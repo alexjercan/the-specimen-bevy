@@ -35,6 +35,7 @@ pub fn build_first_floor(
     props::spawn_fixtures(&mut commands);
     signs::spawn(&mut commands);
     props::spawn_furniture(&mut commands);
+    props::spawn_dressing(&mut commands);
     if preset.flashbangs {
         props::spawn_flashbang(&mut commands);
     }

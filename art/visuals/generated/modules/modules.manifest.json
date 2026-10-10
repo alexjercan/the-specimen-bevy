@@ -22,6 +22,7 @@
     "door_hinge": "Origin at the hinge edge on the floor plane. The leaf extends along +X. Closed: hinge at the edge center - 0.59 m along the wall, yaw of the doorway.",
     "wall_mount": "Origin at the back center, on the wall face. The fixture protrudes to -Z. Choose the height at placement.",
     "floor": "Origin at the bottom center on the floor top. The front faces -Z.",
+    "surface": "Local origin relative to a large prop. Place as a child with a fixed transform.",
     "floor_line": "Origin at the line center on the floor top (y = 0). x in [-0.5, 0.5], 0.1 m wide along Z, 3 mm high. Bevy scales along X to the run length.",
     "ceiling_hang": "Origin on the floor (y = 0) under the board center. The board hangs from rods to the ceiling."
   },
@@ -552,30 +553,59 @@
       "textured": false,
       "bounds_bevy": {
         "min": [
-          -0.9,
+          -0.925,
           0.0,
-          -0.25
+          -0.275
         ],
         "max": [
-          0.9,
-          2.0,
-          0.258
+          0.925,
+          2.005,
+          0.275
         ]
       },
-      "glb_sha256": "1c4fac47cc55dac5bfa9d470c4e5e977655d5884cce08ffaf557fea4d48341be",
-      "glb_bytes": 73752
+      "glb_sha256": "6c6fafc6b3bfe3093513a73686a0e219aef023f47a48f274ec4286e5d7144678",
+      "glb_bytes": 73808
+    },
+    "shelf_unit_alt": {
+      "file": "shelf_unit_alt.glb",
+      "category": "prop",
+      "snap": "floor",
+      "triangles": 672,
+      "materials": [
+        "steel_dark",
+        "steel_door",
+        "paint_crate",
+        "paint_drum",
+        "steel_ceiling"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.925,
+          0.0,
+          -0.275
+        ],
+        "max": [
+          0.925,
+          2.005,
+          0.275
+        ]
+      },
+      "glb_sha256": "dbf9c7bef5178187dba0d2757146a899cad8e6e13fe3edbded784c8ee3d12564",
+      "glb_bytes": 73828
     },
     "workbench": {
       "file": "workbench.glb",
       "category": "prop",
       "snap": "floor",
-      "triangles": 216,
+      "triangles": 528,
       "materials": [
         "steel_door",
         "steel_dark",
         "steel_ceiling",
         "conduit",
-        "paint_drum"
+        "paint_drum",
+        "paint_crate"
       ],
       "textured": false,
       "bounds_bevy": {
@@ -590,8 +620,8 @@
           0.35
         ]
       },
-      "glb_sha256": "0a5028fb4758811b36cd85b73350cb67984a0693156e7bbe7d70074855a86ab0",
-      "glb_bytes": 27964
+      "glb_sha256": "85d6f4906a4cf7b28b27de3f6bbbc03c31992f225cccf8a9a696375bf969e98b",
+      "glb_bytes": 54584
     },
     "route_line_orange": {
       "file": "route_line_orange.glb",
@@ -974,7 +1004,7 @@
       "file": "boiler_unit.glb",
       "category": "prop",
       "snap": "floor",
-      "triangles": 876,
+      "triangles": 948,
       "materials": [
         "steel_dark",
         "steel_door",
@@ -986,7 +1016,7 @@
         "min": [
           -0.635,
           0.0,
-          -0.7
+          -0.68
         ],
         "max": [
           0.635,
@@ -1004,14 +1034,14 @@
         0.35,
         0.08
       ],
-      "glb_sha256": "112d1f0a9ea759555dcd2f66cf638a368784c4292e85c0fa1c128c50ec73a35a",
-      "glb_bytes": 64476
+      "glb_sha256": "ddfe1663821df765a710dfff5f0324b75589b67c41dffaf8f0147920919d567e",
+      "glb_bytes": 70000
     },
     "pipe_manifold": {
       "file": "pipe_manifold.glb",
       "category": "decoration",
       "snap": "wall_mount",
-      "triangles": 816,
+      "triangles": 1092,
       "materials": [
         "conduit",
         "steel_dark"
@@ -1026,11 +1056,11 @@
         "max": [
           0.9,
           0.22,
-          -0.05
+          0.0
         ]
       },
-      "glb_sha256": "98737bb4e44c70dab48a29a6c556a855f326454ae0406bbc40e9ef70663405a8",
-      "glb_bytes": 56712
+      "glb_sha256": "c737b3850d1a1451f16c1575a2b70b87041a6ba04541e91ce4515fe985b16c18",
+      "glb_bytes": 78520
     },
     "tool_pegboard": {
       "file": "tool_pegboard.glb",
@@ -1072,24 +1102,24 @@
       "textured": false,
       "bounds_bevy": {
         "min": [
-          -0.6,
+          -0.625,
           0.0,
-          -0.225
+          -0.245
         ],
         "max": [
-          0.6,
-          1.0,
-          0.225
+          0.625,
+          1.005,
+          0.245
         ]
       },
-      "glb_sha256": "ad56ee5fdf2907aecffa18ab2892cc28ea82fe77af25aea92949c52e144efdcf",
-      "glb_bytes": 47324
+      "glb_sha256": "7b2c083197e9e48449c9cc3db31e2ad8d9e047a1dd90057cc0d6a93f4de5db2b",
+      "glb_bytes": 47332
     },
     "shelf_unit_bins": {
       "file": "shelf_unit_bins.glb",
       "category": "prop",
       "snap": "floor",
-      "triangles": 828,
+      "triangles": 684,
       "materials": [
         "steel_dark",
         "steel_door",
@@ -1098,18 +1128,18 @@
       "textured": false,
       "bounds_bevy": {
         "min": [
-          -0.9,
+          -0.925,
           0.0,
-          -0.25
+          -0.275
         ],
         "max": [
-          0.9,
-          2.0,
-          0.25
+          0.925,
+          2.005,
+          0.275
         ]
       },
-      "glb_sha256": "64a136d3c1486e4dc9dda24f9c5efdd389cb50ae9f656a735e0338f758fe0b9a",
-      "glb_bytes": 91316
+      "glb_sha256": "287ef4575ec655f093da8aa25c81a1cd65f5ab8acf6e48d5499579ba4a6af9f5",
+      "glb_bytes": 76684
     },
     "concept_table": {
       "file": "concept_table.glb",
@@ -1218,9 +1248,12 @@
       "file": "vent_grille.glb",
       "category": "concept",
       "snap": "floor",
-      "triangles": 116,
+      "triangles": 376,
       "materials": [
-        "steel_dark"
+        "glass_dark",
+        "steel_dark",
+        "conduit",
+        "steel_door"
       ],
       "textured": false,
       "bounds_bevy": {
@@ -1231,13 +1264,13 @@
         ],
         "max": [
           0.425,
-          0.03,
+          0.045,
           0.325
         ]
       },
       "concept": "Visual concept only: a removed vent grille lying on the floor, suggesting an opening nearby. No hiding, collision, or interaction.",
-      "glb_sha256": "ef2fcc11ddc0b8635b83d9582c6e412cc5a2584a722730d635769044714454b5",
-      "glb_bytes": 13592
+      "glb_sha256": "57bab23d756f2cdfe8c9154b379144ef367618ddaf0586b632af4649d1f9f8e7",
+      "glb_bytes": 40192
     },
     "concept_containment_tank": {
       "file": "concept_containment_tank.glb",
@@ -1289,6 +1322,7 @@
         "steel_door",
         "steel_dark",
         "glass_dark",
+        "lamp_cool",
         "paper"
       ],
       "textured": false,
@@ -1300,18 +1334,18 @@
         ],
         "max": [
           0.75,
-          1.2995,
+          1.1538,
           0.35
         ]
       },
-      "glb_sha256": "67988bcdff3bab95ecdf20089874972828d3fd87680f761f68723b438344b172",
-      "glb_bytes": 40504
+      "glb_sha256": "8bcf9e1e0b4fe33df9ff8dc50301968e6cd4aa3925a72f47f01abee9a58f3a2f",
+      "glb_bytes": 41720
     },
     "work_island": {
       "file": "work_island.glb",
       "category": "prop",
       "snap": "floor",
-      "triangles": 328,
+      "triangles": 316,
       "materials": [
         "steel_door",
         "steel_dark",
@@ -1331,12 +1365,12 @@
           0.4529
         ]
       },
-      "glb_sha256": "a616aa8ccef90afd2577757988c663602326190e2050e87dabe593f44295a8cd",
-      "glb_bytes": 36236
+      "glb_sha256": "46d258b2730110fbc7f8a9f412551dd20395789e23871c3f7e9f186eceb145e6",
+      "glb_bytes": 35012
     },
     "clutter_papers": {
       "file": "clutter_papers.glb",
-      "category": "prop",
+      "category": "decoration",
       "snap": "floor",
       "triangles": 156,
       "materials": [
@@ -1363,52 +1397,216 @@
     },
     "clutter_tools": {
       "file": "clutter_tools.glb",
-      "category": "prop",
+      "category": "decoration",
       "snap": "floor",
-      "triangles": 304,
+      "triangles": 532,
       "materials": [
+        "paint_drum",
+        "spill_dark",
+        "steel_dark",
         "steel_door",
-        "steel_dark"
+        "paint_hazard"
       ],
       "textured": false,
       "bounds_bevy": {
         "min": [
-          -0.412,
+          -0.423,
           0.0,
-          -0.3066
+          -0.18
         ],
         "max": [
-          0.312,
-          0.2898,
-          0.343
+          0.443,
+          0.3333,
+          0.303
         ]
       },
-      "glb_sha256": "1b1be0bcb292d9fcfd90817d0aac541de0bc76fedac09b64faa6871b71f658f2",
-      "glb_bytes": 26416
+      "glb_sha256": "f509d7bfbfc69b5c5461030692bbe86d810ac2af8e1af59ceac897f307aaea4c",
+      "glb_bytes": 49348
     },
     "chair_tipped": {
       "file": "chair_tipped.glb",
       "category": "prop",
       "snap": "floor",
-      "triangles": 216,
+      "triangles": 292,
       "materials": [
-        "steel_dark"
+        "steel_dark",
+        "paint_crate",
+        "steel_ceiling"
       ],
       "textured": false,
       "bounds_bevy": {
         "min": [
-          -0.4141,
+          -0.53,
           0.0,
-          -0.3134
+          -0.4011
         ],
         "max": [
-          0.4141,
-          0.42,
-          0.311
+          0.53,
+          0.5568,
+          0.3981
         ]
       },
-      "glb_sha256": "29dce783d3223c80b01cf28e6bcfada26177a74d0be02e05cb98e6dfe0b6bfc9",
-      "glb_bytes": 19956
+      "glb_sha256": "57a9a2995b494f849bfa5b3b3a3948b10a8ec969e2b21ec089a74b960ab0e2c7",
+      "glb_bytes": 27736
+    },
+    "potted_plant": {
+      "file": "potted_plant.glb",
+      "category": "decoration",
+      "snap": "floor",
+      "triangles": 456,
+      "materials": [
+        "paint_drum",
+        "steel_dark",
+        "spill_dark",
+        "foliage_dry",
+        "foliage_dark"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.365,
+          0.0,
+          -0.325
+        ],
+        "max": [
+          0.375,
+          1.08,
+          0.315
+        ]
+      },
+      "glb_sha256": "dc9546bb32ff675d9fddeccf31117bf7bf4b91c44924c46b9c7218bd1fccc62f",
+      "glb_bytes": 39324
+    },
+    "file_cabinet": {
+      "file": "file_cabinet.glb",
+      "category": "prop",
+      "snap": "floor",
+      "triangles": 304,
+      "materials": [
+        "steel_dark",
+        "steel_ceiling",
+        "paint_crate"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.38,
+          0.0,
+          -0.27
+        ],
+        "max": [
+          0.38,
+          1.32,
+          0.245
+        ]
+      },
+      "glb_sha256": "47eb5a731a40d14c780134631ac3b1bd243a573dd2bb5e9b2778ae205b4b697f",
+      "glb_bytes": 36464
+    },
+    "file_cabinet_open": {
+      "file": "file_cabinet_open.glb",
+      "category": "prop",
+      "snap": "floor",
+      "triangles": 424,
+      "materials": [
+        "steel_dark",
+        "steel_ceiling",
+        "paint_crate",
+        "paper"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.38,
+          0.0,
+          -0.52
+        ],
+        "max": [
+          0.38,
+          1.32,
+          0.245
+        ]
+      },
+      "glb_sha256": "f2ed740d454661cce298ef676a7be32c5f311612e2a97750e7f9ac5c8375dfcf",
+      "glb_bytes": 49768
+    },
+    "storage_crate_open": {
+      "file": "storage_crate_open.glb",
+      "category": "prop",
+      "snap": "floor",
+      "triangles": 328,
+      "materials": [
+        "paint_crate",
+        "steel_dark",
+        "paint_hazard",
+        "steel_ceiling"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.51,
+          0.0,
+          -0.43
+        ],
+        "max": [
+          0.51,
+          1.4356,
+          0.7925
+        ]
+      },
+      "glb_sha256": "d6b74ddcb508c72f786ba785aa2d58163565df47d1c6c1a94ab1746bc234078e",
+      "glb_bytes": 36568
+    },
+    "shelf_bin_contents": {
+      "file": "shelf_bin_contents.glb",
+      "category": "decoration",
+      "snap": "surface",
+      "triangles": 132,
+      "materials": [
+        "paint_crate",
+        "paint_drum"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.756,
+          0.16,
+          -0.1
+        ],
+        "max": [
+          0.5,
+          1.31,
+          0.1
+        ]
+      },
+      "glb_sha256": "d7ef9bd7c9554b60892ef09b39a05c6ba260fba09bb4f8ff852aa469669a4214",
+      "glb_bytes": 12748
+    },
+    "toolbox": {
+      "file": "toolbox.glb",
+      "category": "decoration",
+      "snap": "surface",
+      "triangles": 136,
+      "materials": [
+        "paint_drum",
+        "steel_dark",
+        "paint_hazard"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.2,
+          0.0,
+          -0.11
+        ],
+        "max": [
+          0.2,
+          0.245,
+          0.12
+        ]
+      },
+      "glb_sha256": "682616df80c25c6747151cd6d389debd2c03bb229edc07a36fc476e7694b7c20",
+      "glb_bytes": 18120
     },
     "drum_spilled": {
       "file": "drum_spilled.glb",
@@ -1450,7 +1648,7 @@
         "min": [
           -0.3202,
           -0.1547,
-          -0.012
+          -0.029
         ],
         "max": [
           0.3192,
@@ -1458,8 +1656,8 @@
           0.0
         ]
       },
-      "glb_sha256": "41e493f70a60f1ec98cb5b04a82c517e7e5fdd696c2efcc898b1de1cfb5cdee3",
-      "glb_bytes": 395444
+      "glb_sha256": "28a3f35ed3d42c210a08ebe3b4af0bd523cbe98fe42a08ff518624afbfb79617",
+      "glb_bytes": 395464
     },
     "trace_drag_marks": {
       "file": "trace_drag_marks.glb",

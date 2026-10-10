@@ -12,12 +12,14 @@ required credits.
 `generated/facility.glb` is an original modular corridor and room, made in
 headless Blender from the Nix dev shell. `generated/modules/` has the same
 module family as separate GLB files, with original props and decorations.
-`scripts/generate-facility.sh` writes the kit; the `facility_layout` example
-composes a multi-room layout from it in Bevy. The approved visual baseline is
-`screenshots/facility_floor1_v2_*.png`; older
+`scripts/generate-facility.sh` writes the kit; the game's first-floor builder
+composes the current authored layout. Run `BEVY_ASSET_ROOT="$PWD" nix develop -c
+xvfb-run -a cargo run --example facility_shots` to capture a top view, an
+angled overhead view, and room views under `target/facility-shots/`. Set
+`FACILITY_SHOTS_DIR` to choose another output directory. The approved visual
+baseline is `screenshots/facility_floor1_v2_*.png`; older
 `screenshots/facility_layout_*.png` images are prototype history. The
-earlier wayfinding study is in `screenshots/facility_wayfinding_*.png`.
-The current example captures `screenshots/facility_floor1_v2_*.png`. Earlier
+earlier wayfinding study is in `screenshots/facility_wayfinding_*.png`. Earlier
 `screenshots/facility_floor1_*.png` captures preserve the previous revision:
 it had a narrow cross and four isolated ceiling/wall blocks at its sides, an
 EXIT door directly on service, and a larger top-right office. The current

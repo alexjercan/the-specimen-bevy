@@ -21,6 +21,13 @@ fn menu_room_uses_authored_room_and_prop_light_pipeline() {
     assert_eq!(roots, 1);
     assert_eq!(rooms, 2);
     assert_eq!(props, 8);
+    let bench = world
+        .query::<(&Name, &Transform)>()
+        .iter(world)
+        .find(|(name, _)| name.as_str() == "Main menu workbench")
+        .map(|(_, transform)| transform)
+        .expect("main menu workbench");
+    assert!((bench.rotation * Vec3::NEG_Z).x < -0.8);
     let mut openings = world.query::<(Entity, &Passage)>();
     let (passage, position) = openings.single(world).expect("one hallway passage");
     assert_eq!(position.0, Vec2::new(0.0, -6.25));

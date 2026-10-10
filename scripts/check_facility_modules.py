@@ -234,6 +234,13 @@ def check_snap(entry, grid, lo, hi, tol=1e-3):
             errors.append(f"ceiling_hang |z| {max(abs(lo[2]), abs(hi[2]))} exceeds 0.05")
         if max(abs(lo[0]), abs(hi[0])) > tile / 2 + tol:
             errors.append(f"ceiling_hang |x| {max(abs(lo[0]), abs(hi[0]))} exceeds tile/2")
+    elif snap == "surface":
+        if category != "decoration":
+            errors.append(f"surface snap requires decoration, got {category!r}")
+        if lo[1] < -tol or hi[1] > wall_h + tol:
+            errors.append(f"surface decoration y range {lo[1]}/{hi[1]} is outside room height")
+        if max(abs(lo[0]), abs(hi[0]), abs(lo[2]), abs(hi[2])) > tile / 2 + tol:
+            errors.append("surface decoration exceeds tile half-width")
     else:
         errors.append(f"no snap contract implemented for snap={snap!r} category={category!r}")
     return errors

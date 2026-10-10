@@ -10,6 +10,13 @@
 - Add "Escaped" for any successful escape, with a first-win icon; require it alongside the other visible achievements to unlock Insane mode.
 - Add the hidden achievement "Out of your mind" for escaping in Insane mode. The viewer shows it as `?` until it unlocks.
 
+### Facility art
+
+- Reorient the prep-room and main-menu workbenches. Place fuses at the visible front of randomly selected workbenches while fixed room dressing stays the same across runs.
+- Add composed, nonblocking tabletop and floor decorations, hallway plants, larger walk-through tipped chairs, filled shelf bins, an open crate, and an open-drawer file cabinet. Give every crawl vent either a bolted cover or a nearby floor grille.
+- Add an orbiting prop gallery with furniture, pickups, devices, wall and doorway variants, boiler-room pipes and tool panels. Fix the lab console's upright panel and boiler valve face flicker.
+- Replace the old facility gallery, layout, and probe examples with `facility_shots`, which captures top-down, overhead, and room views of the current dressed floor under `target/facility-shots/`.
+
 ### Gameplay and debug tools
 
 - Send the monster toward the farthest reachable room at least 24 meters away after several local patrol legs; it sometimes runs there to avoid lingering near a hiding player.

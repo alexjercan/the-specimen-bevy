@@ -162,18 +162,18 @@ fn eligible_tables_are_distinct_rooms_on_table_tops() {
             .find(|(name, _)| name == table.room)
             .unwrap_or_else(|| panic!("missing room {}", table.room));
         assert!(rect.contains(table.position.xz()), "{}", table.room);
-        let support = tables.iter().find(|(module, transform)| {
-            if module != "workbench" {
-                return false;
-            }
+        let local = tables.iter().find_map(|(module, transform)| {
             let local = transform.rotation.inverse() * (table.position - transform.translation);
-            local.x.abs() + 0.1 <= 0.8
+            (module == "workbench"
+                && local.x.abs() + 0.1 <= 0.8
                 && local.z.abs() + 0.03 <= 0.35
-                && (table.position.y - 0.9).abs() < 1e-4
+                && (table.position.y - 0.9).abs() < 1e-4)
+                .then_some(local)
         });
+        let local = local.unwrap_or_else(|| panic!("{} fuse is not on a table top", table.room));
         assert!(
-            support.is_some(),
-            "{} fuse is not on a table top",
+            (0.18..=0.32).contains(&local.x) && (-0.22..=-0.1).contains(&local.z),
+            "{} fuse is not visible at the front of its workbench: {local:?}",
             table.room
         );
     }
@@ -200,6 +200,28 @@ fn seed_selects_three_distinct_reproducible_slots_covering_every_combination() {
         combinations.insert(slots);
     }
     assert_eq!(combinations.len(), 40);
+}
+
+#[test]
+fn furniture_and_dressing_are_identical_across_fuse_seeds() {
+    fn layout(seed: u64) -> Vec<(String, [u32; 3], [u32; 4])> {
+        let mut app = first_floor(seed);
+        let world = app.world_mut();
+        let mut placements: Vec<_> = world
+            .query::<(&Prop, &Transform)>()
+            .iter(world)
+            .map(|(prop, transform)| {
+                (
+                    prop.0.clone(),
+                    transform.translation.to_array().map(f32::to_bits),
+                    transform.rotation.to_array().map(f32::to_bits),
+                )
+            })
+            .collect();
+        placements.sort();
+        placements
+    }
+    assert_eq!(layout(42), layout(999));
 }
 
 #[test]

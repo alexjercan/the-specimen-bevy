@@ -278,17 +278,22 @@ fn rotated_shelves_use_their_rotated_footprint_and_current_position() {
 
 #[test]
 fn decorative_props_do_not_block_movement() {
-    let (mut app, player) = app();
-    let sign = app
-        .world_mut()
-        .spawn((
-            Prop("sign_label_lab".to_owned()),
-            Transform::from_xyz(0.0, 0.0, -1.5),
-        ))
-        .id();
-    assert!(app.world().get::<PropCollider>(sign).is_none());
-    walk(&mut app, KeyCode::KeyW, 8);
-    assert!(position(&app, player).z < -1.5);
+    for module in [
+        "sign_label_lab",
+        "clutter_papers",
+        "potted_plant",
+        "chair_tipped",
+    ] {
+        let (mut app, player) = app();
+        let decoration = app
+            .world_mut()
+            .spawn((Prop(module.to_owned()), Transform::from_xyz(0.0, 0.0, -1.5)))
+            .id();
+        app.update();
+        assert!(app.world().get::<PropCollider>(decoration).is_none());
+        walk(&mut app, KeyCode::KeyW, 8);
+        assert!(position(&app, player).z < -1.5, "{module}");
+    }
 }
 
 #[test]

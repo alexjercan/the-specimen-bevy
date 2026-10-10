@@ -455,7 +455,7 @@ fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
         .iter(world)
         .map(|door| door.position)
         .collect();
-    assert_eq!(spots.len(), 15);
+    assert_eq!(spots.len(), 16);
     let lockers: Vec<_> = spots
         .iter()
         .filter(|(_, kind, ..)| *kind == HidingSpot::Locker)
@@ -489,7 +489,10 @@ fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
         .filter(|prop| prop.0 == "concept_table")
         .count();
     assert_eq!(tables, concept_tables);
-    assert_eq!(tables, 6);
+    assert_eq!(tables, 7);
+    assert!(spots.iter().any(|(_, kind, transform, _)| {
+        *kind == HidingSpot::Table && transform.translation.xz() == Vec2::new(6.8, -25.7)
+    }));
     let reception_table = spots
         .iter()
         .find(|(_, kind, transform, _)| {

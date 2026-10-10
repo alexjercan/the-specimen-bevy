@@ -84,21 +84,13 @@ probe.workspace = true
 getrandom = { version = "0.4.3", features = ["wasm_js"] }
 
 [[example]]
-name = "facility_gallery"
-path = "examples/facility_gallery.rs"
-
-[[example]]
-name = "facility_layout"
-path = "examples/facility_layout.rs"
-
-[[example]]
-name = "facility_probe"
-path = "examples/facility_probe.rs"
-
-[[example]]
-name = "facility_overhead_probe"
-path = "examples/facility_overhead_probe.rs"
+name = "facility_shots"
+path = "examples/facility_shots.rs"
 
 [[example]]
 name = "human_deer_viewer"
 path = "examples/human_deer_viewer.rs"
+
+[[example]]
+name = "prop_gallery"
+path = "examples/prop_gallery.rs"
