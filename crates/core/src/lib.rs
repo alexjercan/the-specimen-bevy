@@ -138,6 +138,7 @@ impl AppBuilder {
             })
             .add_plugins(EnhancedInputPlugin)
             .add_plugins(gameplay::controller::PlayerControllerPlugin::default().without_camera())
+            .add_plugins(gameplay::achievements::AchievementPlugin)
             .add_plugins((
                 gameplay::levels::DoorPlugin,
                 gameplay::levels::FusePlugin,
@@ -192,6 +193,7 @@ impl AppBuilder {
                 .add_systems(OnEnter(GameAssetsState::Failed), core_failed)
                 .add_plugins(EnhancedInputPlugin)
                 .add_plugins(gameplay::controller::PlayerControllerPlugin::default())
+                .add_plugins(gameplay::achievements::AchievementPlugin)
                 .add_plugins((
                     gameplay::levels::DoorPlugin,
                     gameplay::levels::FusePlugin,

@@ -52,7 +52,7 @@
     <ul>
       <li>Track run eligibility from the start of a fresh game. Reset it on replay. Check escape conditions only when the player actually escapes.</li>
       <li>Record flashbang and detector pickups, not current inventory. Using or dropping an item must not restore a no-pickup condition.</li>
-      <li>For Buy some time, add an authoritative burst-hit event for the monster. Define hit against the burst area and valid line of sight when the burst happens; a throw, sound, or temporary protection for the player alone is not proof. Current gameplay does not report such a hit.</li>
+      <li>Buy some time now uses a local confirmed-hit signal when the monster is within the flashbang burst area and in clear line of sight. A throw, sound, or temporary protection for the player alone does not count. Steam sync remains pending.</li>
       <li>Record completed boiler repairs. For So close, record the exit door actually opening after unlock and require the player to be caught before the escape event.</li>
       <li>Count detection when the monster first enters pursuit of the player through sight or sound. Escaping pursuit later does not restore Unseen eligibility.</li>
       <li>Keep gameplay rules independent of the Steamworks adapter. Steamworks API IDs above are drafts; publish nothing until implementation and playtest verification.</li>

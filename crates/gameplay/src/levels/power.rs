@@ -4,7 +4,10 @@ use bevy_rand::prelude::ChaCha8Rng;
 use game_audio::{PlaySound, PlaySourceSound, Sound, SourceSounds};
 use rand_core::{Rng, SeedableRng};
 
-use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
+use crate::{
+    achievements::{AchievementSignal, AchievementSignalKind},
+    controller::player::{Interact, PlayerController, PlayerControlsEnabled},
+};
 
 use super::{
     fuses::FuseInventory,
@@ -154,12 +157,20 @@ fn process_repairs(
     mut repairs: MessageReader<RepairBoiler>,
     mut power: Option<ResMut<FacilityPower>>,
     boilers: Query<(), With<IntermittentSound>>,
+    players: Query<Entity, With<PlayerController>>,
     mut sounds: MessageWriter<PlaySourceSound>,
+    mut commands: Commands,
 ) {
     for repair in repairs.read() {
         if let (Some(power), Ok(())) = (power.as_deref_mut(), boilers.get(repair.0)) {
             if !power.on {
                 power.restore();
+                for player in &players {
+                    commands.trigger(AchievementSignal {
+                        player,
+                        kind: AchievementSignalKind::RestoredBoiler,
+                    });
+                }
                 sounds.write(PlaySourceSound {
                     source: repair.0,
                     sound: Sound::BoilerReset,

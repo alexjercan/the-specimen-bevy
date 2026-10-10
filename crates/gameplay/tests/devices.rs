@@ -4,6 +4,7 @@ use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use game_audio::{PlaySound, Sound};
 use gameplay::{
+    achievements::{Achievement, AchievementPlugin, AchievementProgress, RunAchievements},
     controller::{Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{
         detector_reading, pulse_interval, Caught, Detector, DevicePlugin, DoorPlugin, Flashbangs,
@@ -31,7 +32,7 @@ fn app() -> (App, Entity) {
             100,
         )))
         .add_plugins(PlayerControllerPlugin::default().without_camera())
-        .add_plugins((DoorPlugin, FusePlugin, DevicePlugin))
+        .add_plugins((DoorPlugin, FusePlugin, DevicePlugin, AchievementPlugin))
         .init_resource::<Heard>()
         .add_systems(PostUpdate, collect);
     app.finish();
@@ -99,6 +100,12 @@ fn f_picks_up_the_aimed_flashbang_and_detector_once_each() {
     aim(&mut app, player, Vec3::new(0.5, 0.96, -1.5));
     press_key(&mut app, KeyCode::KeyF);
     assert_eq!(flashbangs(&app, player), Some(1));
+    assert!(
+        app.world()
+            .get::<RunAchievements>(player)
+            .unwrap()
+            .picked_flashbang
+    );
     assert!(!exists(&app, flashbang));
     assert!(app.world().get::<Detector>(player).is_none());
 
@@ -108,6 +115,12 @@ fn f_picks_up_the_aimed_flashbang_and_detector_once_each() {
     aim(&mut app, player, Vec3::new(1.5, 0.96, -1.5));
     press_key(&mut app, KeyCode::KeyF);
     assert!(!exists(&app, detector));
+    assert!(
+        app.world()
+            .get::<RunAchievements>(player)
+            .unwrap()
+            .picked_detector
+    );
     assert_eq!(
         app.world().get::<Detector>(player),
         Some(&Detector { reading: None })
@@ -559,6 +572,62 @@ fn flashbang_burst_plays_once_at_detonation_after_the_throw() {
     }
     assert!(app.world().get::<Flashed>(player).is_none());
     assert_eq!(cues(&mut app, Sound::FlashbangBurst), 0);
+}
+
+#[test]
+fn burst_records_hit_on_nearby_visible_monster_without_changing_it() {
+    let (mut app, player) = app();
+    let near = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(0.5, 0.0, -4.0)))
+        .id();
+    app.world_mut().entity_mut(player).insert(Flashbangs(1));
+    click(&mut app, MouseButton::Right);
+    for _ in 0..8 {
+        app.update();
+    }
+    assert!(app
+        .world()
+        .resource::<AchievementProgress>()
+        .unlocked
+        .contains(&Achievement::FlashbangHitMonster));
+    assert!(app.world().get::<Monster>(near).is_some());
+}
+
+#[test]
+fn distant_monster_is_not_a_flashbang_hit() {
+    let (mut app, player) = app();
+    app.world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(0.5, 0.0, -14.0)));
+    app.world_mut().entity_mut(player).insert(Flashbangs(1));
+    click(&mut app, MouseButton::Right);
+    for _ in 0..8 {
+        app.update();
+    }
+    assert!(!app
+        .world()
+        .resource::<AchievementProgress>()
+        .unlocked
+        .contains(&Achievement::FlashbangHitMonster));
+}
+
+#[test]
+fn wall_blocks_flashbang_hit() {
+    let (mut app, player) = app();
+    app.world_mut()
+        .spawn(Room(Rect::new(-2.0, -4.0, 2.0, -3.0)));
+    app.world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(0.5, 0.0, -2.5)));
+    app.world_mut().entity_mut(player).insert(Flashbangs(1));
+    click(&mut app, MouseButton::Right);
+    for _ in 0..8 {
+        app.update();
+    }
+    assert!(!app
+        .world()
+        .resource::<AchievementProgress>()
+        .unlocked
+        .contains(&Achievement::FlashbangHitMonster));
 }
 
 #[test]

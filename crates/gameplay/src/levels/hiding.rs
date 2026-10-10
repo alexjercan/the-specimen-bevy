@@ -8,7 +8,7 @@ use crate::controller::player::{
 
 use super::{
     builder::Prop,
-    devices::{unseen, Flashed},
+    devices::{unseen, FlashTargets, Flashed},
     doors::box_hit,
     fuses::FuseInventory,
     interaction::{InteractTarget, InteractTargets},
@@ -222,6 +222,7 @@ fn toggle_hiding(
             Option<&mut Hidden>,
             Option<&WitnessedHiding>,
             Option<&Flashed>,
+            Option<&FlashTargets>,
         ),
         (With<PlayerController>, Without<Caught>),
     >,
@@ -232,13 +233,13 @@ fn toggle_hiding(
 ) {
     let mut occupied: Vec<Entity> = players
         .iter()
-        .filter_map(|(_, _, hidden, _, _)| hidden.map(|hidden| hidden.spot))
+        .filter_map(|(_, _, hidden, _, _, _)| hidden.map(|hidden| hidden.spot))
         .collect();
     for &UseHidingSpot { player, spot } in uses.read() {
         let Ok(kind) = spots.get(spot) else {
             continue;
         };
-        let Ok((transform, mut input, hidden, witnessed, flashed)) = players.get_mut(player) else {
+        let Ok((transform, mut input, hidden, witnessed, flashed, targets)) = players.get_mut(player) else {
             continue;
         };
         let motion = HidingMotion::from(transform);
@@ -261,13 +262,10 @@ fn toggle_hiding(
             }
             None if !occupied.contains(&spot) => {
                 let start = transform.translation.xz();
-                let witness = (!unseen(flashed))
-                    .then(|| {
-                        monsters.iter().find_map(|(monster, pose)| {
-                            sees_player(pose, start, &sight).then_some(WitnessedHiding { monster })
-                        })
-                    })
-                    .flatten();
+                let witness = monsters.iter().find_map(|(monster, pose)| {
+                    (!unseen(flashed, targets, monster) && sees_player(pose, start, &sight))
+                        .then_some(WitnessedHiding { monster })
+                });
                 commands.entity(player).insert(Hidden {
                     spot,
                     height: transform.translation.y,

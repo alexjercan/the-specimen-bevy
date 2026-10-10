@@ -3,18 +3,22 @@ use bevy_enhanced_input::prelude::*;
 use game_assets::FacilityAssets;
 use game_audio::{PlaySound, Sound};
 
-use crate::controller::player::{
-    apply_input, PlayerController, PlayerControlsEnabled, UseFlashbang,
+use crate::{
+    achievements::{AchievementSignal, AchievementSignalKind},
+    controller::player::{apply_input, PlayerController, PlayerControlsEnabled, UseFlashbang},
 };
 
 use super::{
+    interaction::StructuralSight,
     monster::{Caught, Monster},
     objective::Escaped,
     pickups::PickupPlugin,
+    render::THROW_DISTANCE,
 };
 
 pub const FLASHBANG_DURATION: f32 = 5.0;
 pub const FLASHBANG_BURST_DELAY: f32 = 0.6;
+pub const FLASHBANG_HIT_RADIUS: f32 = 4.0;
 pub const DETECTOR_RANGE: f32 = 25.0;
 pub const PULSE_NEAR: f32 = 2.0;
 pub const PULSE_FAST: f32 = 0.2;
@@ -57,8 +61,11 @@ pub struct DetectorReading {
 #[derive(Component, Default)]
 pub(crate) struct PulseClock(f32);
 
+#[derive(Component, Clone, Debug, Default)]
+pub(crate) struct FlashTargets(pub Vec<Entity>);
+
 #[derive(Component, Clone, Copy, Debug)]
-struct PendingBurst(f32);
+pub(super) struct PendingBurst(f32);
 
 #[derive(Component, Clone, Copy, Debug, Default)]
 pub(crate) struct ThrownFlashbang {
@@ -79,7 +86,7 @@ impl Plugin for DevicePlugin {
                 Update,
                 (
                     tick_flash.before(apply_input),
-                    tick_burst,
+                    tick_burst.after(tick_flash),
                     (read_detector, pulse_detector).chain().after(apply_input),
                 ),
             );
@@ -107,6 +114,7 @@ fn use_flashbang(
         flashbangs.0 -= 1;
         commands
             .entity(player)
+            .remove::<FlashTargets>()
             .insert((Flashed::default(), PendingBurst(0.0)));
         if assets.is_some() {
             commands.entity(player).with_children(|children| {
@@ -128,23 +136,47 @@ fn use_flashbang(
     }
 }
 
-fn tick_burst(
+pub(super) fn tick_burst(
     time: Res<Time>,
     enabled: Option<Res<PlayerControlsEnabled>>,
-    mut players: Query<(Entity, &mut PendingBurst)>,
+    mut players: Query<(Entity, &Transform, &mut PendingBurst, Option<&Caught>), Without<Monster>>,
+    monsters: Query<(Entity, &Transform), (With<Monster>, Without<PlayerController>)>,
+    sight: StructuralSight,
     mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
 ) {
     if enabled.is_some_and(|enabled| !enabled.0) {
         return;
     }
-    for (player, mut burst) in &mut players {
+    for (player, pose, mut burst, caught) in &mut players {
         burst.0 += time.delta_secs();
         if burst.0 >= FLASHBANG_BURST_DELAY {
             sounds.write(PlaySound {
                 sound: Sound::FlashbangBurst,
                 position: None,
             });
+            if caught.is_some() {
+                commands.entity(player).remove::<PendingBurst>();
+                continue;
+            }
+            let origin =
+                (pose.translation + pose.rotation * Vec3::new(0.0, 0.0, -THROW_DISTANCE)).xz();
+            let targets: Vec<_> = monsters
+                .iter()
+                .filter_map(|(monster, transform)| {
+                    let target = transform.translation.xz();
+                    (origin.distance(target) <= FLASHBANG_HIT_RADIUS
+                        && sight.clear_sight(origin, target))
+                    .then_some(monster)
+                })
+                .collect();
+            if !targets.is_empty() {
+                commands.entity(player).insert(FlashTargets(targets));
+                commands.trigger(AchievementSignal {
+                    player,
+                    kind: AchievementSignalKind::FlashbangHitMonster,
+                });
+            }
             commands.entity(player).remove::<PendingBurst>();
         }
     }
@@ -162,13 +194,14 @@ pub(crate) fn tick_flash(
     for (player, mut flashed) in &mut players {
         flashed.remaining -= time.delta_secs();
         if flashed.remaining <= 0.0 {
-            commands.entity(player).remove::<Flashed>();
+            commands.entity(player).remove::<(Flashed, FlashTargets)>();
         }
     }
 }
 
-pub(crate) fn unseen(flashed: Option<&Flashed>) -> bool {
+pub(crate) fn unseen(flashed: Option<&Flashed>, targets: Option<&FlashTargets>, monster: Entity) -> bool {
     flashed.is_some_and(|flashed| flashed.remaining > 0.0)
+        && targets.is_some_and(|targets| targets.0.contains(&monster))
 }
 
 pub fn detector_reading(player: &Transform, monster: Vec3) -> Option<DetectorReading> {

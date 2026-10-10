@@ -5,6 +5,8 @@ use game_audio::{PlaySound, Sound};
 
 use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
 
+use crate::achievements::{AchievementSignal, AchievementSignalKind};
+
 use super::{
     devices::{Detector, Flashbangs},
     fuses::{aim_hit, FuseInventory, FUSE_COUNT, FUSE_RADIUS},
@@ -107,6 +109,10 @@ fn pick_up(
                 });
             }
             PickupKind::Flashbang => {
+                commands.trigger(AchievementSignal {
+                    player,
+                    kind: AchievementSignalKind::PickedFlashbang,
+                });
                 match flashbangs {
                     Some(mut flashbangs) => flashbangs.0 += 1,
                     None => {
@@ -119,6 +125,10 @@ fn pick_up(
                 });
             }
             PickupKind::Detector => {
+                commands.trigger(AchievementSignal {
+                    player,
+                    kind: AchievementSignalKind::PickedDetector,
+                });
                 commands.entity(player).insert_if_new(Detector::default());
                 sounds.write(PlaySound {
                     sound: Sound::DetectorPickup,

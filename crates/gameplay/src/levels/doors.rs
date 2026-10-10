@@ -2,7 +2,10 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use game_audio::{PlaySourceSound, Sound, SourceSounds};
 
-use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
+use crate::{
+    achievements::{AchievementSignal, AchievementSignalKind},
+    controller::player::{Interact, PlayerController, PlayerControlsEnabled},
+};
 
 use super::{
     animation::{animate_doors, DoorSwing},
@@ -47,19 +50,30 @@ impl Plugin for DoorPlugin {
 fn interact(
     _: On<Start<Interact>>,
     players: Query<
-        (&Transform, Option<&FuseInventory>, Option<&Hidden>),
+        (Entity, &Transform, Option<&FuseInventory>, Option<&Hidden>),
         (With<PlayerController>, Without<Caught>),
     >,
     enabled: Res<PlayerControlsEnabled>,
     targets: InteractTargets,
+    exits: Query<&Door, (With<ExitDoor>, Without<DoorLock>)>,
     mut toggles: MessageWriter<ToggleDoor>,
+    mut commands: Commands,
 ) {
     if !enabled.0 {
         return;
     }
-    for (player, inventory, hidden) in &players {
+    for (player_entity, player, inventory, hidden) in &players {
         if let Some(InteractTarget::Door(door)) = targets.aimed(player, inventory, hidden) {
             toggles.write(ToggleDoor(door));
+            if exits
+                .get(door)
+                .is_ok_and(|exit| exit.state == DoorState::Closed)
+            {
+                commands.trigger(AchievementSignal {
+                    player: player_entity,
+                    kind: AchievementSignalKind::ExitOpened,
+                });
+            }
         }
     }
 }

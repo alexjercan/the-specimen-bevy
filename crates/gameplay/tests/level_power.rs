@@ -4,6 +4,7 @@ use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use game_audio::{PlaySound, PlaySourceSound, Sound, SourceSounds};
 use gameplay::{
+    achievements::{Achievement, AchievementPlugin, AchievementProgress, RunAchievements},
     controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{
         build_first_floor, FacilityPower, FacilityPowerPlugin, FuseSeed, Prop, PropSoundsPlugin,
@@ -20,7 +21,7 @@ fn boiler_repairs_repeated_timed_outages_with_shared_f_interaction() {
         )))
         .insert_resource(FuseSeed(42))
         .add_plugins(PlayerControllerPlugin::default().without_camera())
-        .add_plugins((FacilityPowerPlugin, PropSoundsPlugin))
+        .add_plugins((FacilityPowerPlugin, PropSoundsPlugin, AchievementPlugin))
         .add_systems(Startup, build_first_floor);
     app.finish();
     app.cleanup();
@@ -89,6 +90,17 @@ fn boiler_repairs_repeated_timed_outages_with_shared_f_interaction() {
     app.update();
     assert!(app.world().resource::<FacilityPower>().on);
     assert!(app.world().resource::<FacilityPower>().outage_pending);
+    assert!(
+        app.world()
+            .get::<RunAchievements>(player)
+            .unwrap()
+            .restored_boiler
+    );
+    assert!(app
+        .world()
+        .resource::<AchievementProgress>()
+        .unlocked
+        .contains(&Achievement::RestoreBoiler));
     let events: Vec<_> = app
         .world_mut()
         .resource_mut::<Messages<PlaySourceSound>>()

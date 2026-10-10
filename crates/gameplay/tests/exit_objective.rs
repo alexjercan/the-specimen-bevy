@@ -4,6 +4,7 @@ use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use game_audio::{PlaySound, PlaySourceSound, Sound, SourceSounds};
 use gameplay::{
+    achievements::{Achievement, AchievementPlugin, AchievementProgress, RunAchievements},
     controller::{PlayerController, PlayerControllerPlugin},
     levels::{
         build_first_floor, Door, DoorLock, DoorPlugin, DoorState, DoorSwing, Escaped, ExitDoor,
@@ -19,7 +20,7 @@ fn app() -> (App, Entity) {
             100,
         )))
         .add_plugins(PlayerControllerPlugin::default().without_camera())
-        .add_plugins((DoorPlugin, FusePlugin, ObjectivePlugin));
+        .add_plugins((DoorPlugin, FusePlugin, ObjectivePlugin, AchievementPlugin));
     app.finish();
     app.cleanup();
     app.update();
@@ -401,6 +402,12 @@ fn first_floor_run_installs_fuses_opens_the_exit_and_walks_out() {
     }
     assert!(!locked(&app, exit));
     assert_eq!(installed(&app, panel), FUSE_COUNT);
+    assert!(
+        !app.world()
+            .get::<RunAchievements>(player)
+            .unwrap()
+            .exit_opened
+    );
 
     place(
         &mut app,
@@ -411,8 +418,19 @@ fn first_floor_run_installs_fuses_opens_the_exit_and_walks_out() {
     press_f(&mut app);
     settle(&mut app);
     assert_eq!(state(&app, exit), DoorState::Open);
+    assert!(
+        app.world()
+            .get::<RunAchievements>(player)
+            .unwrap()
+            .exit_opened
+    );
     assert!(!escaped(&app, player));
     walk(&mut app, 12);
     assert!(z(&app, player) < -31.25);
     assert!(escaped(&app, player));
+    assert!(app
+        .world()
+        .resource::<AchievementProgress>()
+        .unlocked
+        .contains(&Achievement::EscapeUndetected));
 }

@@ -1846,6 +1846,9 @@ fn flashed_player_in_view_and_reach_is_not_sensed_or_caught_until_the_flash_ends
         ))
         .id();
     app.world_mut()
+        .entity_mut(player)
+        .insert(super::super::devices::FlashTargets(vec![monster]));
+    app.world_mut()
         .get_mut::<PlayerInput>(player)
         .unwrap()
         .movement = Vec2::Y;
@@ -1887,7 +1890,11 @@ fn flash_mid_chase_keeps_the_last_known_search_without_tracking_or_contact() {
     assert_eq!(last, Vec2::new(0.0, -6.0));
     app.world_mut()
         .entity_mut(player)
-        .insert((Transform::from_xyz(0.0, 1.6, -8.0), Flashed::default()));
+        .insert((
+            Transform::from_xyz(0.0, 1.6, -8.0),
+            Flashed::default(),
+            super::super::devices::FlashTargets(vec![monster]),
+        ));
     app.world_mut()
         .get_mut::<PlayerInput>(player)
         .unwrap()
@@ -1942,14 +1949,17 @@ fn hiding_while_flashed_in_plain_view_is_not_witnessed_and_stays_safe() {
         .world_mut()
         .spawn((HidingSpot::Locker, Transform::from_xyz(0.0, 0.0, -4.0)))
         .id();
-    app.world_mut()
-        .spawn((Monster::default(), Transform::IDENTITY));
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY))
+        .id();
     let player = app
         .world_mut()
         .spawn((
             PlayerController,
             Transform::from_xyz(0.0, 1.6, -2.9),
             Flashed::default(),
+            super::super::devices::FlashTargets(vec![monster]),
         ))
         .id();
     app.update();
@@ -1999,7 +2009,7 @@ fn witnessed_hiding_is_not_pulled_out_while_flashed_but_is_after_expiry() {
     assert!(app.world().get::<super::WitnessedHiding>(player).is_some());
     app.world_mut()
         .entity_mut(player)
-        .insert(Flashed::default());
+        .insert((Flashed::default(), super::super::devices::FlashTargets(vec![monster])));
     while app.world().get::<Flashed>(player).is_some() {
         app.update();
         assert!(!app
