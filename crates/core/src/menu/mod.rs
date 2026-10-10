@@ -97,6 +97,8 @@ fn activate_buttons(
     mut route: ResMut<credits::CreditsRoute>,
     mut preset: ResMut<gameplay::presets::GamePreset>,
     mut selection: ResMut<main_menu::ModeSelection>,
+    mut settings: ResMut<game_settings::GameSettings>,
+    mut settings_dirty: ResMut<game_settings::SettingsDirty>,
     progress: Res<gameplay::achievements::AchievementProgress>,
     #[cfg(not(target_arch = "wasm32"))] mut exit: MessageWriter<AppExit>,
     mut sounds: MessageWriter<PlaySound>,
@@ -120,15 +122,21 @@ fn activate_buttons(
             }
             MenuAction::PreviousMode => {
                 selection.cycle(-1, &progress);
+                selection.save_into(&mut settings);
+                settings_dirty.0 = true;
                 Sound::UiPress
             }
             MenuAction::NextMode => {
                 selection.cycle(1, &progress);
+                selection.save_into(&mut settings);
+                settings_dirty.0 = true;
                 Sound::UiPress
             }
             MenuAction::AdjustCustom(field, step) => {
                 if selection.0 == gameplay::presets::GameMode::Custom {
                     selection.adjust(*field, *step);
+                    selection.save_into(&mut settings);
+                    settings_dirty.0 = true;
                 }
                 Sound::UiPress
             }

@@ -26,6 +26,10 @@ fn saves_and_loads_player_settings() {
     settings.graphics = GraphicsQuality::Low;
     settings.display_mode = DisplayMode::Windowed;
     settings.fps_overlay = false;
+    settings.preferred_mode = game_settings::PreferredMode::Custom;
+    settings.custom_difficulty.walk_speed = 1;
+    settings.custom_difficulty.run_hearing = 2;
+    settings.custom_difficulty.sprint = false;
     settings.keys.forward = "ArrowUp".into();
     settings.keys.flashlight = "MouseMiddle".into();
     settings.keys.flashbang = "KeyQ".into();
@@ -96,4 +100,30 @@ fn missing_fields_keep_defaults() {
     assert_eq!(settings.keys, MovementKeys::default());
     assert_eq!(settings.display_mode, DisplayMode::Fullscreen);
     assert!(!settings.fps_overlay);
+    assert_eq!(
+        settings.preferred_mode,
+        game_settings::PreferredMode::Normal
+    );
+    assert_eq!(
+        settings.custom_difficulty,
+        game_settings::CustomDifficulty::default()
+    );
+}
+
+#[test]
+fn invalid_custom_options_reset_to_normal_choices() {
+    let mut settings: GameSettings = serde_json::from_str(
+        r#"{"preferred_mode":"custom","custom_difficulty":{"walk_speed":255,"chase_speed":2,"walk_hearing":3,"run_hearing":1,"sprint":false}}"#,
+    ).unwrap();
+    settings.sanitize();
+    assert_eq!(
+        settings.preferred_mode,
+        game_settings::PreferredMode::Custom
+    );
+    assert_eq!(settings.custom_difficulty.walk_speed, 0);
+    assert_eq!(settings.custom_difficulty.chase_speed, 2);
+    assert_eq!(settings.custom_difficulty.walk_hearing, 0);
+    assert_eq!(settings.custom_difficulty.run_hearing, 1);
+    assert!(!settings.custom_difficulty.sprint);
+    assert!(settings.custom_difficulty.flashbangs);
 }

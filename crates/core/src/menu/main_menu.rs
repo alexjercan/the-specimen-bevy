@@ -1,18 +1,19 @@
 use bevy::prelude::*;
 use game_assets::{FacilityAssets, UiAssets};
+use game_settings::{CustomDifficulty, GameSettings, PreferredMode};
 use game_ui::{menu_button, text, theme};
 use gameplay::achievements::AchievementProgress;
 use gameplay::controller::PlayerController;
 use gameplay::levels::{
-    Door, DoorRef, FusePanel, LevelRoot, Monster, Passage, PickupKind, Prop, Room,
-    build_first_floor, spawn_first_floor_actors,
+    build_first_floor, spawn_first_floor_actors, Door, DoorRef, FusePanel, LevelRoot, Monster,
+    Passage, PickupKind, Prop, Room,
 };
 use gameplay::presets::{
     GameMode, GamePreset, MonsterChaseSpeed, MonsterRunHearing, MonsterWalkHearing,
     MonsterWalkSpeed,
 };
 
-use super::{GameState, MenuAction, TITLE, background, release_cursor, screen_camera};
+use super::{background, release_cursor, screen_camera, GameState, MenuAction, TITLE};
 
 const MODES: [GameMode; 3] = [GameMode::Normal, GameMode::Custom, GameMode::Insane];
 
@@ -84,7 +85,11 @@ impl CustomField {
 }
 
 fn on_off(enabled: bool) -> &'static str {
-    if enabled { "On" } else { "Off" }
+    if enabled {
+        "On"
+    } else {
+        "Off"
+    }
 }
 
 fn cycle_value<T: Copy + PartialEq>(value: &mut T, choices: &[T], step: isize) {
@@ -114,6 +119,79 @@ impl Default for ModeSelection {
 }
 
 impl ModeSelection {
+    pub(super) fn from_settings(settings: &GameSettings, progress: &AchievementProgress) -> Self {
+        let custom = settings.custom_difficulty;
+        let mut preset = GamePreset::of(GameMode::Custom);
+        preset.monster.walk_speed = [
+            MonsterWalkSpeed::Slow,
+            MonsterWalkSpeed::Medium,
+            MonsterWalkSpeed::Fast,
+        ]
+        .get(custom.walk_speed as usize)
+        .copied()
+        .unwrap_or(MonsterWalkSpeed::Slow);
+        preset.monster.chase_speed = [
+            MonsterChaseSpeed::Normal,
+            MonsterChaseSpeed::Medium,
+            MonsterChaseSpeed::Fast,
+        ]
+        .get(custom.chase_speed as usize)
+        .copied()
+        .unwrap_or(MonsterChaseSpeed::Normal);
+        preset.monster.walk_hearing = [
+            MonsterWalkHearing::Short,
+            MonsterWalkHearing::Medium,
+            MonsterWalkHearing::Long,
+        ]
+        .get(custom.walk_hearing as usize)
+        .copied()
+        .unwrap_or(MonsterWalkHearing::Short);
+        preset.monster.run_hearing = [
+            MonsterRunHearing::Short,
+            MonsterRunHearing::Medium,
+            MonsterRunHearing::Long,
+        ]
+        .get(custom.run_hearing as usize)
+        .copied()
+        .unwrap_or(MonsterRunHearing::Short);
+        preset.sprint = custom.sprint;
+        preset.flashbangs = custom.flashbangs;
+        preset.detector = custom.detector;
+        preset.blackout = custom.blackout;
+        let mode = match settings.preferred_mode {
+            PreferredMode::Normal => GameMode::Normal,
+            PreferredMode::Custom
+                if progress
+                    .unlocked
+                    .contains(&gameplay::achievements::Achievement::Escaped)
+                    || progress.insane_unlocked() =>
+            {
+                GameMode::Custom
+            }
+            PreferredMode::Insane if progress.insane_unlocked() => GameMode::Insane,
+            _ => GameMode::Normal,
+        };
+        Self(mode, preset)
+    }
+
+    pub(super) fn save_into(&self, settings: &mut GameSettings) {
+        settings.preferred_mode = match self.0 {
+            GameMode::Normal => PreferredMode::Normal,
+            GameMode::Custom => PreferredMode::Custom,
+            GameMode::Insane => PreferredMode::Insane,
+        };
+        settings.custom_difficulty = CustomDifficulty {
+            walk_speed: self.1.monster.walk_speed as u8,
+            chase_speed: self.1.monster.chase_speed as u8,
+            walk_hearing: self.1.monster.walk_hearing as u8,
+            run_hearing: self.1.monster.run_hearing as u8,
+            sprint: self.1.sprint,
+            flashbangs: self.1.flashbangs,
+            detector: self.1.detector,
+            blackout: self.1.blackout,
+        };
+    }
+
     pub(super) fn cycle(&mut self, step: isize, progress: &AchievementProgress) {
         let modes: Vec<_> = MODES
             .iter()
@@ -201,8 +279,12 @@ pub(super) fn plugin(app: &mut App) {
         .add_systems(OnEnter(GameState::Playing), enter_world);
 }
 
-fn reset_mode(mut selection: ResMut<ModeSelection>) {
-    *selection = ModeSelection::default();
+fn reset_mode(
+    mut selection: ResMut<ModeSelection>,
+    settings: Res<GameSettings>,
+    progress: Res<AchievementProgress>,
+) {
+    *selection = ModeSelection::from_settings(&settings, &progress);
 }
 
 fn sync_mode_label(

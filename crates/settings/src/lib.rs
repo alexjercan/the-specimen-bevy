@@ -151,6 +151,43 @@ fn default_sensitivity() -> f32 {
     DEFAULT_SENSITIVITY
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PreferredMode {
+    #[default]
+    Normal,
+    Custom,
+    Insane,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CustomDifficulty {
+    pub walk_speed: u8,
+    pub chase_speed: u8,
+    pub walk_hearing: u8,
+    pub run_hearing: u8,
+    pub sprint: bool,
+    pub flashbangs: bool,
+    pub detector: bool,
+    pub blackout: bool,
+}
+
+impl Default for CustomDifficulty {
+    fn default() -> Self {
+        Self {
+            walk_speed: 0,
+            chase_speed: 0,
+            walk_hearing: 0,
+            run_hearing: 0,
+            sprint: true,
+            flashbangs: true,
+            detector: true,
+            blackout: false,
+        }
+    }
+}
+
 #[derive(Resource, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GameSettings {
@@ -166,6 +203,8 @@ pub struct GameSettings {
     pub graphics: GraphicsQuality,
     pub display_mode: DisplayMode,
     pub fps_overlay: bool,
+    pub preferred_mode: PreferredMode,
+    pub custom_difficulty: CustomDifficulty,
 }
 
 impl Default for GameSettings {
@@ -179,6 +218,8 @@ impl Default for GameSettings {
             graphics: GraphicsQuality::High,
             display_mode: DisplayMode::Fullscreen,
             fps_overlay: false,
+            preferred_mode: PreferredMode::Normal,
+            custom_difficulty: CustomDifficulty::default(),
         }
     }
 }
@@ -200,6 +241,17 @@ impl GameSettings {
         };
         if !self.keys.unique() {
             self.keys = MovementKeys::default();
+        }
+        let custom = &mut self.custom_difficulty;
+        for value in [
+            &mut custom.walk_speed,
+            &mut custom.chase_speed,
+            &mut custom.walk_hearing,
+            &mut custom.run_hearing,
+        ] {
+            if *value > 2 {
+                *value = 0;
+            }
         }
     }
 
@@ -253,7 +305,7 @@ pub fn load_or_migrate(path: &Path) -> std::io::Result<GameSettings> {
 }
 
 #[derive(Resource, Default)]
-pub struct SettingsPath(pub Option<PathBuf>);
+pub struct SettingsPath(pub Option<PathBuf>, pub bool);
 
 #[derive(Resource, Default)]
 pub struct SettingsDirty(pub bool);
@@ -265,7 +317,14 @@ pub struct GameSettingsPlugin {
 impl Plugin for GameSettingsPlugin {
     fn build(&self, app: &mut App) {
         let path = if self.persist { default_path() } else { None };
+        #[cfg(not(target_arch = "wasm32"))]
         let settings = path.as_deref().map(load_or_migrate).transpose();
+        #[cfg(target_arch = "wasm32")]
+        let settings = if self.persist {
+            load_browser()
+        } else {
+            Ok(None)
+        };
         let settings = match settings {
             Ok(Some(settings)) => settings,
             Ok(None) => GameSettings::default(),
@@ -276,7 +335,7 @@ impl Plugin for GameSettingsPlugin {
             }
         };
         app.insert_resource(settings)
-            .insert_resource(SettingsPath(path))
+            .insert_resource(SettingsPath(path, self.persist))
             .init_resource::<SettingsDirty>()
             .add_systems(Last, save_dirty);
     }
@@ -290,12 +349,50 @@ fn save_dirty(
     if !dirty.0 {
         return;
     }
-    let Some(path) = &path.0 else {
+    if !path.1 {
         dirty.0 = false;
         return;
-    };
-    match settings.save(path) {
-        Ok(()) => dirty.0 = false,
-        Err(error) => warn!("settings save failed: {error}"),
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    let result = path.0.as_deref().map(|path| settings.save(path));
+    #[cfg(target_arch = "wasm32")]
+    let result = Some(save_browser(&settings));
+    match result {
+        Some(Ok(())) => dirty.0 = false,
+        Some(Err(error)) => warn!("settings save failed: {error}"),
+        None => dirty.0 = false,
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+const SETTINGS_KEY: &str = "the-specimen-bevy.settings";
+
+#[cfg(target_arch = "wasm32")]
+fn browser_storage() -> std::io::Result<web_sys::Storage> {
+    web_sys::window()
+        .and_then(|window| window.local_storage().ok().flatten())
+        .ok_or_else(|| std::io::Error::other("local storage unavailable"))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn load_browser() -> std::io::Result<Option<GameSettings>> {
+    let value = browser_storage()?
+        .get_item(SETTINGS_KEY)
+        .map_err(|_| std::io::Error::other("local storage read failed"))?;
+    value
+        .map(|value| {
+            let mut settings: GameSettings =
+                serde_json::from_str(&value).map_err(std::io::Error::other)?;
+            settings.sanitize();
+            Ok(settings)
+        })
+        .transpose()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn save_browser(settings: &GameSettings) -> std::io::Result<()> {
+    let value = serde_json::to_string(settings).map_err(std::io::Error::other)?;
+    browser_storage()?
+        .set_item(SETTINGS_KEY, &value)
+        .map_err(|_| std::io::Error::other("local storage write failed"))
 }

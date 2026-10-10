@@ -3,8 +3,8 @@ use std::time::Duration;
 use bevy::{
     ecs::resource::IsResource,
     input::{
-        ButtonState, InputPlugin,
         keyboard::{Key, KeyboardInput},
+        ButtonState, InputPlugin,
     },
     state::app::StatesPlugin,
     time::TimeUpdateStrategy,
@@ -14,7 +14,7 @@ use bevy::{
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use game_assets::UiAssets;
 use game_audio::{PlaySound, Sound};
-use game_settings::{GameSettings, MAX_SENSITIVITY, SettingsDirty};
+use game_settings::{GameSettings, SettingsDirty, MAX_SENSITIVITY};
 use game_ui::SliderFill;
 use gameplay::{
     achievements::{Achievement, AchievementProgress},
@@ -29,16 +29,16 @@ use gameplay::{
 };
 
 use super::{
-    GameState, MenuAction, MenuPlugin, PauseState,
     achievements::{AchievementAction, AchievementsScreen, PauseAchievements},
     cinematic::{Cinematic, CinematicCamera, REVEAL_AT, TITLE_AT, TITLE_FADE},
     complete::{CompleteScreen, DOOR_CLOSE_AT},
-    credits::{CreditsRoute, CreditsScreen, HUMAN_DEER_CREDIT, ROLL_SPEED, wrap_offset},
+    credits::{wrap_offset, CreditsRoute, CreditsScreen, HUMAN_DEER_CREDIT, ROLL_SPEED},
     game_over::{CaughtShot, GameOverScreen},
     loading::LoadingScreen,
     main_menu::{CustomField, MainMenu},
     pause::PauseMenu,
     settings::{SettingSlider, SettingsAction, SettingsOverlay, SliderReadout},
+    GameState, MenuAction, MenuPlugin, PauseState,
 };
 use crate::{AppBuilder, CoreState};
 use bevy::prelude::*;
@@ -225,12 +225,11 @@ fn settings_sliders_change_persist_and_sync_in_menu_and_pause() {
     assert_eq!(readout(&mut app, SettingSlider::Master), "0%");
 
     slide(&mut app, SettingSlider::Master, 0.35);
-    assert!(
-        app.world_mut()
-            .resource_mut::<Messages<PlaySound>>()
-            .drain()
-            .any(|cue| cue.sound == Sound::UiFocus)
-    );
+    assert!(app
+        .world_mut()
+        .resource_mut::<Messages<PlaySound>>()
+        .drain()
+        .any(|cue| cue.sound == Sound::UiFocus));
     assert!((app.world().resource::<GameSettings>().master - 0.35).abs() < 0.001);
     assert!(app.world().resource::<SettingsDirty>().0);
     assert!((slider_value(&mut app, SettingSlider::Master) - 0.35).abs() < 0.001);
@@ -239,19 +238,17 @@ fn settings_sliders_change_persist_and_sync_in_menu_and_pause() {
 
     slide(&mut app, SettingSlider::Sfx, 0.7);
     assert_eq!(app.world().resource::<GameSettings>().sfx, 0.7);
-    assert!(
-        app.world_mut()
-            .resource_mut::<Messages<PlaySound>>()
-            .drain()
-            .any(|cue| cue.sound == Sound::UiFocus)
-    );
+    assert!(app
+        .world_mut()
+        .resource_mut::<Messages<PlaySound>>()
+        .drain()
+        .any(|cue| cue.sound == Sound::UiFocus));
     slide(&mut app, SettingSlider::Music, 0.5);
-    assert!(
-        app.world_mut()
-            .resource_mut::<Messages<PlaySound>>()
-            .drain()
-            .any(|cue| cue.sound == Sound::UiFocus)
-    );
+    assert!(app
+        .world_mut()
+        .resource_mut::<Messages<PlaySound>>()
+        .drain()
+        .any(|cue| cue.sound == Sound::UiFocus));
     assert_eq!(app.world().resource::<GameSettings>().music, 0.5);
     assert_eq!(readout(&mut app, SettingSlider::Music), "50%");
     assert_eq!(readout(&mut app, SettingSlider::Sensitivity), "2.0");
@@ -261,22 +258,20 @@ fn settings_sliders_change_persist_and_sync_in_menu_and_pause() {
         MAX_SENSITIVITY
     );
     assert_eq!(readout(&mut app, SettingSlider::Sensitivity), "4.0");
-    assert!(
-        app.world_mut()
-            .resource_mut::<Messages<PlaySound>>()
-            .drain()
-            .any(|cue| cue.sound == Sound::UiFocus)
-    );
+    assert!(app
+        .world_mut()
+        .resource_mut::<Messages<PlaySound>>()
+        .drain()
+        .any(|cue| cue.sound == Sound::UiFocus));
 
     app.world_mut().resource_mut::<SettingsDirty>().0 = false;
     slide(&mut app, SettingSlider::Master, 0.35);
     assert!(!app.world().resource::<SettingsDirty>().0);
-    assert!(
-        !app.world_mut()
-            .resource_mut::<Messages<PlaySound>>()
-            .drain()
-            .any(|cue| cue.sound == Sound::UiFocus)
-    );
+    assert!(!app
+        .world_mut()
+        .resource_mut::<Messages<PlaySound>>()
+        .drain()
+        .any(|cue| cue.sound == Sound::UiFocus));
 
     let master = slider(&mut app, SettingSlider::Master);
     app.world_mut()
@@ -493,19 +488,15 @@ fn settings_rebind_and_overlay_block_play() {
 fn builder_installs_menu_only_for_windowed_default_game() {
     assert!(AppBuilder::new().with_menu().menu_enabled());
     assert!(!AppBuilder::new().menu_enabled());
-    assert!(
-        !AppBuilder::new()
-            .with_menu()
-            .with_transport()
-            .menu_enabled()
-    );
+    assert!(!AppBuilder::new()
+        .with_menu()
+        .with_transport()
+        .menu_enabled());
     assert!(!AppBuilder::headless().with_menu().menu_enabled());
-    assert!(
-        !AppBuilder::new()
-            .with_menu()
-            .with_main_plugin(Custom)
-            .menu_enabled()
-    );
+    assert!(!AppBuilder::new()
+        .with_menu()
+        .with_main_plugin(Custom)
+        .menu_enabled());
 }
 
 #[test]
@@ -834,16 +825,15 @@ fn assert_credits_layout(app: &mut App) {
         .filter(|entity| app.world().get::<MenuAction>(*entity).is_some())
         .count();
     assert_eq!(button_count, expected_buttons);
-    assert!(
-        app.world()
-            .get::<Children>(panes[1])
-            .unwrap()
-            .iter()
-            .any(|entity| app
-                .world()
-                .get::<Text>(entity)
-                .is_some_and(|text| text.0 == "CREDITS"))
-    );
+    assert!(app
+        .world()
+        .get::<Children>(panes[1])
+        .unwrap()
+        .iter()
+        .any(|entity| app
+            .world()
+            .get::<Text>(entity)
+            .is_some_and(|text| text.0 == "CREDITS")));
 }
 
 fn has_text(app: &mut App, value: &str) -> bool {
@@ -1328,7 +1318,7 @@ fn hidden_insane_unlock_also_unlocks_the_preset_selector() {
 }
 
 #[test]
-fn play_launches_the_selected_mode_and_the_menu_resets_to_normal() {
+fn play_launches_the_selected_mode_and_keeps_it_selected_on_return() {
     let mut app = app();
     app.world_mut().insert_resource(insane_gate_unlocked());
     ready(&mut app);
@@ -1340,9 +1330,92 @@ fn play_launches_the_selected_mode_and_the_menu_resets_to_normal() {
     escape(&mut app);
     press(&mut app, MenuAction::MainMenu);
     assert_eq!(game_state(&app), GameState::MainMenu);
-    assert_eq!(mode_label(&mut app), "Normal");
+    assert_eq!(mode_label(&mut app), "Insane");
     press(&mut app, MenuAction::Play);
-    assert_normal_run(&mut app);
+    assert_insane_run(&mut app);
+}
+
+#[test]
+fn saved_custom_mode_and_values_restore_on_a_new_menu() {
+    let mut first = app();
+    first
+        .world_mut()
+        .resource_mut::<AchievementProgress>()
+        .unlocked
+        .insert(Achievement::Escaped);
+    ready(&mut first);
+    select_mode(&mut first, MenuAction::NextMode);
+    for field in [
+        CustomField::WalkSpeed,
+        CustomField::RunHearing,
+        CustomField::Sprint,
+        CustomField::Blackout,
+    ] {
+        press(&mut first, MenuAction::AdjustCustom(field, 1));
+    }
+    let saved = first
+        .world()
+        .resource::<game_settings::GameSettings>()
+        .clone();
+    assert_eq!(saved.preferred_mode, game_settings::PreferredMode::Custom);
+    assert!(first.world().resource::<game_settings::SettingsDirty>().0);
+    let saved: game_settings::GameSettings =
+        serde_json::from_str(&serde_json::to_string(&saved).unwrap()).unwrap();
+
+    let mut second = app();
+    second.world_mut().insert_resource(saved);
+    second
+        .world_mut()
+        .resource_mut::<AchievementProgress>()
+        .unlocked
+        .insert(Achievement::Escaped);
+    ready(&mut second);
+    assert_eq!(mode_label(&mut second), "Custom");
+    let custom = second
+        .world()
+        .resource::<super::main_menu::ModeSelection>()
+        .1;
+    assert_eq!(
+        custom.monster.walk_speed,
+        gameplay::presets::MonsterWalkSpeed::Medium
+    );
+    assert_eq!(
+        custom.monster.run_hearing,
+        gameplay::presets::MonsterRunHearing::Medium
+    );
+    assert!(!custom.sprint);
+    assert!(custom.blackout);
+    press(&mut second, MenuAction::Play);
+    assert_eq!(*second.world().resource::<GamePreset>(), custom);
+}
+
+#[test]
+fn locked_saved_mode_falls_back_to_normal_without_losing_custom_values() {
+    let mut app = app();
+    let mut settings = game_settings::GameSettings::default();
+    settings.preferred_mode = game_settings::PreferredMode::Insane;
+    settings.custom_difficulty.run_hearing = 2;
+    app.world_mut().insert_resource(settings);
+    ready(&mut app);
+    assert!(named(&mut app, "Mode selector").is_none());
+    assert_eq!(
+        app.world().resource::<super::main_menu::ModeSelection>().0,
+        GameMode::Normal
+    );
+    assert_eq!(
+        app.world()
+            .resource::<super::main_menu::ModeSelection>()
+            .1
+            .monster
+            .run_hearing,
+        gameplay::presets::MonsterRunHearing::Long
+    );
+    assert_eq!(
+        app.world()
+            .resource::<game_settings::GameSettings>()
+            .preferred_mode,
+        game_settings::PreferredMode::Insane
+    );
 }
 
 #[test]
