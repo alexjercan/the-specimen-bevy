@@ -144,8 +144,21 @@ fn play_intermittent_sounds(
     }
 }
 
-fn sync_pause(state: Option<Res<State<PauseState>>>, mut paused: ResMut<AudioPaused>) {
-    let value = state.is_some_and(|state| *state.get() == PauseState::Paused);
+fn sync_pause(
+    state: Option<Res<State<PauseState>>>,
+    mut paused: ResMut<AudioPaused>,
+    #[cfg(feature = "debug")] debug: Option<Res<debug::DebugSettings>>,
+) {
+    let value = state.is_some_and(|state| *state.get() == PauseState::Paused) || {
+        #[cfg(feature = "debug")]
+        {
+            debug.is_some_and(|settings| settings.inspector)
+        }
+        #[cfg(not(feature = "debug"))]
+        {
+            false
+        }
+    };
     if paused.0 != value {
         paused.0 = value;
     }

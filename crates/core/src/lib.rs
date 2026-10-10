@@ -275,10 +275,16 @@ fn sync_debug_controls(
     pause: Option<Res<State<PauseState>>>,
     players: Query<(), With<PlayerController>>,
     mut controls: ResMut<PlayerControlsEnabled>,
+    mut time: ResMut<Time<Virtual>>,
     mut cursors: Query<&mut CursorOptions, With<PrimaryWindow>>,
 ) {
-    let paused = pause.is_some_and(|state| *state.get() == PauseState::Paused);
-    controls.0 = !debug.inspector && !paused;
+    let paused = debug.inspector || pause.is_some_and(|state| *state.get() == PauseState::Paused);
+    controls.0 = !paused;
+    if paused {
+        time.pause();
+    } else {
+        time.unpause();
+    }
     let capture = controls.0 && !players.is_empty();
     for mut cursor in &mut cursors {
         cursor.visible = !capture;

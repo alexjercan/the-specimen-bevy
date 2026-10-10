@@ -296,6 +296,30 @@ fn powered_intermittent_cues_stop_during_outage_but_faucet_keeps_running() {
     assert!(events.iter().any(|event| event.sound == Sound::BoilerTick));
 }
 
+#[cfg(feature = "debug")]
+#[test]
+fn inspector_pauses_world_audio_until_closed() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .init_resource::<debug::DebugSettings>()
+        .init_resource::<AudioPaused>()
+        .add_systems(Update, sync_pause);
+    app.update();
+    assert!(!app.world().resource::<AudioPaused>().0);
+
+    app.world_mut()
+        .resource_mut::<debug::DebugSettings>()
+        .inspector = true;
+    app.update();
+    assert!(app.world().resource::<AudioPaused>().0);
+
+    app.world_mut()
+        .resource_mut::<debug::DebugSettings>()
+        .inspector = false;
+    app.update();
+    assert!(!app.world().resource::<AudioPaused>().0);
+}
+
 #[test]
 fn faucet_bursts_stay_silent_far_from_the_sink() {
     let mut app = faucet_app();

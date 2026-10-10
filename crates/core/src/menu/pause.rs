@@ -8,11 +8,11 @@ use game_assets::UiAssets;
 use game_ui::{menu_button, panel, text, theme};
 use gameplay::controller::PlayerControlsEnabled;
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::{JsCast, closure::Closure};
+use wasm_bindgen::{closure::Closure, JsCast};
 
 use super::{
-    GameState, MenuAction, PauseState, achievements::PauseAchievements, release_cursor,
-    settings::SettingsOverlay,
+    achievements::PauseAchievements, release_cursor, settings::SettingsOverlay, GameState,
+    MenuAction, PauseState,
 };
 
 #[derive(Component)]
@@ -77,8 +77,19 @@ fn pause_on_pointer_unlock(
     state: Option<Res<State<PauseState>>>,
     cursors: Query<&CursorOptions, With<PrimaryWindow>>,
     next: Option<ResMut<NextState<PauseState>>>,
+    #[cfg(feature = "debug")] debug: Option<Res<debug::DebugSettings>>,
 ) {
     if !POINTER_LOCK_LOST.with(|lost| lost.replace(false))
+        || {
+            #[cfg(feature = "debug")]
+            {
+                debug.is_some_and(|settings| settings.inspector)
+            }
+            #[cfg(not(feature = "debug"))]
+            {
+                false
+            }
+        }
         || !game.is_some_and(|game| *game.get() == GameState::Playing)
         || !state.is_some_and(|state| *state.get() == PauseState::Running)
     {
