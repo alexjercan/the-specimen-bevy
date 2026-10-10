@@ -4,7 +4,8 @@
 
 ### Insane mode
 
-- Add Insane mode, unlocked after all eight visible achievements. After the unlock, a `<  Normal  >` mode selector appears next to **Play** on the main menu; **Retry** keeps the mode of the last run.
+- Add Custom mode after the first escape, with four three-step monster controls and four gameplay toggles. Winning with settings identical to Insane awards its hidden achievement and unlocks the Insane selector.
+- Add Insane mode, unlocked after all eight visible achievements or by the hidden Insane-win achievement. After the unlock, a `<  Normal  >` mode selector appears next to **Play** on the main menu; **Retry** keeps the mode of the last run.
 - In Insane mode, the monster walks at 1 m/s, chases at twice sprint speed, and hears walking at 6 m and sprinting at 18 m. Sprint stamina stays empty, flashbang and detector pickups are absent, and the power is out from the start with no boiler repair. Normal mode is unchanged.
 - Add "Escaped" for any successful escape, with a first-win icon; require it alongside the other visible achievements to unlock Insane mode.
 - Add the hidden achievement "Out of your mind" for escaping in Insane mode. The viewer shows it as `?` until it unlocks.

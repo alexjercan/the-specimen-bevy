@@ -5,19 +5,23 @@ use super::{
     MonsterWalkSpeed,
 };
 use crate::{
-    controller::{PlayerController, Stamina, RUN_SPEED},
-    levels::{build_first_floor, spawn_first_floor_actors, FacilityPower, FuseSeed, PickupKind},
+    controller::{PlayerController, RUN_SPEED, Stamina},
+    levels::{FacilityPower, FuseSeed, PickupKind, build_first_floor, spawn_first_floor_actors},
 };
 
 #[test]
 fn tuning_variants_resolve_to_the_requested_values() {
     assert_eq!(MonsterWalkSpeed::Slow.value(), 0.5);
+    assert_eq!(MonsterWalkSpeed::Medium.value(), 0.75);
     assert_eq!(MonsterWalkSpeed::Fast.value(), 1.0);
     assert_eq!(MonsterChaseSpeed::Normal.value(), RUN_SPEED + 1.0);
+    assert_eq!(MonsterChaseSpeed::Medium.value(), 9.5);
     assert_eq!(MonsterChaseSpeed::Fast.value(), RUN_SPEED * 2.0);
     assert_eq!(MonsterWalkHearing::Short.value(), 3.0);
+    assert_eq!(MonsterWalkHearing::Medium.value(), 4.5);
     assert_eq!(MonsterWalkHearing::Long.value(), 6.0);
     assert_eq!(MonsterRunHearing::Short.value(), 9.0);
+    assert_eq!(MonsterRunHearing::Medium.value(), 13.5);
     assert_eq!(MonsterRunHearing::Long.value(), 18.0);
 }
 
@@ -32,6 +36,11 @@ fn presets_choose_the_requested_variants() {
     assert_eq!(normal.monster.run_hearing, MonsterRunHearing::Short);
     assert!(normal.sprint && normal.flashbangs && normal.detector && !normal.blackout);
 
+    let custom = GamePreset::of(GameMode::Custom);
+    assert_eq!(custom.mode, GameMode::Custom);
+    assert_eq!(custom.monster, normal.monster);
+    assert!(!custom.insane_equivalent());
+
     let insane = GamePreset::of(GameMode::Insane);
     assert_eq!(insane.mode, GameMode::Insane);
     assert_eq!(insane.monster.walk_speed, MonsterWalkSpeed::Fast);
@@ -43,6 +52,34 @@ fn presets_choose_the_requested_variants() {
         normal.monster.chase_speed.value() * 2.0
     );
     assert!(!insane.sprint && !insane.flashbangs && !insane.detector && insane.blackout);
+    assert!(insane.insane_equivalent());
+    let mut max_custom = insane;
+    max_custom.mode = GameMode::Custom;
+    assert!(max_custom.insane_equivalent());
+    for easier in [
+        GamePreset {
+            sprint: true,
+            ..max_custom
+        },
+        GamePreset {
+            flashbangs: true,
+            ..max_custom
+        },
+        GamePreset {
+            detector: true,
+            ..max_custom
+        },
+        GamePreset {
+            blackout: false,
+            ..max_custom
+        },
+        GamePreset {
+            monster: normal.monster,
+            ..max_custom
+        },
+    ] {
+        assert!(!easier.insane_equivalent());
+    }
 }
 
 fn build(mode: GameMode) -> World {

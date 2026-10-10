@@ -89,7 +89,8 @@ fn button_names(app: &mut App) -> Vec<String> {
         .query_filtered::<Entity, With<MainMenu>>()
         .single(app.world())
         .unwrap();
-    let buttons = app.world().get::<Children>(menu).unwrap()[1];
+    let container = app.world().get::<Children>(menu).unwrap()[1];
+    let buttons = app.world().get::<Children>(container).unwrap()[0];
     app.world()
         .get::<Children>(buttons)
         .unwrap()

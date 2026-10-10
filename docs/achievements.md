@@ -16,7 +16,7 @@ The game tracks eight visible achievements and one hidden achievement. Open **Ac
 
 ## Insane mode
 
-Unlock all eight visible achievements to unlock Insane mode. The hidden achievement does not count toward this gate. Before the unlock, the main menu shows only **Play**, which starts Normal mode. After the unlock, a mode selector (`<  Normal  >`) appears on the same line as **Play**. It starts at Normal each time the main menu opens; use the left and right arrows to select Insane, then press **Play**. **Retry** after a game over or an escape restarts the same mode as the run that just ended.
+Before the first escape, the main menu shows only **Play**, which starts Normal mode. Earning Escaped reveals a selector on the Play row for Normal and Custom. Custom opens controls to the right for four monster settings (three choices each) and four on/off options: sprint, flashbang pickups, detector pickup, and blackout. Custom starts with Normal settings each time the main menu opens. The selected settings apply to that run and persist through **Retry**. Insane appears in the selector after all eight visible achievements unlock, or after Out of your mind unlocks via a maximum-difficulty Custom win. A Custom win earns Out of your mind only when all eight settings match the Insane preset. The hidden achievement itself is not required for the eight-visible-achievement gate.
 
 | Setting | Normal | Insane |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ Unlock all eight visible achievements to unlock Insane mode. The hidden achievem
 | Flashbang and detector pickups | present | absent |
 | Facility power | outage after 30-90 s; boiler restores it | out from the start; boiler cannot be repaired |
 
-An Insane escape also unlocks Escaped and any other visible escape achievements that the run satisfies.
+An Insane or maximum-difficulty Custom escape also unlocks Escaped and any other visible escape achievements that the run satisfies. Intermediate monster options are walk speed 0.75 m/s, chase speed 9.5 m/s, walk hearing 4.5 m, and sprint hearing 13.5 m.
 
 The presets live in `crates/gameplay/src/presets/` (`normal.rs`, `insane.rs`) as `GamePreset` resources. Each monster tuning field is an enum whose `value()` gives the number in meters or meters per second. `sprint`, `flashbangs`, `detector`, and `blackout` are separate booleans.
 

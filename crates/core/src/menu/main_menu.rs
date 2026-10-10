@@ -4,14 +4,93 @@ use game_ui::{menu_button, text, theme};
 use gameplay::achievements::AchievementProgress;
 use gameplay::controller::PlayerController;
 use gameplay::levels::{
-    build_first_floor, spawn_first_floor_actors, Door, DoorRef, FusePanel, LevelRoot, Monster,
-    Passage, PickupKind, Prop, Room,
+    Door, DoorRef, FusePanel, LevelRoot, Monster, Passage, PickupKind, Prop, Room,
+    build_first_floor, spawn_first_floor_actors,
 };
-use gameplay::presets::GameMode;
+use gameplay::presets::{
+    GameMode, GamePreset, MonsterChaseSpeed, MonsterRunHearing, MonsterWalkHearing,
+    MonsterWalkSpeed,
+};
 
-use super::{background, release_cursor, screen_camera, GameState, MenuAction, TITLE};
+use super::{GameState, MenuAction, TITLE, background, release_cursor, screen_camera};
 
-const MODES: [GameMode; 2] = [GameMode::Normal, GameMode::Insane];
+const MODES: [GameMode; 3] = [GameMode::Normal, GameMode::Custom, GameMode::Insane];
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum CustomField {
+    WalkSpeed,
+    ChaseSpeed,
+    WalkHearing,
+    RunHearing,
+    Sprint,
+    Flashbangs,
+    Detector,
+    Blackout,
+}
+
+impl CustomField {
+    const ALL: [Self; 8] = [
+        Self::WalkSpeed,
+        Self::ChaseSpeed,
+        Self::WalkHearing,
+        Self::RunHearing,
+        Self::Sprint,
+        Self::Flashbangs,
+        Self::Detector,
+        Self::Blackout,
+    ];
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::WalkSpeed => "Walk speed",
+            Self::ChaseSpeed => "Chase speed",
+            Self::WalkHearing => "Walk hearing",
+            Self::RunHearing => "Run hearing",
+            Self::Sprint => "Sprint",
+            Self::Flashbangs => "Flashbangs",
+            Self::Detector => "Detector",
+            Self::Blackout => "Blackout",
+        }
+    }
+
+    fn value(self, preset: GamePreset) -> String {
+        match self {
+            Self::WalkSpeed => format!(
+                "{:?} ({:.2} m/s)",
+                preset.monster.walk_speed,
+                preset.monster.walk_speed.value()
+            ),
+            Self::ChaseSpeed => format!(
+                "{:?} ({:.1} m/s)",
+                preset.monster.chase_speed,
+                preset.monster.chase_speed.value()
+            ),
+            Self::WalkHearing => format!(
+                "{:?} ({:.1} m)",
+                preset.monster.walk_hearing,
+                preset.monster.walk_hearing.value()
+            ),
+            Self::RunHearing => format!(
+                "{:?} ({:.1} m)",
+                preset.monster.run_hearing,
+                preset.monster.run_hearing.value()
+            ),
+            Self::Sprint => on_off(preset.sprint).to_string(),
+            Self::Flashbangs => on_off(preset.flashbangs).to_string(),
+            Self::Detector => on_off(preset.detector).to_string(),
+            Self::Blackout => on_off(preset.blackout).to_string(),
+        }
+    }
+}
+
+fn on_off(enabled: bool) -> &'static str {
+    if enabled { "On" } else { "Off" }
+}
+
+fn cycle_value<T: Copy + PartialEq>(value: &mut T, choices: &[T], step: isize) {
+    let index = choices.iter().position(|item| item == value).unwrap_or(0) as isize;
+    *value = choices[(index + step).rem_euclid(choices.len() as isize) as usize];
+}
 
 #[derive(Component)]
 pub(super) struct MainMenu;
@@ -19,19 +98,92 @@ pub(super) struct MainMenu;
 #[derive(Component)]
 struct ModeLabel;
 
-#[derive(Resource, Default)]
-pub(super) struct ModeSelection(pub(super) GameMode);
+#[derive(Component)]
+struct CustomPanel;
+
+#[derive(Component)]
+struct CustomValue(CustomField);
+
+#[derive(Resource)]
+pub(super) struct ModeSelection(pub(super) GameMode, pub(super) GamePreset);
+
+impl Default for ModeSelection {
+    fn default() -> Self {
+        Self(GameMode::Normal, GamePreset::of(GameMode::Custom))
+    }
+}
 
 impl ModeSelection {
-    pub(super) fn cycle(&mut self, step: isize) {
-        let index = MODES.iter().position(|mode| *mode == self.0).unwrap_or(0) as isize;
-        self.0 = MODES[(index + step).rem_euclid(MODES.len() as isize) as usize];
+    pub(super) fn cycle(&mut self, step: isize, progress: &AchievementProgress) {
+        let modes: Vec<_> = MODES
+            .iter()
+            .copied()
+            .filter(|mode| match mode {
+                GameMode::Normal => true,
+                GameMode::Custom => {
+                    progress
+                        .unlocked
+                        .contains(&gameplay::achievements::Achievement::Escaped)
+                        || progress.insane_unlocked()
+                }
+                GameMode::Insane => progress.insane_unlocked(),
+            })
+            .collect();
+        let index = modes.iter().position(|mode| *mode == self.0).unwrap_or(0) as isize;
+        self.0 = modes[(index + step).rem_euclid(modes.len() as isize) as usize];
+    }
+
+    pub(super) fn adjust(&mut self, field: CustomField, step: isize) {
+        let preset = &mut self.1;
+        match field {
+            CustomField::WalkSpeed => cycle_value(
+                &mut preset.monster.walk_speed,
+                &[
+                    MonsterWalkSpeed::Slow,
+                    MonsterWalkSpeed::Medium,
+                    MonsterWalkSpeed::Fast,
+                ],
+                step,
+            ),
+            CustomField::ChaseSpeed => cycle_value(
+                &mut preset.monster.chase_speed,
+                &[
+                    MonsterChaseSpeed::Normal,
+                    MonsterChaseSpeed::Medium,
+                    MonsterChaseSpeed::Fast,
+                ],
+                step,
+            ),
+            CustomField::WalkHearing => cycle_value(
+                &mut preset.monster.walk_hearing,
+                &[
+                    MonsterWalkHearing::Short,
+                    MonsterWalkHearing::Medium,
+                    MonsterWalkHearing::Long,
+                ],
+                step,
+            ),
+            CustomField::RunHearing => cycle_value(
+                &mut preset.monster.run_hearing,
+                &[
+                    MonsterRunHearing::Short,
+                    MonsterRunHearing::Medium,
+                    MonsterRunHearing::Long,
+                ],
+                step,
+            ),
+            CustomField::Sprint => preset.sprint = !preset.sprint,
+            CustomField::Flashbangs => preset.flashbangs = !preset.flashbangs,
+            CustomField::Detector => preset.detector = !preset.detector,
+            CustomField::Blackout => preset.blackout = !preset.blackout,
+        }
     }
 }
 
 fn mode_name(mode: GameMode) -> &'static str {
     match mode {
         GameMode::Normal => "Normal",
+        GameMode::Custom => "Custom",
         GameMode::Insane => "Insane",
     }
 }
@@ -53,12 +205,27 @@ fn reset_mode(mut selection: ResMut<ModeSelection>) {
     *selection = ModeSelection::default();
 }
 
-fn sync_mode_label(selection: Res<ModeSelection>, mut labels: Query<&mut Text, With<ModeLabel>>) {
+fn sync_mode_label(
+    selection: Res<ModeSelection>,
+    mut labels: Query<&mut Text, With<ModeLabel>>,
+    mut panels: Query<&mut Visibility, With<CustomPanel>>,
+    mut values: Query<(&CustomValue, &mut Text), Without<ModeLabel>>,
+) {
     if !selection.is_changed() {
         return;
     }
     for mut label in &mut labels {
         label.0 = mode_name(selection.0).to_string();
+    }
+    for mut panel in &mut panels {
+        *panel = if selection.0 == GameMode::Custom {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+    }
+    for (field, mut text) in &mut values {
+        text.0 = field.0.value(selection.1);
     }
 }
 
@@ -102,6 +269,14 @@ fn spawn_main_menu(
             )],
         ))
         .id();
+    let menu_content = commands
+        .spawn(Node {
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::FlexStart,
+            column_gap: px(24),
+            ..default()
+        })
+        .id();
     let buttons = commands
         .spawn(Node {
             width: px(240),
@@ -111,7 +286,11 @@ fn spawn_main_menu(
         })
         .id();
     commands.entity(buttons).with_children(|parent| {
-        if progress.insane_unlocked() {
+        if progress
+            .unlocked
+            .contains(&gameplay::achievements::Achievement::Escaped)
+            || progress.insane_unlocked()
+        {
             parent
                 .spawn((
                     Name::new("Play row"),
@@ -160,7 +339,15 @@ fn spawn_main_menu(
             menu_button("Achievements", font.clone()),
         ));
     });
-    commands.entity(menu).add_child(buttons);
+    commands.entity(menu_content).add_child(buttons);
+    commands.entity(menu).add_child(menu_content);
+    if progress
+        .unlocked
+        .contains(&gameplay::achievements::Achievement::Escaped)
+        || progress.insane_unlocked()
+    {
+        spawn_custom_panel(&mut commands, menu_content, font.clone());
+    }
     #[cfg(not(target_arch = "wasm32"))]
     commands.entity(buttons).with_children(|parent| {
         parent.spawn((
@@ -168,6 +355,89 @@ fn spawn_main_menu(
             MenuAction::Quit,
             menu_button("Quit", font.clone()),
         ));
+    });
+}
+
+fn spawn_custom_panel(commands: &mut Commands, container: Entity, font: Handle<Font>) {
+    let panel = commands
+        .spawn((
+            Name::new("Custom options"),
+            CustomPanel,
+            Visibility::Hidden,
+            Node {
+                width: px(390),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(5),
+                padding: UiRect::all(px(12)),
+                border: UiRect::all(px(theme::BORDER)),
+                border_radius: BorderRadius::all(px(theme::RADIUS)),
+                ..default()
+            },
+            BackgroundColor(theme::PANEL),
+        ))
+        .id();
+    commands.entity(container).add_child(panel);
+    commands.entity(panel).with_children(|parent| {
+        parent.spawn(text("CUSTOM DIFFICULTY", 18.0, theme::ACCENT, font.clone()));
+        for field in CustomField::ALL {
+            parent
+                .spawn((
+                    Name::new(format!("{} option", field.name())),
+                    Node {
+                        width: percent(100),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::SpaceBetween,
+                        ..default()
+                    },
+                ))
+                .with_children(|row| {
+                    row.spawn((
+                        text(field.name(), 14.0, theme::TEXT, font.clone()),
+                        Node {
+                            width: px(116),
+                            ..default()
+                        },
+                    ));
+                    row.spawn(Node {
+                        align_items: AlignItems::Center,
+                        column_gap: px(4),
+                        ..default()
+                    })
+                    .with_children(|controls| {
+                        spawn_arrow(
+                            controls,
+                            "Previous custom value",
+                            MenuAction::AdjustCustom(field, -1),
+                            "<",
+                            font.clone(),
+                        );
+                        controls.spawn((
+                            Name::new(format!("{} value", field.name())),
+                            Node {
+                                width: px(176),
+                                justify_content: JustifyContent::Center,
+                                ..default()
+                            },
+                            children![(
+                                CustomValue(field),
+                                text(
+                                    field.value(GamePreset::of(GameMode::Custom)),
+                                    13.0,
+                                    theme::TEXT,
+                                    font.clone()
+                                )
+                            )],
+                        ));
+                        spawn_arrow(
+                            controls,
+                            "Next custom value",
+                            MenuAction::AdjustCustom(field, 1),
+                            ">",
+                            font.clone(),
+                        );
+                    });
+                });
+        }
     });
 }
 

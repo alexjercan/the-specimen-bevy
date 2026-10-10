@@ -180,11 +180,11 @@ fn insane_gate_needs_all_visible_achievements() {
 
     let mut hidden_only = AchievementProgress::default();
     hidden_only.unlocked.insert(Achievement::EscapeInsane);
-    assert!(!hidden_only.insane_unlocked());
+    assert!(hidden_only.insane_unlocked());
 }
 
 #[test]
-fn only_an_insane_escape_unlocks_the_hidden_achievement() {
+fn insane_or_maximum_custom_escape_unlocks_the_hidden_achievement() {
     let (mut app, player) = app();
     app.world_mut().entity_mut(player).insert(Escaped);
     assert!(!has(&app, Achievement::EscapeInsane));
@@ -200,4 +200,17 @@ fn only_an_insane_escape_unlocks_the_hidden_achievement() {
     let replay = app.world_mut().spawn(PlayerController).id();
     app.world_mut().entity_mut(replay).insert(Escaped);
     assert!(has(&app, Achievement::EscapeInsane));
+
+    let (mut app, player) = self::app();
+    let mut custom = GamePreset::of(GameMode::Insane);
+    custom.mode = GameMode::Custom;
+    app.insert_resource(custom);
+    app.world_mut().entity_mut(player).insert(Escaped);
+    assert!(has(&app, Achievement::EscapeInsane));
+
+    let (mut app, player) = self::app();
+    custom.flashbangs = true;
+    app.insert_resource(custom);
+    app.world_mut().entity_mut(player).insert(Escaped);
+    assert!(!has(&app, Achievement::EscapeInsane));
 }

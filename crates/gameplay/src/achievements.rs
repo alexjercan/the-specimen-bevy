@@ -111,9 +111,10 @@ pub struct AchievementProgress {
 
 impl AchievementProgress {
     pub fn insane_unlocked(&self) -> bool {
-        Achievement::INSANE_GATE
-            .iter()
-            .all(|achievement| self.unlocked.contains(achievement))
+        self.unlocked.contains(&Achievement::EscapeInsane)
+            || Achievement::INSANE_GATE
+                .iter()
+                .all(|achievement| self.unlocked.contains(achievement))
     }
 }
 
@@ -212,7 +213,11 @@ fn record_escape(
             Achievement::EscapeWithoutBoiler,
         ),
         (!run.detected, Achievement::EscapeUndetected),
-        (preset.mode == GameMode::Insane, Achievement::EscapeInsane),
+        (
+            matches!(preset.mode, GameMode::Insane | GameMode::Custom)
+                && preset.insane_equivalent(),
+            Achievement::EscapeInsane,
+        ),
     ] {
         if earned {
             unlock(&mut progress, &mut commands, achievement);

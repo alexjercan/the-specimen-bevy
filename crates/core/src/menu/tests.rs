@@ -36,7 +36,7 @@ use super::{
     credits::{CreditsRoute, CreditsScreen, HUMAN_DEER_CREDIT, ROLL_SPEED, wrap_offset},
     game_over::{CaughtShot, GameOverScreen},
     loading::LoadingScreen,
-    main_menu::MainMenu,
+    main_menu::{CustomField, MainMenu},
     pause::PauseMenu,
     settings::{SettingSlider, SettingsAction, SettingsOverlay, SliderReadout},
 };
@@ -612,7 +612,19 @@ fn options(app: &mut App) -> Vec<MenuAction> {
         .iter(app.world())
         .copied()
         .collect();
-    actions.sort_by_key(|action| *action as u8);
+    actions.sort_by_key(|action| match action {
+        MenuAction::Play => 0,
+        MenuAction::PreviousMode => 1,
+        MenuAction::NextMode => 2,
+        MenuAction::AdjustCustom(_, _) => 3,
+        MenuAction::Retry => 4,
+        MenuAction::Resume => 5,
+        MenuAction::MainMenu => 6,
+        MenuAction::Credits => 7,
+        MenuAction::Achievements => 8,
+        #[cfg(not(target_arch = "wasm32"))]
+        MenuAction::Quit => 9,
+    });
     actions
 }
 
@@ -1199,20 +1211,11 @@ fn assert_normal_run(app: &mut App) {
 }
 
 #[test]
-fn mode_selector_stays_hidden_until_the_seven_visible_achievements_unlock() {
+fn mode_selector_stays_hidden_until_first_escape() {
     let mut almost = insane_gate_unlocked();
     almost.unlocked.remove(&Achievement::EscapeUndetected);
-    let mut hidden_too = insane_gate_unlocked();
-    hidden_too.unlocked.remove(&Achievement::EscapeUndetected);
-    hidden_too.unlocked.insert(Achievement::EscapeInsane);
-    for progress in [
-        AchievementProgress::default(),
-        AchievementProgress {
-            unlocked: [Achievement::EscapeInsane].into_iter().collect(),
-        },
-        almost,
-        hidden_too,
-    ] {
+    almost.unlocked.remove(&Achievement::Escaped);
+    for progress in [AchievementProgress::default(), almost] {
         let mut app = app();
         app.world_mut().insert_resource(progress);
         ready(&mut app);
@@ -1239,15 +1242,89 @@ fn mode_selector_starts_at_normal_and_cycles_both_ways_after_unlock() {
     assert_eq!(mode_label(&mut app), "Normal");
 
     select_mode(&mut app, MenuAction::NextMode);
+    assert_eq!(mode_label(&mut app), "Custom");
+    select_mode(&mut app, MenuAction::NextMode);
     assert_eq!(mode_label(&mut app), "Insane");
     select_mode(&mut app, MenuAction::NextMode);
     assert_eq!(mode_label(&mut app), "Normal");
     select_mode(&mut app, MenuAction::PreviousMode);
     assert_eq!(mode_label(&mut app), "Insane");
     select_mode(&mut app, MenuAction::PreviousMode);
+    assert_eq!(mode_label(&mut app), "Custom");
+    select_mode(&mut app, MenuAction::PreviousMode);
     assert_eq!(mode_label(&mut app), "Normal");
     assert_eq!(game_state(&app), GameState::MainMenu);
     assert_eq!(app.world().resource::<GamePreset>().mode, GameMode::Normal);
+}
+
+#[test]
+fn first_escape_unlocks_custom_controls_and_play_uses_the_adjusted_preset() {
+    let mut app = app();
+    app.world_mut()
+        .resource_mut::<AchievementProgress>()
+        .unlocked
+        .insert(Achievement::Escaped);
+    ready(&mut app);
+    assert!(named(&mut app, "Mode selector").is_some());
+    let panel = named(&mut app, "Custom options").unwrap();
+    assert_eq!(
+        app.world().get::<Visibility>(panel),
+        Some(&Visibility::Hidden)
+    );
+    select_mode(&mut app, MenuAction::NextMode);
+    assert_eq!(mode_label(&mut app), "Custom");
+    assert_eq!(
+        app.world().get::<Visibility>(panel),
+        Some(&Visibility::Inherited)
+    );
+    select_mode(&mut app, MenuAction::NextMode);
+    assert_eq!(mode_label(&mut app), "Normal");
+    select_mode(&mut app, MenuAction::NextMode);
+    for field in [
+        CustomField::WalkSpeed,
+        CustomField::ChaseSpeed,
+        CustomField::WalkHearing,
+        CustomField::RunHearing,
+    ] {
+        press(&mut app, MenuAction::AdjustCustom(field, 1));
+    }
+    for field in [
+        CustomField::Sprint,
+        CustomField::Flashbangs,
+        CustomField::Detector,
+        CustomField::Blackout,
+    ] {
+        press(&mut app, MenuAction::AdjustCustom(field, 1));
+    }
+    let custom = app.world().resource::<super::main_menu::ModeSelection>().1;
+    assert_eq!(custom.monster.walk_speed.value(), 0.75);
+    assert_eq!(custom.monster.chase_speed.value(), 9.5);
+    assert_eq!(custom.monster.walk_hearing.value(), 4.5);
+    assert_eq!(custom.monster.run_hearing.value(), 13.5);
+    assert!(!custom.sprint && !custom.flashbangs && !custom.detector && custom.blackout);
+    assert!(!custom.insane_equivalent());
+    press(&mut app, MenuAction::Play);
+    assert_eq!(*app.world().resource::<GamePreset>(), custom);
+    assert_eq!(devices(&mut app), (0, 0));
+    assert_eq!(stamina(&mut app), Stamina::spent());
+    assert!(!app.world().resource::<FacilityPower>().on);
+    catch(&mut app);
+    run_for(&mut app, REVEAL_AT + 0.2);
+    press(&mut app, MenuAction::Retry);
+    assert_eq!(*app.world().resource::<GamePreset>(), custom);
+}
+
+#[test]
+fn hidden_insane_unlock_also_unlocks_the_preset_selector() {
+    let mut app = app();
+    app.world_mut()
+        .resource_mut::<AchievementProgress>()
+        .unlocked
+        .insert(Achievement::EscapeInsane);
+    ready(&mut app);
+    assert!(named(&mut app, "Mode selector").is_some());
+    select_mode(&mut app, MenuAction::PreviousMode);
+    assert_eq!(mode_label(&mut app), "Insane");
 }
 
 #[test]
@@ -1273,7 +1350,7 @@ fn retry_after_an_insane_game_over_keeps_insane_and_rebuilds_a_fresh_run() {
     let mut app = app();
     app.world_mut().insert_resource(insane_gate_unlocked());
     ready(&mut app);
-    select_mode(&mut app, MenuAction::NextMode);
+    select_mode(&mut app, MenuAction::PreviousMode);
     press(&mut app, MenuAction::Play);
     assert_insane_run(&mut app);
     let first = run_player(&mut app);

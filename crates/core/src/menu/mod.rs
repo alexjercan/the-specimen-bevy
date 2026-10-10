@@ -49,6 +49,7 @@ enum MenuAction {
     Play,
     PreviousMode,
     NextMode,
+    AdjustCustom(main_menu::CustomField, isize),
     Retry,
     Resume,
     MainMenu,
@@ -96,6 +97,7 @@ fn activate_buttons(
     mut route: ResMut<credits::CreditsRoute>,
     mut preset: ResMut<gameplay::presets::GamePreset>,
     mut selection: ResMut<main_menu::ModeSelection>,
+    progress: Res<gameplay::achievements::AchievementProgress>,
     #[cfg(not(target_arch = "wasm32"))] mut exit: MessageWriter<AppExit>,
     mut sounds: MessageWriter<PlaySound>,
 ) {
@@ -108,16 +110,26 @@ fn activate_buttons(
         }
         let sound = match action {
             MenuAction::Play => {
-                *preset = gameplay::presets::GamePreset::of(selection.0);
+                *preset = if selection.0 == gameplay::presets::GameMode::Custom {
+                    selection.1
+                } else {
+                    gameplay::presets::GamePreset::of(selection.0)
+                };
                 game.set(GameState::Playing);
                 Sound::UiConfirm
             }
             MenuAction::PreviousMode => {
-                selection.cycle(-1);
+                selection.cycle(-1, &progress);
                 Sound::UiPress
             }
             MenuAction::NextMode => {
-                selection.cycle(1);
+                selection.cycle(1, &progress);
+                Sound::UiPress
+            }
+            MenuAction::AdjustCustom(field, step) => {
+                if selection.0 == gameplay::presets::GameMode::Custom {
+                    selection.adjust(*field, *step);
+                }
                 Sound::UiPress
             }
             MenuAction::Retry => {
