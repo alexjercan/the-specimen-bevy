@@ -4,7 +4,8 @@ pub const DRAIN_SECONDS: f32 = 5.0;
 pub const RECHARGE_SECONDS: f32 = 8.0;
 pub const RESTART_CHARGE: f32 = 0.25;
 
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Reflect, Clone, Copy, Debug, PartialEq)]
+#[reflect(Component)]
 pub struct Stamina {
     pub charge: f32,
     pub sprinting: bool,

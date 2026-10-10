@@ -87,7 +87,9 @@ impl Plugin for PlayerControllerPlugin {
             app.is_plugin_added::<EnhancedInputPlugin>(),
             "PlayerControllerPlugin requires EnhancedInputPlugin"
         );
-        app.init_resource::<PlayerControlsEnabled>()
+        app.register_type::<flashlight::Flashlight>()
+            .register_type::<Stamina>()
+            .init_resource::<PlayerControlsEnabled>()
             .init_resource::<LastBindings>()
             .add_message::<PlaySound>()
             .add_message::<SprintExhausted>()

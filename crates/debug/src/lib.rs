@@ -11,8 +11,10 @@ use bevy_egui::{
 use bevy_inspector_egui::{bevy_inspector, DefaultInspectorConfigPlugin};
 pub use game_ui::{fps_label, FpsText};
 use gameplay::{
-    controller::PlayerController,
-    levels::{Detector, Door, Flashbangs, FusePanel, Monster, PickupKind, Prop, Room},
+    controller::{Flashlight, PlayerController, Stamina},
+    levels::{
+        Detector, Door, Flashbangs, FuseInventory, FusePanel, Monster, PickupKind, Prop, Room,
+    },
 };
 
 #[cfg(test)]
@@ -115,6 +117,16 @@ fn inspector_ui(world: &mut World) {
     let mut wireframe = world.resource::<DebugSettings>().wireframe;
     egui::Window::new("Inspector").show(context.get_mut(), |ui| {
         ui.checkbox(&mut wireframe, "Wireframe");
+        ui.collapsing("Player cheats", |ui| {
+            let mut players = world.query_filtered::<Entity, With<PlayerController>>();
+            let entities: Vec<_> = players.iter(world).collect();
+            if entities.is_empty() {
+                ui.label("Start a run to edit player tools.");
+            }
+            for player in entities {
+                player_tools_ui(world, player, ui);
+            }
+        });
         ui.separator();
         egui::ScrollArea::vertical().show(ui, |ui| {
             grouped_entities_ui(world, ui);
@@ -166,6 +178,64 @@ fn entity_group(world: &World, entity: Entity) -> usize {
         6
     } else {
         7
+    }
+}
+
+fn player_tools_ui(world: &mut World, player: Entity, ui: &mut egui::Ui) {
+    ui.label(format!("Player {player}"));
+    if let Some(mut count) = world.get::<FuseInventory>(player).map(|items| items.0) {
+        if ui
+            .add(
+                egui::DragValue::new(&mut count)
+                    .range(0..=99)
+                    .prefix("Fuses: "),
+            )
+            .changed()
+        {
+            world.entity_mut(player).insert(FuseInventory(count));
+        }
+    }
+    let mut count = world.get::<Flashbangs>(player).map_or(0, |items| items.0);
+    if ui
+        .add(
+            egui::DragValue::new(&mut count)
+                .range(0..=99)
+                .prefix("Flashbangs: "),
+        )
+        .changed()
+    {
+        world.entity_mut(player).insert(Flashbangs(count));
+    }
+    let mut has_detector = world.get::<Detector>(player).is_some();
+    if ui.checkbox(&mut has_detector, "Detector").changed() {
+        if has_detector {
+            world.entity_mut(player).insert(Detector::default());
+        } else {
+            world.entity_mut(player).remove::<Detector>();
+        }
+    }
+    if let Some(mut charge) = world.get::<Flashlight>(player).map(|light| light.charge) {
+        if ui
+            .add(egui::Slider::new(&mut charge, 0.0..=1.0).text("Flashlight charge"))
+            .changed()
+        {
+            world
+                .entity_mut(player)
+                .get_mut::<Flashlight>()
+                .unwrap()
+                .charge = charge;
+        }
+    }
+    if let Some(mut charge) = world.get::<Stamina>(player).map(|stamina| stamina.charge) {
+        if ui
+            .add(egui::Slider::new(&mut charge, 0.0..=1.0).text("Sprint stamina"))
+            .changed()
+        {
+            let mut entity = world.entity_mut(player);
+            let mut stamina = entity.get_mut::<Stamina>().unwrap();
+            stamina.charge = charge;
+            stamina.exhausted = charge < gameplay::controller::SPRINT_RESTART_CHARGE;
+        }
     }
 }
 

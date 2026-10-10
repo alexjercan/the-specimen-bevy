@@ -10,7 +10,8 @@ pub const DRAIN_SECONDS: f32 = 15.0;
 pub const RECHARGE_SECONDS: f32 = 10.0;
 pub const RESTART_CHARGE: f32 = 0.1;
 
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Reflect, Clone, Copy, Debug, PartialEq)]
+#[reflect(Component)]
 pub struct Flashlight {
     pub charge: f32,
     pub on: bool,

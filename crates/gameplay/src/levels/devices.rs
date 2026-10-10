@@ -24,7 +24,8 @@ pub const PULSE_NEAR: f32 = 2.0;
 pub const PULSE_FAST: f32 = 0.2;
 pub const PULSE_SLOW: f32 = 1.6;
 
-#[derive(Component, Default, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Component, Reflect, Default, Clone, Copy, Debug, PartialEq, Eq)]
+#[reflect(Component)]
 pub struct Flashbangs(pub usize);
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
@@ -80,7 +81,8 @@ impl Plugin for DevicePlugin {
         if !app.is_plugin_added::<PickupPlugin>() {
             app.add_plugins(PickupPlugin);
         }
-        app.add_message::<PlaySound>()
+        app.register_type::<Flashbangs>()
+            .add_message::<PlaySound>()
             .add_observer(use_flashbang)
             .add_systems(
                 Update,
