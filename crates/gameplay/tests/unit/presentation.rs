@@ -97,12 +97,18 @@ fn picked_up_item_lifts_into_the_camera_hand() {
 }
 
 #[test]
-fn thrown_flashbang_follows_a_spinning_arc_before_burst() {
-    let start = throw_position(0.0, -1.52);
-    let middle = throw_position(THROW_SECS / 2.0, -1.52);
-    let landing = throw_position(THROW_SECS, -1.52);
+fn thrown_flashbang_follows_a_world_space_ballistic_arc() {
+    let player = Transform::from_xyz(2.0, 1.6, 3.0);
+    let mut thrown = ThrownFlashbang::new(Entity::PLACEHOLDER, &player);
+    let start = thrown.position();
+    thrown.elapsed = FLASHBANG_BURST_DELAY / 2.0;
+    let middle = thrown.position();
+    thrown.elapsed = FLASHBANG_BURST_DELAY;
+    let landing = thrown.position();
+    assert_eq!(start, thrown.start);
     assert!(middle.y > start.y);
     assert!(landing.z < middle.z);
-    assert_eq!(landing.y, -1.52);
-    assert_eq!(throw_position(THROW_SECS + 0.2, -1.52), landing);
+    assert!((landing - thrown.landing).length() < 1e-5);
+    thrown.elapsed += 0.2;
+    assert_eq!(thrown.position(), landing);
 }

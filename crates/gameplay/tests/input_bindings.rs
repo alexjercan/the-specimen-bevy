@@ -61,7 +61,7 @@ fn default_bindings_keep_left_and_right_mouse() {
     assert!(flashlight_on(&app, player));
     tap(&mut app, MouseButton::Right);
     assert_eq!(flashbangs(&app, player), 1);
-    assert!(app.world().get::<Flashed>(player).is_some());
+    assert!(app.world().get::<Flashed>(player).is_none());
 }
 
 #[test]

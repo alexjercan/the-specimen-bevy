@@ -16,7 +16,7 @@ use super::builder::{
 };
 use super::{
     animation::DoorSwing,
-    devices::{ThrownFlashbang, FLASHBANG_BURST_DELAY},
+    devices::{tick_burst, ThrownFlashbang, FLASHBANG_BURST_DELAY},
     doors::{panel_transform, DoorPanel},
     exterior::{PendingExteriorRender, EXIT_CORRIDOR},
     fuses::{
@@ -51,13 +51,11 @@ const DETECTOR_FACE: Color = Color::srgb(1.0, 0.62, 0.18);
 const DETECTOR_FACE_SIZE: Vec3 = Vec3::new(0.1, 0.004, 0.06);
 const PICKUP_MOTION_SECS: f32 = 0.55;
 const PICKUP_ARC_HEIGHT: f32 = 0.15;
-const THROW_SECS: f32 = FLASHBANG_BURST_DELAY;
 pub(crate) const THROW_DISTANCE: f32 = 3.8;
-const THROW_HEIGHT: f32 = 0.9;
-const THROW_SPIN_RATE: f32 = 9.0;
+pub(crate) const THROW_GRAVITY: f32 = 20.0;
 const BURST_INTENSITY: f32 = 9_000_000.0;
 const BURST_DECAY: f32 = 8.0;
-const BURST_LIFETIME: f32 = 0.7;
+pub(crate) const BURST_LIFETIME: f32 = 0.7;
 
 pub struct LevelRenderPlugin;
 
@@ -154,7 +152,7 @@ impl Plugin for LevelRenderPlugin {
                     animate_lights,
                     animate_surfaces,
                     animate_pickups,
-                    animate_throws,
+                    animate_throws.after(tick_burst),
                     animate_panel_fuses,
                 ),
             );
@@ -335,38 +333,20 @@ fn animate_pickups(
     }
 }
 
-fn throw_position(elapsed: f32, landing_y: f32) -> Vec3 {
-    let u = (elapsed / THROW_SECS).clamp(0.0, 1.0);
-    Vec3::new(0.18, -0.2, -0.35).lerp(Vec3::new(0.0, landing_y, -THROW_DISTANCE), u)
-        + Vec3::Y * (THROW_HEIGHT * 4.0 * u * (1.0 - u))
-}
-
 fn animate_throws(
-    time: Res<Time>,
-    enabled: Option<Res<PlayerControlsEnabled>>,
-    mut throws: Query<(Entity, &mut ThrownFlashbang, &mut Transform, &Children)>,
+    throws: Query<(&ThrownFlashbang, &Children)>,
     mut lights: Query<&mut PointLight, With<FlashbangBurstLight>>,
-    mut commands: Commands,
 ) {
-    if enabled.is_some_and(|enabled| !enabled.0) {
-        return;
-    }
-    for (entity, mut thrown, mut transform, children) in &mut throws {
-        thrown.elapsed += time.delta_secs();
-        transform.translation = throw_position(thrown.elapsed, thrown.landing_y);
-        transform.rotation = Quat::from_rotation_x(thrown.elapsed * THROW_SPIN_RATE);
+    for (thrown, children) in &throws {
         for child in children.iter() {
             if let Ok(mut light) = lights.get_mut(child) {
-                let since = thrown.elapsed - THROW_SECS;
+                let since = thrown.elapsed - FLASHBANG_BURST_DELAY;
                 light.intensity = if since >= 0.0 {
                     BURST_INTENSITY * (-BURST_DECAY * since).exp()
                 } else {
                     0.0
                 };
             }
-        }
-        if thrown.elapsed >= THROW_SECS + BURST_LIFETIME {
-            commands.entity(entity).despawn();
         }
     }
 }

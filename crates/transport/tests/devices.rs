@@ -187,8 +187,8 @@ fn flashbang_control_uses_right_mouse_and_reports_consumption() {
     }
     let responses = responses(app, &input);
     assert_eq!(responses[1]["player"]["flashbangs"], 0);
-    assert!(responses[1]["player"]["flash_remaining"].as_f64().unwrap() > 0.0);
-    assert!(responses[1]["player"]["flash_remaining"].as_f64().unwrap() <= 5.0);
+    assert_eq!(responses[1]["player"]["flash_remaining"], 0.0);
+    assert_eq!(responses[42]["player"]["flash_remaining"], 0.0);
     let heard: Vec<_> = responses
         .iter()
         .skip(1)

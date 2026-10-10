@@ -24,8 +24,9 @@ pub use builder::{
     LightIntensity, Passage, Prop, PropCollider, Room, Walls,
 };
 pub use devices::{
-    detector_reading, pulse_interval, Detector, DetectorReading, DevicePlugin, Flashbangs, Flashed,
-    DETECTOR_RANGE, FLASHBANG_BURST_DELAY, FLASHBANG_DURATION, PULSE_FAST, PULSE_NEAR, PULSE_SLOW,
+    detector_reading, pulse_interval, Detector, DetectorReading, DevicePlugin, FlashExposure,
+    Flashbangs, Flashed, DETECTOR_RANGE, FLASHBANG_BURST_DELAY, FLASHBANG_DURATION, PULSE_FAST,
+    PULSE_NEAR, PULSE_SLOW,
 };
 pub use doors::{panel_center, panel_top, DoorLock, DoorPanel, DoorPlugin, ExitDoor, ToggleDoor};
 pub(crate) use doors::{PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH};

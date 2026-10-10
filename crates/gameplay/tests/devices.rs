@@ -7,9 +7,10 @@ use gameplay::{
     achievements::{Achievement, AchievementPlugin, AchievementProgress, RunAchievements},
     controller::{Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
     levels::{
-        detector_reading, pulse_interval, Caught, Detector, DevicePlugin, DoorPlugin, Flashbangs,
-        Flashed, FuseInventory, FusePlugin, Monster, PickupKind, Room, DETECTOR_RANGE,
-        FLASHBANG_BURST_DELAY, FLASHBANG_DURATION, PULSE_FAST, PULSE_NEAR, PULSE_SLOW,
+        detector_reading, pulse_interval, Caught, Detector, DevicePlugin, DoorPlugin,
+        FlashExposure, Flashbangs, Flashed, FuseInventory, FusePlugin, Monster, PickupKind, Room,
+        DETECTOR_RANGE, FLASHBANG_BURST_DELAY, FLASHBANG_DURATION, PULSE_FAST, PULSE_NEAR,
+        PULSE_SLOW,
     },
 };
 
@@ -174,14 +175,20 @@ fn nearer_fuse_wins_arbitration_over_a_device_behind_it() {
 }
 
 #[test]
-fn right_click_consumes_one_flashbang_and_starts_the_effect_without_the_flashlight() {
+fn right_click_consumes_one_flashbang_and_protects_only_after_a_hit() {
     let (mut app, player) = app();
+    app.world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(0.5, 0.0, -4.0)));
     click(&mut app, MouseButton::Right);
     assert!(app.world().get::<Flashed>(player).is_none());
 
     app.world_mut().entity_mut(player).insert(Flashbangs(1));
     click(&mut app, MouseButton::Right);
     assert_eq!(flashbangs(&app, player), Some(0));
+    assert!(app.world().get::<Flashed>(player).is_none());
+    for _ in 0..8 {
+        app.update();
+    }
     let flashed = *app.world().get::<Flashed>(player).unwrap();
     assert!(flashed.remaining > FLASHBANG_DURATION - 0.5);
     assert!(!app.world().get::<Flashlight>(player).unwrap().on);
@@ -189,6 +196,67 @@ fn right_click_consumes_one_flashbang_and_starts_the_effect_without_the_flashlig
     click(&mut app, MouseButton::Right);
     assert_eq!(flashbangs(&app, player), Some(0));
     assert!(app.world().get::<Flashed>(player).unwrap().remaining < flashed.remaining);
+}
+
+#[test]
+fn white_flash_requires_facing_the_visible_nearby_burst_not_a_monster_hit() {
+    let (mut app, player) = app();
+    app.world_mut().entity_mut(player).insert(Flashbangs(4));
+
+    click(&mut app, MouseButton::Right);
+    assert!(app.world().get::<FlashExposure>(player).is_none());
+    for _ in 0..8 {
+        app.update();
+    }
+    assert!(app.world().get::<FlashExposure>(player).is_some());
+    assert!(app.world().get::<Flashed>(player).is_none());
+    for _ in 0..12 {
+        app.update();
+    }
+    assert!(app.world().get::<FlashExposure>(player).is_none());
+
+    app.world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(0.5, 0.0, -4.0)));
+    click(&mut app, MouseButton::Right);
+    app.world_mut()
+        .entity_mut(player)
+        .get_mut::<Transform>()
+        .unwrap()
+        .rotation = Quat::from_rotation_y(PI);
+    for _ in 0..8 {
+        app.update();
+    }
+    assert!(app.world().get::<FlashExposure>(player).is_none());
+    assert!(app.world().get::<Flashed>(player).is_some());
+
+    app.world_mut()
+        .entity_mut(player)
+        .get_mut::<Transform>()
+        .unwrap()
+        .rotation = Quat::IDENTITY;
+    click(&mut app, MouseButton::Right);
+    app.world_mut()
+        .entity_mut(player)
+        .get_mut::<Transform>()
+        .unwrap()
+        .translation
+        .x += 15.0;
+    for _ in 0..8 {
+        app.update();
+    }
+    assert!(app.world().get::<FlashExposure>(player).is_none());
+}
+
+#[test]
+fn wall_blocks_white_flash_even_when_player_faces_burst() {
+    let (mut app, player) = app();
+    app.world_mut().entity_mut(player).insert(Flashbangs(1));
+    click(&mut app, MouseButton::Right);
+    app.world_mut().spawn(Room(Rect::new(-2.0, -2.0, 2.0, 2.0)));
+    for _ in 0..8 {
+        app.update();
+    }
+    assert!(app.world().get::<FlashExposure>(player).is_none());
 }
 
 #[test]
@@ -204,25 +272,27 @@ fn left_click_still_toggles_the_flashlight_while_holding_a_flashbang() {
 #[test]
 fn flash_effect_expires_after_its_duration() {
     let (mut app, player) = app();
+    app.world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(0.5, 0.0, -4.0)));
     app.world_mut().entity_mut(player).insert(Flashbangs(1));
     app.world_mut()
         .resource_mut::<ButtonInput<MouseButton>>()
         .press(MouseButton::Right);
+    app.update();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Right);
+    for _ in 0..8 {
+        app.update();
+    }
+    let remaining = app.world().get::<Flashed>(player).unwrap().remaining;
     let mut frames = 0;
-    loop {
+    while app.world().get::<Flashed>(player).is_some() {
         app.update();
         frames += 1;
-        if frames == 2 {
-            app.world_mut()
-                .resource_mut::<ButtonInput<MouseButton>>()
-                .release(MouseButton::Right);
-        }
-        if app.world().get::<Flashed>(player).is_none() {
-            break;
-        }
         assert!(frames < 80, "flash must expire");
     }
-    let expected = (FLASHBANG_DURATION / 0.1).round() as usize;
+    let expected = (remaining / 0.1).round() as usize;
     assert!(
         (expected..=expected + 1).contains(&frames),
         "flash lasted {frames} frames"
@@ -551,7 +621,7 @@ fn flashbang_burst_plays_once_at_detonation_after_the_throw() {
         .resource_mut::<ButtonInput<MouseButton>>()
         .press(MouseButton::Right);
     app.update();
-    assert!(app.world().get::<Flashed>(player).is_some());
+    assert!(app.world().get::<Flashed>(player).is_none());
     let detonation: Vec<_> = heard(&mut app)
         .into_iter()
         .filter(|sound| matches!(sound, Sound::FlashbangThrow | Sound::FlashbangBurst))
@@ -595,6 +665,61 @@ fn burst_records_hit_on_nearby_visible_monster_without_changing_it() {
 }
 
 #[test]
+fn rapid_throws_with_cheated_stack_each_burst_independently() {
+    let (mut app, player) = app();
+    app.world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(0.5, 0.0, -4.0)));
+    app.world_mut().entity_mut(player).insert(Flashbangs(10));
+    heard(&mut app);
+    click(&mut app, MouseButton::Right);
+    click(&mut app, MouseButton::Right);
+    assert_eq!(flashbangs(&app, player), Some(8));
+    assert_eq!(cues(&mut app, Sound::FlashbangThrow), 2);
+    for _ in 0..5 {
+        app.update();
+    }
+    assert_eq!(cues(&mut app, Sound::FlashbangBurst), 2);
+    assert!(app
+        .world()
+        .resource::<AchievementProgress>()
+        .unlocked
+        .contains(&Achievement::FlashbangHitMonster));
+    assert!(app.world().get::<Flashed>(player).is_some());
+    click(&mut app, MouseButton::Right);
+    assert_eq!(flashbangs(&app, player), Some(7));
+    assert!(app.world().get::<Flashed>(player).is_some());
+}
+
+#[test]
+fn twenty_rapid_flashbang_throws_each_burst_once() {
+    let (mut app, player) = app();
+    app.world_mut().entity_mut(player).insert(Flashbangs(20));
+    heard(&mut app);
+    for _ in 0..20 {
+        click(&mut app, MouseButton::Right);
+    }
+    assert_eq!(flashbangs(&app, player), Some(0));
+    for _ in 0..8 {
+        app.update();
+    }
+    let sounds = heard(&mut app);
+    assert_eq!(
+        sounds
+            .iter()
+            .filter(|&&cue| cue == Sound::FlashbangThrow)
+            .count(),
+        20
+    );
+    assert_eq!(
+        sounds
+            .iter()
+            .filter(|&&cue| cue == Sound::FlashbangBurst)
+            .count(),
+        20
+    );
+}
+
+#[test]
 fn distant_monster_is_not_a_flashbang_hit() {
     let (mut app, player) = app();
     app.world_mut()
@@ -609,6 +734,7 @@ fn distant_monster_is_not_a_flashbang_hit() {
         .resource::<AchievementProgress>()
         .unlocked
         .contains(&Achievement::FlashbangHitMonster));
+    assert!(app.world().get::<Flashed>(player).is_none());
 }
 
 #[test]

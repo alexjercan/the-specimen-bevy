@@ -1,7 +1,7 @@
 use game_ui::{DetectorReadout, FlashOverlay, FlashbangStatus};
 use gameplay::{
     controller::PlayerController,
-    levels::{Detector, DetectorReading, Flashbangs, Flashed, DETECTOR_RANGE},
+    levels::{Detector, DetectorReading, FlashExposure, Flashbangs, Flashed, DETECTOR_RANGE},
 };
 
 use super::*;
@@ -101,7 +101,7 @@ fn flash_overlay_tracks_elapsed_and_hides_when_absent() {
 
     app.world_mut()
         .entity_mut(player)
-        .insert(Flashed { remaining: 4.25 });
+        .insert(FlashExposure { remaining: 0.75 });
     app.update();
     {
         let mut huds = app.world_mut().query::<(&FlashOverlay, &Visibility)>();
@@ -112,20 +112,22 @@ fn flash_overlay_tracks_elapsed_and_hides_when_absent() {
 
     app.world_mut()
         .entity_mut(player)
-        .insert(Flashed { remaining: 3.0 });
+        .insert(FlashExposure { remaining: 0.0 });
     app.update();
     {
         let mut huds = app.world_mut().query::<(&FlashOverlay, &Visibility)>();
-        let (overlay, visibility) = huds.single(app.world()).unwrap();
+        let (_, visibility) = huds.single(app.world()).unwrap();
         assert_eq!(*visibility, Visibility::Hidden);
-        assert!((overlay.elapsed - 1.4).abs() < 1e-5);
     }
 
     app.world_mut().entity_mut(player).remove::<Flashed>();
+    app.world_mut()
+        .entity_mut(player)
+        .insert(FlashExposure::default());
     app.update();
     let mut huds = app.world_mut().query::<(&FlashOverlay, &Visibility)>();
     let (_, visibility) = huds.single(app.world()).unwrap();
-    assert_eq!(*visibility, Visibility::Hidden);
+    assert_eq!(*visibility, Visibility::Inherited);
 }
 
 #[test]
