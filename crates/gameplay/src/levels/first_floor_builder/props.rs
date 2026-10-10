@@ -517,7 +517,7 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
     spawn_composition(
         commands,
         "shelf_unit_bins",
-        Transform::from_xyz(-12.0, 0.0, 9.5).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+        Transform::from_xyz(-7.5, 0.0, 9.7).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
         &[("shelf_bin_contents", Transform::IDENTITY)],
     );
     commands.spawn(prop(

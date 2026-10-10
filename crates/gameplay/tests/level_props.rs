@@ -102,18 +102,20 @@ fn moved_shelves_clear_walls_furniture_and_the_workshop_door() {
     assert!((east.translation.z - 4.25).abs() < 0.001);
     assert!(east.translation.z - 0.275 > 3.75 + 0.1);
 
-    let workshop = find("shelf_unit_bins", -12.0);
-    assert!((workshop.translation.z - 9.5).abs() < 0.001);
-    assert!((workshop.rotation * Vec3::Z).distance(Vec3::X) < 0.001);
+    let workshop = find("shelf_unit_bins", -7.5);
+    assert!((workshop.translation.z - 9.7).abs() < 0.001);
+    assert!((workshop.rotation * Vec3::Z).distance(Vec3::NEG_X) < 0.001);
     assert!(workshop.translation.z + 0.925 < 11.25 - 0.1);
-    assert!(workshop.translation.x - 0.275 > -13.35 + 0.4881 + 0.1);
-    assert!(workshop.translation.x + 0.275 < -10.0 - 1.0);
-    assert!(workshop.translation.z - 0.925 > 6.0 + 0.6);
+    assert!(workshop.translation.x + 0.275 < -6.25 - 0.1);
+    assert!(workshop.translation.x - 0.275 > -10.0 + 1.0);
+    assert!(workshop.translation.z - 0.925 > 7.5 + 1.0);
+    assert!(workshop.translation.x - 0.275 > -9.0 + 0.443 + 0.1);
 
     let archive_workbench = props
         .iter(world)
         .find(|(prop, transform)| {
-            prop.0 == "workbench" && transform.translation.x == -13.0
+            prop.0 == "workbench"
+                && transform.translation.x == -13.0
                 && transform.translation.z == 13.75
         })
         .expect("archive workbench")
@@ -361,7 +363,7 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
         ("shelf_unit_bins", 8.1, -17.5, Vec3::NEG_X),
         ("shelf_unit_bins", -9.5, -7.0, Vec3::NEG_Z),
         ("shelf_unit_bins", 10.75, -14.8, Vec3::NEG_X),
-        ("shelf_unit_bins", -12.0, 9.5, Vec3::X),
+        ("shelf_unit_bins", -7.5, 9.7, Vec3::NEG_X),
         ("shelf_unit_bins", 7.1, 13.75, Vec3::X),
     ] {
         let transform = placements
