@@ -1773,6 +1773,95 @@ fn authored_floor_has_a_reachable_long_patrol_destination() {
 }
 
 #[test]
+fn monster_crosses_office_east_door_to_reach_a_witnessed_table() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Door, DoorPlugin, Hidden, HidingPhase, HidingPlugin, HidingSpot, Monster};
+
+    let mut app = monster_app(42);
+    app.insert_resource(crate::levels::FuseSeed(42))
+        .add_plugins((DoorPlugin, HidingPlugin))
+        .add_observer(crate::controller::collision::attach_prop_collider)
+        .add_systems(Startup, crate::levels::build_first_floor);
+    app.update();
+    let world = app.world_mut();
+    let table = world
+        .query::<(Entity, &HidingSpot, &Transform)>()
+        .iter(world)
+        .find(|(_, kind, transform)| {
+            *kind == &HidingSpot::Table
+                && transform.translation.xz().distance(Vec2::new(3.75, -18.75)) < 0.1
+        })
+        .map(|(entity, _, _)| entity)
+        .unwrap();
+    let place = world.get::<Transform>(table).unwrap();
+    let eye = HidingSpot::Table.eye(place);
+    let exit = HidingSpot::Table.exit(place);
+    let player = world
+        .spawn((
+            PlayerController,
+            Transform::from_translation(eye),
+            Hidden {
+                spot: table,
+                height: 1.6,
+                phase: HidingPhase::Hidden,
+            },
+        ))
+        .id();
+    let monster = world
+        .spawn((
+            Monster {
+                pursuit: Some(super::Pursuit {
+                    last_sensed: exit,
+                    remaining: SEARCH_TIME,
+                    searching: false,
+                    planned: None,
+                }),
+                ..Default::default()
+            },
+            Transform::from_xyz(5.0, 0.0, -12.5),
+        ))
+        .id();
+    world
+        .entity_mut(player)
+        .insert(super::WitnessedHiding { monster });
+    let door = world
+        .query::<(Entity, &Door)>()
+        .iter(world)
+        .find(|(_, door)| door.position == Vec2::new(5.0, -16.25))
+        .unwrap()
+        .0;
+    let mut closest = f32::MAX;
+    for _ in 0..180 {
+        app.update();
+        let pos = app
+            .world()
+            .get::<Transform>(monster)
+            .unwrap()
+            .translation
+            .xz();
+        closest = closest.min(pos.distance(exit));
+        if app.world().get::<crate::levels::Caught>(player).is_some() {
+            break;
+        }
+    }
+    let pos = app
+        .world()
+        .get::<Transform>(monster)
+        .unwrap()
+        .translation
+        .xz();
+    assert!(
+        app.world().get::<crate::levels::Caught>(player).is_some(),
+        "monster did not reach witnessed office table from {pos:?}, closest {closest}, door {:?}, swing {:?}, route {:?}",
+        app.world().get::<Door>(door).unwrap().state,
+        app.world().get::<crate::levels::DoorSwing>(door).unwrap().0,
+        monster_state(&app, monster).route
+    );
+    assert!(app.world().get::<Hidden>(player).is_none());
+    assert!(app.world().get::<super::WitnessedHiding>(player).is_none());
+}
+
+#[test]
 fn authored_first_floor_patrol_reaches_another_room() {
     use crate::levels::{Door, DoorState, Monster, Room};
     use game_audio::{PlaySourceSound, Sound};

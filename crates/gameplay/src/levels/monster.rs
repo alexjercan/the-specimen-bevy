@@ -744,6 +744,7 @@ fn patrol(
     time: Res<Time>,
     enabled: Option<Res<PlayerControlsEnabled>>,
     preset: Res<GamePreset>,
+    sight: StructuralSight,
     mut rng: Option<ResMut<PatrolRng>>,
     rooms: Query<(Entity, &Room, Option<&Doors>)>,
     room_walls: Query<(&Room, Option<&Doors>)>,
@@ -950,8 +951,10 @@ fn patrol(
             .pursuit
             .filter(|pursuit| !pursuit.searching && pursuit.remaining >= SEARCH_TIME)
         {
-            travel =
-                travel.min((position.distance(pursuit.last_sensed) - ATTACK_REACH * 0.9).max(0.0));
+            if sight.clear_sight(position, pursuit.last_sensed) {
+                travel = travel
+                    .min((position.distance(pursuit.last_sensed) - ATTACK_REACH * 0.9).max(0.0));
+            }
         }
         if travel <= 0.0 {
             continue;
