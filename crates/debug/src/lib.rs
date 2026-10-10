@@ -1,4 +1,5 @@
 use bevy::camera::RenderTarget;
+use bevy::gizmos::{prelude::GizmoConfig, AppGizmoBuilder, GizmoPlugin};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::pbr::wireframe::{WireframeConfig, WireframePlugin};
 use bevy::pbr::PbrPlugin;
@@ -10,6 +11,8 @@ use bevy_egui::{
 };
 use bevy_inspector_egui::{bevy_inspector, DefaultInspectorConfigPlugin};
 pub use game_ui::{fps_label, FpsText};
+mod monster_tracking;
+
 use gameplay::{
     controller::{Flashlight, PlayerController, Stamina},
     levels::{
@@ -31,6 +34,7 @@ pub const INSPECTOR_TOGGLE_KEY: KeyCode = KeyCode::F12;
 pub struct DebugSettings {
     pub inspector: bool,
     pub wireframe: bool,
+    pub monster_tracking: bool,
 }
 
 pub struct DebugPlugin;
@@ -43,6 +47,16 @@ impl Plugin for DebugPlugin {
         if app.is_plugin_added::<PbrPlugin>() && !app.is_plugin_added::<WireframePlugin>() {
             app.add_plugins(WireframePlugin::default());
         }
+        if app.is_plugin_added::<GizmoPlugin>() {
+            app.insert_gizmo_config(
+                monster_tracking::MonsterRouteGizmos,
+                GizmoConfig {
+                    depth_bias: -1.0,
+                    ..default()
+                },
+            )
+            .add_systems(Update, monster_tracking::draw_monster_routes);
+        }
         if app.is_plugin_added::<WinitPlugin>() {
             if !app.is_plugin_added::<EguiPlugin>() {
                 app.add_plugins(EguiPlugin::default());
@@ -54,7 +68,10 @@ impl Plugin for DebugPlugin {
                 .add_systems(Update, keep_inspector_on_window_camera)
                 .add_systems(
                     EguiPrimaryContextPass,
-                    inspector_ui.run_if(|settings: Res<DebugSettings>| settings.inspector),
+                    (
+                        inspector_ui.run_if(|settings: Res<DebugSettings>| settings.inspector),
+                        monster_tracking::monster_tracking_ui,
+                    ),
                 );
         }
         app.init_resource::<DebugSettings>().add_systems(
@@ -116,8 +133,14 @@ fn inspector_ui(world: &mut World) {
     };
     let mut context = context.clone();
     let mut wireframe = world.resource::<DebugSettings>().wireframe;
+    let mut monster_tracking = world.resource::<DebugSettings>().monster_tracking;
     egui::Window::new("Inspector").show(context.get_mut(), |ui| {
         ui.checkbox(&mut wireframe, "Wireframe");
+        ui.checkbox(&mut monster_tracking, "Monster tracking (X-ray)")
+            .on_hover_text("Show the monster through walls and draw its route, destination, and last sensed position on the floor. Remains visible when F12 closes.");
+        if monster_tracking {
+            ui.label("Gold: walk | Orange: run | Violet: long target | Blue: last sensed");
+        }
         facility_power_ui(world, ui);
         ui.collapsing("Player cheats", |ui| {
             let mut players = world.query_filtered::<Entity, With<PlayerController>>();
@@ -146,6 +169,9 @@ fn inspector_ui(world: &mut World) {
     let mut settings = world.resource_mut::<DebugSettings>();
     if settings.wireframe != wireframe {
         settings.wireframe = wireframe;
+    }
+    if settings.monster_tracking != monster_tracking {
+        settings.monster_tracking = monster_tracking;
     }
 }
 

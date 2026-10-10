@@ -18,6 +18,7 @@
 - Let every flashbang in a stack launch, follow its own world-space gravity arc, and burst at its landing point without following the player. Each confirmed hit renews protection from that monster; misses give no protection.
 - Show the white flash overlay only when the player faces a nearby, unobstructed burst, independently of monster-hit protection.
 - Add quick-access debug cheats for fuse and flashbang counts, detector, flashlight charge, sprint stamina, and facility power.
+- Add an F12 monster tracking toggle with a through-wall monster marker and floor-level navigation lines. Different colors mark walking, running, long-range targets, and the last sensed player position without changing monster behavior.
 
 ## [0.2.0] - 2026-10-10
 

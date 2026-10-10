@@ -9,6 +9,43 @@ use super::{
 use crate::presets::{GameMode, GamePreset};
 
 #[test]
+fn debug_navigation_reports_current_route_and_pursuit_without_changing_them() {
+    let mut monster = super::Monster::default();
+    assert_eq!(
+        monster.debug_navigation(),
+        super::MonsterNavigation {
+            waypoints: vec![],
+            destination: None,
+            last_sensed: None,
+            long_range: false,
+            running: false,
+        }
+    );
+    monster
+        .route
+        .extend([Vec2::new(2.0, -3.0), Vec2::new(6.0, -8.0)]);
+    monster.long_patrol_active = true;
+    monster.long_patrol_running = true;
+    assert!(monster.debug_navigation().long_range);
+    assert!(monster.debug_navigation().running);
+    monster.pursuit = Some(super::Pursuit {
+        last_sensed: Vec2::new(7.0, -9.0),
+        remaining: SEARCH_TIME,
+        searching: false,
+        planned: None,
+    });
+    let expected = super::MonsterNavigation {
+        waypoints: vec![Vec2::new(2.0, -3.0), Vec2::new(6.0, -8.0)],
+        destination: Some(Vec2::new(6.0, -8.0)),
+        last_sensed: Some(Vec2::new(7.0, -9.0)),
+        long_range: false,
+        running: true,
+    };
+    assert_eq!(monster.debug_navigation(), expected);
+    assert_eq!(monster.debug_navigation(), expected);
+}
+
+#[test]
 fn patrol_turns_at_a_bounded_rate_before_moving_in_a_new_direction() {
     let mut transform = Transform::IDENTITY;
     assert!(!super::turn_toward(
@@ -147,6 +184,7 @@ fn measure_chase(mode: GameMode) -> Vec<f32> {
     app.update();
     assert!(monster_state(&app, monster).pursuit.is_some());
     assert!(!monster_state(&app, monster).long_patrol_running);
+    assert!(!monster_state(&app, monster).debug_navigation().long_range);
     let mut previous = app.world().get::<Transform>(monster).unwrap().translation;
     let mut steps = Vec::new();
     for _ in 0..8 {
@@ -1262,6 +1300,8 @@ fn patrol_schedules_a_distant_room_after_short_legs() {
         let state = monster_state(&app, monster);
         assert_eq!(state.patrol_legs, 0);
         assert!(state.route.back().unwrap().distance(start) >= 24.0);
+        assert!(state.debug_navigation().long_range);
+        assert_eq!(state.debug_navigation().running, state.long_patrol_running);
         let runs = state.long_patrol_running;
         for _ in 0..30 {
             app.update();

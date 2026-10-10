@@ -63,8 +63,30 @@ pub struct Monster {
     route_retry: f32,
     stalls: u8,
     patrol_legs: u8,
+    long_patrol_active: bool,
     long_patrol_running: bool,
     pursuit: Option<Pursuit>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MonsterNavigation {
+    pub waypoints: Vec<Vec2>,
+    pub destination: Option<Vec2>,
+    pub last_sensed: Option<Vec2>,
+    pub long_range: bool,
+    pub running: bool,
+}
+
+impl Monster {
+    pub fn debug_navigation(&self) -> MonsterNavigation {
+        MonsterNavigation {
+            waypoints: self.route.iter().copied().collect(),
+            destination: self.route.back().copied(),
+            last_sensed: self.pursuit.map(|pursuit| pursuit.last_sensed),
+            long_range: self.long_patrol_active && self.pursuit.is_none() && !self.route.is_empty(),
+            running: (self.pursuit.is_some() || self.long_patrol_running) && !self.route.is_empty(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -109,6 +131,7 @@ impl Default for Monster {
             route_retry: 0.0,
             stalls: 0,
             patrol_legs: 0,
+            long_patrol_active: false,
             long_patrol_running: false,
             pursuit: None,
         }
@@ -539,6 +562,7 @@ fn sense_player(
                 });
                 monster.route.clear();
                 monster.stalls = 0;
+                monster.long_patrol_active = false;
                 monster.long_patrol_running = false;
                 monster.pursuit = Some(Pursuit {
                     last_sensed: target,
@@ -849,6 +873,7 @@ fn patrol(
             if let Some(path) = long_patrol_route(position, &rooms_data, &blockers) {
                 monster.route = path;
                 monster.patrol_legs = 0;
+                monster.long_patrol_active = true;
                 monster.long_patrol_running = rng.0.next_u32() % 2 == 0;
             }
         }
@@ -897,6 +922,7 @@ fn patrol(
                     if let Some(path) = route(position, center, &rooms_data, &blockers) {
                         monster.route = path;
                         monster.patrol_legs = monster.patrol_legs.saturating_add(1);
+                        monster.long_patrol_active = false;
                         monster.long_patrol_running = false;
                     } else {
                         monster.route_retry = 1.0;

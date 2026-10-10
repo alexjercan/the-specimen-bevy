@@ -79,6 +79,20 @@ fn f12_toggles_inspector_only() {
     let settings = *app.world().resource::<DebugSettings>();
     assert!(!settings.inspector);
     assert!(!settings.wireframe);
+    assert!(!settings.monster_tracking);
+}
+
+#[test]
+fn tracking_can_remain_enabled_when_inspector_closes() {
+    let mut app = app();
+    tap(&mut app, INSPECTOR_TOGGLE_KEY);
+    app.world_mut()
+        .resource_mut::<DebugSettings>()
+        .monster_tracking = true;
+    tap(&mut app, INSPECTOR_TOGGLE_KEY);
+    let settings = app.world().resource::<DebugSettings>();
+    assert!(!settings.inspector);
+    assert!(settings.monster_tracking);
 }
 
 #[test]
