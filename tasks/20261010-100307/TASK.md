@@ -1,6 +1,6 @@
 # Draft Steam achievement definitions, icons, and preview
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 0
 - TAGS: backlog
 

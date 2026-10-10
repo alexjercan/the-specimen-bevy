@@ -1,6 +1,6 @@
 # Persist achievements locally, sync Steam optionally, and add in-game viewer
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 0
 - TAGS: backlog
 
