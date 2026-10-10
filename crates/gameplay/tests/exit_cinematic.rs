@@ -2,9 +2,9 @@ use std::{f32::consts::FRAC_PI_2, time::Duration};
 
 use bevy::{prelude::*, time::TimeUpdateStrategy};
 use gameplay::levels::{
-    build_exit_cinematic, Door, DoorLock, DoorOf, DoorPlugin, DoorRef, DoorState, DoorSwing, Doors,
-    ExitCinematic, ExitDoor, LevelRoot, LightConfig, LightEffect, Prop, PropLightsPlugin, Room,
-    ToggleDoor,
+    build_closed_exit_cinematic, build_exit_cinematic, Door, DoorLock, DoorOf, DoorPlugin, DoorRef,
+    DoorState, DoorSwing, Doors, ExitCinematic, ExitDoor, LevelRoot, LightConfig, LightEffect,
+    Prop, PropLightsPlugin, Room, ToggleDoor,
 };
 
 #[derive(Resource)]
@@ -73,6 +73,26 @@ fn exit_cinematic_mirrors_the_real_exit_with_an_open_door_in_a_corridor() {
     assert_eq!(cinematic.door, door);
     assert!(exterior.contains(cinematic.view.translation.xz()));
     assert!(cinematic.view.forward().z > 0.0);
+}
+
+#[test]
+fn closed_exit_cinematic_keeps_the_same_red_lit_scene() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_plugins(PropLightsPlugin)
+        .add_systems(Startup, |mut commands: Commands| {
+            build_closed_exit_cinematic(&mut commands);
+        });
+    app.update();
+    let world = app.world_mut();
+    let (door, swing) = world.query::<(&Door, &DoorSwing)>().single(world).unwrap();
+    assert_eq!(door.state, DoorState::Closed);
+    assert_eq!(swing.0, 0.0);
+    assert_eq!(world.query::<&Room>().iter(world).count(), 2);
+    assert!(world
+        .query::<&Prop>()
+        .iter(world)
+        .any(|prop| prop.0 == "wall_lamp_red"));
 }
 
 #[test]

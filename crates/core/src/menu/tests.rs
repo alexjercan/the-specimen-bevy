@@ -637,22 +637,60 @@ fn completion_cinematic_closes_the_door_then_rolls_credits() {
         CreditsRoute::Ending
     );
     assert_eq!(count::<With<CreditsScreen>>(&mut app), 1);
+    assert_credits_layout(&mut app);
     assert_eq!(count::<With<CompleteScreen>>(&mut app), 0);
     assert_eq!(count::<With<Cinematic>>(&mut app), 0);
     assert_eq!(count::<With<CinematicCamera>>(&mut app), 0);
-    assert_eq!(count::<With<Door>>(&mut app), 0);
-    assert_eq!(count::<With<Room>>(&mut app), 0);
+    assert_eq!(count::<With<Door>>(&mut app), 1);
+    assert_eq!(count::<With<Room>>(&mut app), 2);
     assert_eq!(count::<With<Camera2d>>(&mut app), 1);
-    assert_eq!(count::<With<Camera3d>>(&mut app), 0);
+    assert_eq!(count::<With<Camera3d>>(&mut app), 1);
+    assert_eq!(
+        app.world_mut()
+            .query::<&Door>()
+            .single(app.world())
+            .unwrap()
+            .state,
+        DoorState::Closed
+    );
     assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
     assert_eq!(
         options(&mut app),
         vec![MenuAction::Retry, MenuAction::MainMenu, MenuAction::Quit]
     );
     assert!(has_text(&mut app, "Main Menu"));
+    assert!(has_text(&mut app, "ESCAPED"));
     run_for(&mut app, 2.0);
     assert_eq!(options(&mut app).len(), 3);
     assert_eq!(count::<With<CreditsScreen>>(&mut app), 1);
+}
+
+fn assert_credits_layout(app: &mut App) {
+    let expected_buttons = options(app).len();
+    let root = app
+        .world_mut()
+        .query_filtered::<Entity, With<CreditsScreen>>()
+        .single(app.world())
+        .unwrap();
+    let panes = app.world().get::<Children>(root).unwrap();
+    assert_eq!(panes.len(), 2);
+    let button_count = app
+        .world()
+        .get::<Children>(panes[0])
+        .unwrap()
+        .iter()
+        .filter(|entity| app.world().get::<MenuAction>(*entity).is_some())
+        .count();
+    assert_eq!(button_count, expected_buttons);
+    assert!(app
+        .world()
+        .get::<Children>(panes[1])
+        .unwrap()
+        .iter()
+        .any(|entity| app
+            .world()
+            .get::<Text>(entity)
+            .is_some_and(|text| text.0 == "CREDITS")));
 }
 
 fn has_text(app: &mut App, value: &str) -> bool {
@@ -679,11 +717,22 @@ fn assert_menu_credits(app: &mut App) {
         CreditsRoute::MainMenu
     );
     assert_eq!(count::<With<CreditsScreen>>(app), 1);
+    assert_credits_layout(app);
     assert_eq!(count::<With<MainMenu>>(app), 0);
     assert_eq!(count::<With<Camera2d>>(app), 1);
+    assert_eq!(count::<With<Camera3d>>(app), 1);
+    assert_eq!(
+        app.world_mut()
+            .query::<&Door>()
+            .single(app.world())
+            .unwrap()
+            .state,
+        DoorState::Closed
+    );
     assert_eq!(options(app), vec![MenuAction::MainMenu]);
     assert!(has_text(app, "Back"));
     assert!(!has_text(app, "Retry"));
+    assert!(!has_text(app, "ESCAPED"));
     assert!(has_text(app, HUMAN_DEER_CREDIT));
     assert!(has_text(app, "Alex Jercan"));
 }

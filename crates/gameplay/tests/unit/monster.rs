@@ -1870,6 +1870,62 @@ fn flashed_player_in_view_and_reach_is_not_sensed_or_caught_until_the_flash_ends
 }
 
 #[test]
+fn a_flash_only_hides_the_player_from_monsters_hit_by_its_burst() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Caught, Flashed, Monster, Room};
+
+    let mut app = flash_app();
+    app.world_mut().spawn(Room(Rect::new(-5.0, -5.0, 5.0, 5.0)));
+    let hit = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(-1.0, 0.0, 0.0)))
+        .id();
+    let missed = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(1.0, 0.0, 0.0)))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((
+            PlayerController,
+            Transform::from_xyz(1.0, 1.6, -1.0),
+            Flashed::default(),
+            super::super::devices::FlashTargets(vec![hit]),
+        ))
+        .id();
+
+    app.update();
+    assert!(monster_state(&app, hit).pursuit.is_none());
+    assert!(monster_state(&app, missed).pursuit.is_some());
+    assert_eq!(app.world().get::<Caught>(player).unwrap().monster, missed);
+}
+
+#[test]
+fn a_flash_with_no_monster_hit_does_not_hide_the_player() {
+    use crate::controller::PlayerController;
+    use crate::levels::{Caught, Flashed, Monster, Room};
+
+    let mut app = flash_app();
+    app.world_mut().spawn(Room(Rect::new(-5.0, -5.0, 5.0, 5.0)));
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::IDENTITY))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((
+            PlayerController,
+            Transform::from_xyz(0.0, 1.6, -1.0),
+            Flashed::default(),
+        ))
+        .id();
+
+    app.update();
+    assert!(monster_state(&app, monster).pursuit.is_some());
+    assert_eq!(app.world().get::<Caught>(player).unwrap().monster, monster);
+}
+
+#[test]
 fn flash_mid_chase_keeps_the_last_known_search_without_tracking_or_contact() {
     use crate::controller::{PlayerController, PlayerInput, Stamina};
     use crate::levels::{Caught, Flashed, Monster, Room};
@@ -1888,13 +1944,11 @@ fn flash_mid_chase_keeps_the_last_known_search_without_tracking_or_contact() {
     app.update();
     let last = monster_state(&app, monster).pursuit.unwrap().last_sensed;
     assert_eq!(last, Vec2::new(0.0, -6.0));
-    app.world_mut()
-        .entity_mut(player)
-        .insert((
-            Transform::from_xyz(0.0, 1.6, -8.0),
-            Flashed::default(),
-            super::super::devices::FlashTargets(vec![monster]),
-        ));
+    app.world_mut().entity_mut(player).insert((
+        Transform::from_xyz(0.0, 1.6, -8.0),
+        Flashed::default(),
+        super::super::devices::FlashTargets(vec![monster]),
+    ));
     app.world_mut()
         .get_mut::<PlayerInput>(player)
         .unwrap()
@@ -2007,9 +2061,10 @@ fn witnessed_hiding_is_not_pulled_out_while_flashed_but_is_after_expiry() {
         .write_message(UseHidingSpot { player, spot });
     app.update();
     assert!(app.world().get::<super::WitnessedHiding>(player).is_some());
-    app.world_mut()
-        .entity_mut(player)
-        .insert((Flashed::default(), super::super::devices::FlashTargets(vec![monster])));
+    app.world_mut().entity_mut(player).insert((
+        Flashed::default(),
+        super::super::devices::FlashTargets(vec![monster]),
+    ));
     while app.world().get::<Flashed>(player).is_some() {
         app.update();
         assert!(!app

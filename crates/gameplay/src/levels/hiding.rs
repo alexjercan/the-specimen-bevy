@@ -239,7 +239,9 @@ fn toggle_hiding(
         let Ok(kind) = spots.get(spot) else {
             continue;
         };
-        let Ok((transform, mut input, hidden, witnessed, flashed, targets)) = players.get_mut(player) else {
+        let Ok((transform, mut input, hidden, witnessed, flashed, targets)) =
+            players.get_mut(player)
+        else {
             continue;
         };
         let motion = HidingMotion::from(transform);

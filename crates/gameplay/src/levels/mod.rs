@@ -29,7 +29,7 @@ pub use devices::{
 };
 pub use doors::{panel_center, panel_top, DoorLock, DoorPanel, DoorPlugin, ExitDoor, ToggleDoor};
 pub(crate) use doors::{PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH};
-pub use exit_cinematic::{build_exit_cinematic, ExitCinematic};
+pub use exit_cinematic::{build_closed_exit_cinematic, build_exit_cinematic, ExitCinematic};
 pub use first_floor_builder::{
     build_first_floor, select_fuse_slots, spawn_first_floor_actors, FuseTable, FuseZone,
     FUSE_TABLES, FUSE_ZONES,

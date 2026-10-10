@@ -5,8 +5,9 @@ use bevy::{
 };
 use game_assets::UiAssets;
 use game_ui::{menu_button, text, theme};
+use gameplay::levels::build_closed_exit_cinematic;
 
-use super::{release_cursor, screen_camera, GameState, MenuAction};
+use super::{cinematic, release_cursor, GameState, MenuAction};
 
 pub(super) const HUMAN_DEER_CREDIT: &str = "This work is based on \"The Human Deer\" (https://sketchfab.com/3d-models/the-human-deer-7644694337404bb18eb68e6b637740a1) by ceeleste (https://sketchfab.com/ceeleste) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)";
 pub(super) const ROLL_SPEED: f32 = 32.0;
@@ -14,7 +15,6 @@ const KEY_SCROLL_SPEED: f32 = 320.0;
 const LINE_SCROLL: f32 = 40.0;
 const START_LEAD: f32 = 0.85;
 const COLUMN_WIDTH: f32 = 760.0;
-const BUTTON_WIDTH: f32 = 220.0;
 const BUTTON_GAP: f32 = 12.0;
 
 pub(super) struct CreditsSection {
@@ -137,13 +137,20 @@ pub(super) fn wrap_offset(offset: f32, span: f32) -> f32 {
 
 fn spawn_credits(mut commands: Commands, assets: Res<UiAssets>, route: Res<CreditsRoute>) {
     let font = assets.font.clone();
-    commands.spawn(screen_camera(GameState::Credits));
+    let scene = build_closed_exit_cinematic(&mut commands);
+    commands
+        .entity(scene.root)
+        .insert(DespawnOnExit(GameState::Credits));
+    let view = scene
+        .view
+        .with_translation(scene.view.translation + scene.view.back() * 0.4);
+    cinematic::spawn_cameras(&mut commands, GameState::Credits, view);
     let roll = commands
         .spawn((
             CreditsRoll::default(),
             Node {
-                width: px(COLUMN_WIDTH),
-                max_width: percent(92),
+                width: percent(100),
+                max_width: px(COLUMN_WIDTH),
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
                 flex_shrink: 0.0,
@@ -170,15 +177,25 @@ fn spawn_credits(mut commands: Commands, assets: Res<UiAssets>, route: Res<Credi
             ("Quit button", MenuAction::Quit, "Quit"),
         ],
     };
-    let count = buttons.len() as f32;
-    let row = commands
+    let controls = commands
         .spawn(Node {
-            width: px(BUTTON_WIDTH * count + BUTTON_GAP * (count - 1.0)),
-            max_width: percent(92),
-            column_gap: px(BUTTON_GAP),
+            width: percent(30),
+            max_width: px(300),
+            min_width: px(160),
+            flex_direction: FlexDirection::Column,
+            row_gap: px(BUTTON_GAP),
             ..default()
         })
         .with_children(|parent| {
+            if *route == CreditsRoute::Ending {
+                parent.spawn((
+                    text("ESCAPED", 64.0, theme::ACCENT, font.clone()),
+                    Node {
+                        margin: UiRect::bottom(px(28)),
+                        ..default()
+                    },
+                ));
+            }
             for (name, action, label) in buttons {
                 parent.spawn((Name::new(name), action, menu_button(label, font.clone())));
             }
@@ -192,40 +209,51 @@ fn spawn_credits(mut commands: Commands, assets: Res<UiAssets>, route: Res<Credi
             Node {
                 width: percent(100),
                 height: percent(100),
-                flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
-                padding: UiRect::axes(px(24), px(36)),
-                row_gap: px(16),
+                padding: UiRect::axes(px(72), px(36)),
+                column_gap: px(32),
                 ..default()
             },
-            BackgroundColor(theme::BACKGROUND),
-            children![
-                text("CREDITS", 44.0, theme::ACCENT, font.clone()),
-                text(
-                    "Mouse wheel or Up/Down to scroll",
-                    15.0,
-                    theme::TEXT,
-                    font.clone(),
-                ),
-            ],
+            BackgroundColor(theme::BACKGROUND.with_alpha(0.4)),
         ))
         .with_children(|parent| {
             parent
-                .spawn((
-                    CreditsViewport,
-                    Node {
-                        width: percent(100),
-                        flex_grow: 1.0,
-                        min_height: px(0),
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
-                        overflow: Overflow::clip(),
-                        ..default()
-                    },
-                ))
-                .add_child(roll);
+                .spawn(Node {
+                    width: percent(100),
+                    height: percent(100),
+                    min_width: px(0),
+                    min_height: px(0),
+                    flex_grow: 1.0,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    row_gap: px(16),
+                    ..default()
+                })
+                .with_children(|column| {
+                    column.spawn(text("CREDITS", 44.0, theme::ACCENT, font.clone()));
+                    column.spawn(text(
+                        "Mouse wheel or Up/Down to scroll",
+                        15.0,
+                        theme::TEXT,
+                        font.clone(),
+                    ));
+                    column
+                        .spawn((
+                            CreditsViewport,
+                            Node {
+                                width: percent(100),
+                                flex_grow: 1.0,
+                                min_height: px(0),
+                                flex_direction: FlexDirection::Column,
+                                align_items: AlignItems::Center,
+                                overflow: Overflow::clip(),
+                                ..default()
+                            },
+                        ))
+                        .add_child(roll);
+                });
         })
-        .add_child(row);
+        .insert_children(0, &[controls]);
 }
 
 fn line(value: &'static str, size: f32, gap: f32, font: Handle<Font>) -> impl Bundle {

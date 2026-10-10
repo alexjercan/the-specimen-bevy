@@ -16,6 +16,14 @@ pub struct ExitCinematic {
 }
 
 pub fn build_exit_cinematic(commands: &mut Commands) -> ExitCinematic {
+    build_exit_cinematic_with_door(commands, DoorState::Open)
+}
+
+pub fn build_closed_exit_cinematic(commands: &mut Commands) -> ExitCinematic {
+    build_exit_cinematic_with_door(commands, DoorState::Closed)
+}
+
+fn build_exit_cinematic_with_door(commands: &mut Commands, state: DoorState) -> ExitCinematic {
     const FLOOR_TILE: &str = "floor_tile";
     const WALL: &str = "wall";
     const CEILING_TILE: &str = "ceiling_tile";
@@ -37,9 +45,13 @@ pub fn build_exit_cinematic(commands: &mut Commands) -> ExitCinematic {
                 rotation: Quat::from_rotation_y(PI),
                 frame: DOOR_FRAME.to_owned(),
                 panel: DOOR_PANEL.to_owned(),
-                state: DoorState::Open,
+                state,
             },
-            DoorSwing(FRAC_PI_2),
+            DoorSwing(if state == DoorState::Open {
+                FRAC_PI_2
+            } else {
+                0.0
+            }),
             ChildOf(root),
         ))
         .id();

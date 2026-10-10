@@ -199,7 +199,11 @@ pub(crate) fn tick_flash(
     }
 }
 
-pub(crate) fn unseen(flashed: Option<&Flashed>, targets: Option<&FlashTargets>, monster: Entity) -> bool {
+pub(crate) fn unseen(
+    flashed: Option<&Flashed>,
+    targets: Option<&FlashTargets>,
+    monster: Entity,
+) -> bool {
     flashed.is_some_and(|flashed| flashed.remaining > 0.0)
         && targets.is_some_and(|targets| targets.0.contains(&monster))
 }
