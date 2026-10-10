@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Specimen - store page replica (local draft)</title>
+<!--
+  NOTE: A local replica of a store page layout, for review. It does not
+  upload. Steam takes the About section as BBCode from STEAM.md, not this
+  HTML. All media paths are relative to this folder; nothing loads from the
+  network. Not affiliated with or endorsed by Valve.
+-->
+<style>
+:root {
+  --ink: #1b2838;
+  --ink-deep: #171a21;
+  --panel: rgba(0, 0, 0, 0.2);
+  --panel-solid: #16202d;
+  --text: #c6d4df;
+  --dim: #8f98a0;
+  --bright: #ffffff;
+  --link: #66c0f4;
+  --tag: rgba(103, 193, 245, 0.2);
+  --tag-text: #67c1f5;
+  --green: #a4d007;
+  --green-deep: #536904;
+  --warn: #f1e7d1;
+  --warn-bg: #3a2a12;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ink);
+  color: var(--text);
+  font: 14px/1.45 "Motiva Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+img, video { max-width: 100%; display: block; }
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--bright); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+h1, h2, h3 { font-weight: 400; margin: 0; }
+
+.notice {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-bottom: 1px solid #6b5124;
+  padding: 10px 16px;
+  font-size: 13px;
+  text-align: center;
+}
+.notice strong { letter-spacing: 0.04em; }
+
+.nav {
+  background: var(--ink-deep);
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  color: #b8b6b4;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.nav .mark {
+  color: var(--dim);
+  border: 1px solid #3d4450;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+.subnav {
+  width: 940px;
+  max-width: 100%;
+  margin: 18px auto 0;
+  background: linear-gradient(90deg, rgba(62, 103, 150, 0.92) 11%, rgba(58, 120, 177, 0.8) 26%, rgba(15, 33, 110, 0.8) 100%);
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #e5e5e5;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
+}
+
+.ground {
+  background:
+    linear-gradient(to bottom, rgba(27, 40, 56, 0.35) 0, rgba(27, 40, 56, 0.55) 60%, var(--ink) 100%) center top / 1438px 810px no-repeat,
+    var(--ink) url("capsules/page-background.png") center top / 1438px 810px no-repeat;
+  padding-bottom: 40px;
+}
+.page { width: 940px; max-width: 100%; margin: 0 auto; padding: 0 0 20px; }
+
+.crumbs { color: var(--dim); font-size: 12px; padding: 18px 0 2px; }
+.apphead { display: flex; align-items: flex-end; justify-content: space-between; padding: 0 0 10px; }
+.apphead h1 { color: var(--bright); font-size: 26px; line-height: 32px; }
+.apphead .community { background: rgba(103, 193, 245, 0.2); color: var(--tag-text); padding: 6px 12px; border-radius: 2px; font-size: 13px; }
+
+.hero { display: flex; gap: 16px; background: rgba(0, 0, 0, 0.2); padding: 0; }
+.media { width: 616px; flex: none; }
+.viewer { width: 616px; height: 347px; background: #000; display: grid; place-items: center; }
+.viewer video, .viewer img { width: 616px; height: 347px; object-fit: contain; }
+.strip { display: flex; gap: 4px; overflow-x: auto; padding: 6px 0 4px; }
+.strip a {
+  flex: none;
+  width: 116px;
+  height: 65px;
+  position: relative;
+  border: 2px solid transparent;
+  opacity: 0.75;
+  background: #000;
+}
+.strip a[aria-current="true"] { border-color: var(--bright); opacity: 1; }
+.strip a:hover { opacity: 1; }
+.strip img { width: 112px; height: 61px; object-fit: cover; }
+.strip .play::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-30%, -50%);
+  border-style: solid;
+  border-width: 12px 0 12px 20px;
+  border-color: transparent transparent transparent rgba(255, 255, 255, 0.9);
+}
+
+.rail { width: 308px; flex: none; padding: 0 0 12px; }
+.rail .capsule { width: 308px; height: 144px; object-fit: cover; }
+.rail .short { color: #acb2b8; font-size: 13px; line-height: 18px; padding: 12px 12px 10px 0; margin: 0; }
+.glance { display: grid; grid-template-columns: 102px 1fr; row-gap: 6px; font-size: 12px; padding: 4px 12px 10px 0; }
+.glance dt { color: #556772; text-transform: uppercase; font-size: 10px; padding-top: 2px; }
+.glance dd { margin: 0; color: #8f98a0; }
+.glance .unset { color: #e0a85a; }
+.tags { padding: 0 12px 0 0; }
+.tags .label { color: #556772; font-size: 12px; margin-bottom: 4px; }
+.tags span {
+  display: inline-block;
+  background: var(--tag);
+  color: var(--tag-text);
+  padding: 0 7px;
+  margin: 0 2px 3px 0;
+  border-radius: 2px;
+  font-size: 11px;
+  line-height: 19px;
+}
+
+.soon {
+  margin: 18px 0 0;
+  background: linear-gradient(-60deg, rgba(226, 244, 255, 0.3) 5%, rgba(84, 107, 115, 0.3) 95%);
+  padding: 16px 16px 16px;
+  position: relative;
+}
+.soon h2 { color: var(--bright); font-size: 21px; margin-bottom: 4px; }
+.soon p { margin: 0; color: #c6d4df; font-size: 13px; }
+.soon .buy {
+  position: absolute;
+  right: 16px;
+  bottom: -14px;
+  display: flex;
+  background: #000;
+  padding: 2px;
+  border-radius: 2px;
+}
+.soon button {
+  border: 0;
+  border-radius: 2px;
+  padding: 0 15px;
+  height: 30px;
+  font: inherit;
+  font-size: 14px;
+  color: #d2efa9;
+  background: linear-gradient(to right, #75b022 5%, #588a1b 95%);
+  cursor: not-allowed;
+}
+
+.below { display: flex; gap: 16px; margin-top: 40px; }
+.main { width: 616px; flex: none; }
+.sect h2 {
+  color: var(--bright);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+  background: linear-gradient(to right, #3b6e8c 0%, rgba(59, 110, 140, 0) 100%) bottom left / 100% 1px no-repeat;
+}
+.sect + .sect { margin-top: 32px; }
+.about { color: #acb2b8; font-size: 14px; line-height: 1.55; }
+.about h2.bb { text-transform: none; font-size: 15px; color: #ffffff; letter-spacing: 0; background: none; margin: 22px 0 6px; padding: 0; }
+.about p { margin: 0 0 10px; }
+.about img { margin: 10px 0 4px; width: 616px; height: auto; }
+.about ul { margin: 0 0 10px; padding-left: 20px; }
+.about li { margin-bottom: 4px; }
+.about .lead { color: #ffffff; }
+.sysreq { color: #acb2b8; font-size: 13px; }
+.sysreq ul { list-style: none; padding: 0; margin: 0; }
+.sysreq li { margin-bottom: 3px; }
+.sysreq strong { color: #8f98a0; font-weight: 400; }
+.sysreq .unset { color: #e0a85a; }
+
+.side { width: 308px; flex: none; }
+.box { background: rgba(0, 0, 0, 0.2); padding: 12px 14px; margin-bottom: 14px; font-size: 12px; }
+.box h3 { color: #ffffff; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+.box ul { list-style: none; padding: 0; margin: 0; }
+.box li { padding: 5px 8px; background: rgba(103, 193, 245, 0.08); margin-bottom: 2px; color: #67c1f5; }
+.box table { width: 100%; border-collapse: collapse; }
+.box th, .box td { text-align: center; padding: 3px 4px; font-weight: 400; color: #8f98a0; }
+.box th:first-child, .box td:first-child { text-align: left; color: #c6d4df; }
+.box .inert { color: #556772; cursor: not-allowed; }
+.box p { margin: 0 0 6px; color: #8f98a0; }
+
+.appendix { background: #0e141b; border-top: 3px solid #6b5124; padding: 30px 0 60px; }
+.appendix .page > h2 { color: var(--warn); font-size: 20px; margin-bottom: 4px; }
+.appendix .page > p { color: var(--dim); max-width: 760px; margin: 0 0 20px; }
+.slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.slot { background: #141c26; padding: 10px; }
+.slot.wide { grid-column: 1 / -1; }
+.slot figcaption { font-size: 12px; color: var(--dim); margin-top: 6px; }
+.slot figcaption code { color: var(--text); }
+.slot figure { margin: 0; }
+.slot img { margin: 0 auto; height: auto; }
+.slot img.tall { width: auto; max-height: 540px; }
+.checker { background: repeating-conic-gradient(#2a3340 0% 25%, #1c232d 0% 50%) 50% / 20px 20px; padding: 10px; }
+.reduced { display: flex; align-items: flex-end; gap: 16px; margin-top: 8px; }
+.reduced img { margin: 0; }
+.library { position: relative; background: #000; }
+.library .logo { position: absolute; left: 3%; bottom: 8%; width: 33%; }
+.library .safe {
+  position: absolute;
+  left: 38.8%;
+  top: 34.7%;
+  width: 22.4%;
+  height: 30.6%;
+  outline: 1px dashed rgba(241, 231, 209, 0.75);
+}
+.grid { display: flex; gap: 12px; align-items: flex-start; }
+.grid .tile { width: 150px; height: 225px; background: #232b36; flex: none; }
+.slot .grid img.tile { object-fit: cover; height: 225px; margin: 0; }
+code { font-family: ui-monospace, "DejaVu Sans Mono", monospace; font-size: 12px; }
+footer { color: #556772; font-size: 12px; text-align: center; padding: 20px; }
+
+@media (max-width: 960px) {
+  .hero, .below { flex-direction: column; }
+  .media, .viewer, .viewer video, .viewer img, .rail, .main, .side, .about img { width: 100%; height: auto; }
+  .page { padding: 0 10px; }
+  .slots { grid-template-columns: 1fr; }
+  .soon .buy { position: static; margin-top: 10px; display: inline-flex; }
+}
+</style>
+</head>
+<body>
+
+<div class="notice" role="note">
+  <strong>LOCAL REPLICA - NOT A STORE PAGE.</strong>
+  Nothing here is uploaded or published. Not affiliated with or endorsed by Valve.
+  Steam takes the description as BBCode from <code>STEAM.md</code>, not this HTML.
+  Fields marked <span style="color:#e0a85a">not set</span> are open owner decisions.
+</div>
+
+<div class="nav" aria-hidden="true">
+  <span class="mark">store layout mock</span>
+  <span>Store</span><span>Community</span><span>About</span><span>Support</span>
+</div>
+
+<div class="ground">
+<div class="subnav" aria-hidden="true">Your Store &nbsp; New &amp; Noteworthy &nbsp; Categories &nbsp; Points Shop &nbsp; News &nbsp; Labs</div>
+
+<div class="page">
+  <div class="crumbs">All Games &gt; Adventure Games &gt; The Specimen</div>
+  <div class="apphead">
+    <h1>The Specimen</h1>
+    <span class="community" aria-hidden="true">Community Hub</span>
+  </div>
+
+  <div class="hero">
+    <div class="media">
+      <div class="viewer" id="viewer">
+        <video id="trailer" controls preload="metadata" poster="screenshots/01-assembly-stalker.png">
+          <source src="../content/trailer.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="strip" id="strip">
+        <a class="play" href="../content/trailer.mp4" data-kind="video" aria-current="true" aria-label="Trailer"><img src="screenshots/01-assembly-stalker.png" alt=""></a>
+        <a href="screenshots/01-assembly-stalker.png" data-kind="image"><img src="screenshots/01-assembly-stalker.png" alt="The creature stands among assembly benches under a ceiling light while the detector tracks it"></a>
+        <a href="screenshots/02-hide-prompt.png" data-kind="image"><img src="screenshots/02-hide-prompt.png" alt="A locker under a red lamp shows the HIDE prompt while the creature lurks in the corner"></a>
+        <a href="screenshots/03-lab-blackout.png" data-kind="image"><img src="screenshots/03-lab-blackout.png" alt="During a blackout the flashlight finds the creature beside a lab tank"></a>
+        <a href="screenshots/04-fuse-table.png" data-kind="image"><img src="screenshots/04-fuse-table.png" alt="A fuse on a table with the PICK UP FUSE prompt"></a>
+        <a href="screenshots/05-exit-locked.png" data-kind="image"><img src="screenshots/05-exit-locked.png" alt="The exit door under a green exit sign shows the LOCKED prompt"></a>
+      </div>
+    </div>
+
+    <div class="rail">
+      <img class="capsule" src="capsules/header-capsule.png" alt="The Specimen header capsule">
+      <p class="short">Find three fuses, open the exit, and stay out of its sight. The Specimen is a first-person horror escape through a dark facility while a creature hunts the halls.</p>
+      <dl class="glance">
+        <dt>All reviews</dt><dd>No user reviews</dd>
+        <dt>Release date</dt><dd>Coming soon</dd>
+        <dt>Developer</dt><dd class="unset">Not set (Steamworks account name)</dd>
+        <dt>Publisher</dt><dd class="unset">Not set (Steamworks account name)</dd>
+      </dl>
+      <div class="tags">
+        <div class="label">Popular user-defined tags for this product (proposed):</div>
+        <span>Horror</span><span>Survival Horror</span><span>First-Person</span><span>Stealth</span><span>Atmospheric</span><span>Exploration</span><span>Dark</span><span>Singleplayer</span><span>3D</span><span>Indie</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="soon">
+    <h2>Coming soon</h2>
+    <p>No release date and no price are announced. The current build is the v0.1.1 early playable release.</p>
+    <div class="buy"><button type="button" disabled title="Inert in the replica">Add to your wishlist</button></div>
+  </div>
+
+  <div class="below">
+    <div class="main">
+      <div class="sect">
+        <h2>About this game</h2>
+        <div class="about">
+          <p class="lead"><strong>Find three fuses. Open the exit. Stay out of its sight.</strong></p>
+          <p>The Specimen is a first-person horror game set inside a dark facility. Search its rooms for three fuses, install them at the exit panel, and escape while a creature hunts through the halls.</p>
+
+          <h2 class="bb">Search the facility</h2>
+          <p>Follow the signs, explore the rooms, and gather the three fuses needed to open the exit. A flashlight helps you find your way when the lights go out.</p>
+
+          <h2 class="bb">Hide or buy time</h2>
+          <p>The creature patrols the halls. Hide in lockers or under tables, use the detector to track it, and throw a flashbang when you need an opening.</p>
+          <img src="extras/locker-watch.gif" width="960" height="540" alt="From inside a locker, the player watches the creature walk past the slats">
+
+          <h2 class="bb">Restore the power</h2>
+          <p>When the lights fail, find the boiler to bring the facility back online.</p>
+          <img src="extras/boiler-restore.gif" width="960" height="540" alt="The player restores power at the boiler and the lights come back">
+
+          <h2 class="bb">Reach the exit</h2>
+          <p>Install the fuses at the panel, open the door, and make it outside.</p>
+          <img src="extras/fuse-install.gif" width="960" height="540" alt="The player installs three fuses at the exit panel">
+
+          <h2 class="bb">Features</h2>
+          <ul>
+            <li>One facility to escape: find three fuses and install them at the exit panel.</li>
+            <li>A creature that patrols the halls and pursues you. If it catches you, the run ends.</li>
+            <li>Lockers and tables to hide in, a detector that tracks the creature, and flashbangs that buy you time.</li>
+            <li>A flashlight, power outages, and a boiler that brings the lights back.</li>
+            <li>Spatial audio. Play with headphones.</li>
+            <li>Single player, keyboard and mouse.</li>
+            <li>The source code is public on GitHub under the MIT license.</li>
+          </ul>
+
+          <h2 class="bb">Early release</h2>
+          <p>This is an early playable release. This page is for a future Steam release; no date and no price are announced.</p>
+
+          <h2 class="bb">Credits</h2>
+          <p>The creature model: This work is based on &quot;The Human Deer&quot; (https://sketchfab.com/3d-models/the-human-deer-7644694337404bb18eb68e6b637740a1) by ceeleste (https://sketchfab.com/ceeleste) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). Full credits ship with the game in credits/CREDITS.md.</p>
+        </div>
+      </div>
+
+      <div class="sect">
+        <h2>Mature content description</h2>
+        <div class="about">
+          <p><span style="color:#e0a85a">Proposed, not submitted.</span> The developers describe the content like this:</p>
+          <p><em>A creature with blood on its body pursues the player through a facility. If it catches the player, a game-over screen shows it. No human violence or gore is shown.</em></p>
+        </div>
+      </div>
+
+      <div class="sect">
+        <h2>System requirements</h2>
+        <div class="sysreq">
+          <p class="unset">Not measured. Steam shows these fields only after the developer fills them in. Take them from the release builds on real hardware; do not estimate.</p>
+          <ul>
+            <li><strong>Platforms with builds at v0.1.1:</strong> Windows (x86_64), Linux (x86_64)</li>
+            <li><strong>OS, processor, memory, graphics, storage:</strong> <span class="unset">not set</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="box">
+        <ul>
+          <li>Single-player</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>Languages</h3>
+        <table>
+          <thead><tr><th></th><th>Interface</th><th>Full audio</th><th>Subtitles</th></tr></thead>
+          <tbody><tr><td>English</td><td>&#x2713;</td><td></td><td></td></tr></tbody>
+        </table>
+      </div>
+      <div class="box">
+        <h3>Controls</h3>
+        <p>Keyboard and mouse. No controller support at v0.1.1.</p>
+      </div>
+      <div class="box">
+        <h3>Platforms</h3>
+        <p>Windows; Linux (x86_64). No macOS build. Not tested on Steam Deck.</p>
+      </div>
+      <div class="box">
+        <h3>Links</h3>
+        <p><a href="https://github.com/alexjercan/the-specimen-bevy">Source code on GitHub</a></p>
+        <p><a href="https://github.com/alexjercan/the-specimen-bevy/issues">Report a problem</a></p>
+        <p class="inert" title="URL not recorded in the repository">itch.io page (URL not set)</p>
+      </div>
+      <div class="box">
+        <h3>Genre</h3>
+        <p><span style="color:#e0a85a">Not set.</span> Proposed: Adventure.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<section class="appendix" aria-labelledby="assets">
+<div class="page">
+  <h2 id="assets">Appendix: store and library images (not part of the page)</h2>
+  <p>Each upload slot at its real size, scaled down only to fit this column. All come from <code>lab-blackout.png</code> in the v0.1.1 gallery capture. The hero and the page background are drafts: they scale up a 1920x1080 still and are soft at full size. See <code>STEAM.md</code>, "Not settled".</p>
+
+  <div class="slots">
+    <div class="slot"><figure>
+      <img src="capsules/header-capsule.png" width="920" height="430" alt="Header capsule">
+      <figcaption><code>header-capsule.png</code> 920x430. Store header capsule.</figcaption>
+    </figure></div>
+
+    <div class="slot"><figure>
+      <img src="capsules/library-header.png" width="920" height="430" alt="Library header">
+      <figcaption><code>library-header.png</code> 920x430. Library header.</figcaption>
+    </figure></div>
+
+    <div class="slot"><figure>
+      <img src="capsules/small-capsule.png" width="462" height="174" alt="Small capsule">
+      <div class="reduced">
+        <img src="capsules/small-capsule.png" width="184" height="69" alt="Small capsule at 184x69">
+        <img src="capsules/small-capsule.png" width="120" height="45" alt="Small capsule at 120x45">
+      </div>
+      <figcaption><code>small-capsule.png</code> 462x174, and the 184x69 and 120x45 sizes Steam makes from it.</figcaption>
+    </figure></div>
+
+    <div class="slot"><figure>
+      <img src="capsules/main-capsule.png" width="1232" height="706" alt="Main capsule">
+      <figcaption><code>main-capsule.png</code> 1232x706. Front page and sale rows.</figcaption>
+    </figure></div>
+
+    <div class="slot"><figure>
+      <img src="capsules/vertical-capsule.png" width="748" height="896" alt="Vertical capsule" class="tall">
+      <figcaption><code>vertical-capsule.png</code> 748x896. Seasonal sale pages.</figcaption>
+    </figure></div>
+
+    <div class="slot"><figure>
+      <img src="capsules/library-capsule.png" width="600" height="900" alt="Library capsule" class="tall">
+      <figcaption><code>library-capsule.png</code> 600x900. Library grid tile.</figcaption>
+    </figure></div>
+
+    <div class="slot wide"><figure>
+      <img src="capsules/page-background.png" width="1438" height="810" alt="Page background">
+      <figcaption><code>page-background.png</code> 1438x810. Optional store background; no title. The replica above uses it.</figcaption>
+    </figure></div>
+
+    <div class="slot wide"><figure>
+      <div class="library">
+        <img src="capsules/library-hero.png" width="3840" height="1240" alt="Library hero with the library logo laid over it">
+        <img class="logo" src="capsules/library-logo.png" width="1280" height="455" alt="">
+        <div class="safe" title="860x380 safe area"></div>
+      </div>
+      <figcaption><code>library-hero.png</code> 3840x1240, no text, with <code>library-logo.png</code> laid over it at bottom left, one of the placements Steam offers. The dashed box is the centered 860x380 safe area.</figcaption>
+    </figure></div>
+
+    <div class="slot"><figure>
+      <div class="checker"><img src="capsules/library-logo.png" width="1280" height="455" alt="Library logo on a checkerboard to show transparency"></div>
+      <figcaption><code>library-logo.png</code> 1280x455, RGBA, transparent background.</figcaption>
+    </figure></div>
+
+    <div class="slot"><figure>
+      <div class="grid">
+        <img class="tile" src="capsules/library-capsule.png" width="600" height="900" alt="Library capsule in a grid">
+        <div class="tile" aria-hidden="true"></div>
+      </div>
+      <figcaption>The library capsule at a 150x225 grid size, beside an empty tile.</figcaption>
+    </figure></div>
+  </div>
+</div>
+</section>
+
+<footer>
+  Media: The Specimen v0.1.1 (<code>fc51cf5</code>), captured by content-machine. Trailer: <code>../content/trailer.mp4</code>, proof-of-concept cut from before the pin.
+  Draft for review only.
+</footer>
+
+<script>
+(function () {
+  var viewer = document.getElementById("viewer");
+  var trailer = document.getElementById("trailer");
+  var links = document.querySelectorAll("#strip a");
+  links.forEach(function (link) {
+    link.addEventListener("click", function (event) {
+      event.preventDefault();
+      links.forEach(function (other) { other.removeAttribute("aria-current"); });
+      link.setAttribute("aria-current", "true");
+      var still = viewer.querySelector("img");
+      if (link.dataset.kind === "video") {
+        if (still) still.remove();
+        trailer.hidden = false;
+        return;
+      }
+      trailer.pause();
+      trailer.hidden = true;
+      if (!still) {
+        still = document.createElement("img");
+        viewer.appendChild(still);
+      }
+      still.src = link.getAttribute("href");
+      still.alt = link.querySelector("img").alt;
+    });
+  });
+})();
+</script>
+</body>
+</html>

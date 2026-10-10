@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<rect width="256" height="256" fill="#0b1115"/>
+<rect x="10" y="10" width="236" height="236" rx="12" fill="none" stroke="#88b9a3" stroke-width="3"/>
+<path d="M31 32h46M179 32h46M31 224h46M179 224h46" stroke="#88b9a3" stroke-width="2"/>
+<g fill="none" stroke="#ecdfbf" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M104 205V53h90v152M104 205h90M104 53 52 84v90l52 31V53Z"/><circle cx="66" cy="129" r="3"/></g>
+<text x="128" y="231" text-anchor="middle" fill="#88b9a3" font-family="sans-serif" font-size="11" letter-spacing="2">THE SPECIMEN</text>
+</svg>

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Specimen | Steam achievement concepts</title>
+  <style>
+    :root { color-scheme: dark; font-family: Arial, sans-serif; background: #080c10; color: #dbe6df; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { padding: 72px max(24px, calc((100vw - 1120px)/2)); background: linear-gradient(115deg,#0b1116 20%,#18302d 100%); border-bottom: 1px solid #44665a; }
+    .eyebrow { color: #9fbea9; font-size: 12px; letter-spacing: .26em; text-transform: uppercase; }
+    h1 { font-size: clamp(36px,6vw,64px); text-transform: uppercase; margin: 12px 0; letter-spacing: .07em; color: #efe7d1; }
+    header p { max-width: 760px; line-height: 1.55; }
+    main { max-width: 1168px; margin: auto; padding: 36px 24px 80px; }
+    .controls { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+    .note { color: #a9bcb5; font-size: 14px; }
+    button { color: #0b1517; background: #a4c9b6; border: 0; border-radius: 3px; padding: 12px 18px; font: inherit; font-weight: bold; cursor: pointer; }
+    button:focus-visible { outline: 3px solid #e8dab7; outline-offset: 3px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(320px,1fr)); gap: 18px; }
+    article { display: flex; align-items: flex-start; gap: 18px; padding: 18px; min-height: 170px; border: 1px solid #334840; background: #101922; }
+    article img { width: 96px; height: 96px; flex: none; object-fit: cover; border: 1px solid #527065; }
+    article h2 { margin: 1px 0 8px; color: #f1e7d1; font-size: 19px; }
+    article p { margin: 0; font-size: 14px; line-height: 1.5; }
+    article code { display: block; margin-top: 12px; overflow-wrap: anywhere; color: #9cc8b0; font-size: 11px; }
+    .rules { margin-top: 46px; max-width: 860px; line-height: 1.6; color: #d1ddd6; }
+    .rules h2 { color: #efe7d1; }
+    .rules li { margin: 9px 0; }
+    a { color: #a4c9b6; }
+    @media (max-width: 400px) { .grid { grid-template-columns: 1fr; } article { gap: 12px; padding: 12px; } article img { width: 74px; height: 74px; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">The Specimen / Steam concept sheet</div>
+  <h1>Achievements</h1>
+  <p>Seven achievement concepts for a facility escape. The icons and tiles below are art drafts for review, not live Steam achievements. No unlock logic or Steamworks integration exists yet.</p>
+</header>
+<main>
+  <div class="controls"><span class="note">Unlocked and locked icon previews. All artwork is local.</span><button type="button" id="toggle" aria-pressed="false">Show locked icons</button></div>
+  <div class="grid">
+    <article><img src="achievements/empty-handed-unlocked.png" data-key="empty-handed" alt="Crossed-out flashbang icon"><div><h2>Escape empty-handed</h2><p>Escape without picking up a flashbang during this run.</p><code>ESCAPE_WITHOUT_FLASHBANG</code></div></article>
+    <article><img src="achievements/trust-your-ears-unlocked.png" data-key="trust-your-ears" alt="Crossed-out ear icon"><div><h2>Trust your ears</h2><p>Escape without picking up the detector during this run.</p><code>ESCAPE_WITHOUT_DETECTOR</code></div></article>
+    <article><img src="achievements/buy-some-time-unlocked.png" data-key="buy-some-time" alt="Explosion star icon"><div><h2>Buy some time</h2><p>Land a flashbang burst on the monster. Throwing one without a confirmed hit does not count.</p><code>FLASHBANG_HIT_MONSTER</code></div></article>
+    <article><img src="achievements/in-the-dark-unlocked.png" data-key="in-the-dark" alt="Crossed-out lightbulb icon"><div><h2>In the dark</h2><p>Escape without restoring the boiler during this run.</p><code>ESCAPE_WITHOUT_BOILER</code></div></article>
+    <article><img src="achievements/let-there-be-light-unlocked.png" data-key="let-there-be-light" alt="Lightbulb with three rays icon"><div><h2>Let there be light</h2><p>Restore power at the boiler. Unlock when repair finishes, not when interaction starts.</p><code>RESTORE_BOILER</code></div></article>
+    <article><img src="achievements/so-close-unlocked.png" data-key="so-close" alt="Open door icon"><div><h2>So close</h2><p>Open the unlocked exit door, then get caught before leaving the facility.</p><code>CAUGHT_AFTER_EXIT_OPEN</code></div></article>
+    <article><img src="achievements/unseen-unlocked.png" data-key="unseen" alt="Crossed-out eye icon"><div><h2>Unseen</h2><p>Escape without the monster ever detecting you during this run.</p><code>ESCAPE_UNDETECTED</code></div></article>
+  </div>
+  <section class="rules">
+    <h2>Unlock rules for a future implementation</h2>
+    <ul>
+      <li>Track run eligibility from the start of a fresh game. Reset it on replay. Check escape conditions only when the player actually escapes.</li>
+      <li>Record flashbang and detector pickups, not current inventory. Using or dropping an item must not restore a no-pickup condition.</li>
+      <li>For Buy some time, add an authoritative burst-hit event for the monster. Define hit against the burst area and valid line of sight when the burst happens; a throw, sound, or temporary protection for the player alone is not proof. Current gameplay does not report such a hit.</li>
+      <li>Record completed boiler repairs. For So close, record the exit door actually opening after unlock and require the player to be caught before the escape event.</li>
+      <li>Count detection when the monster first enters pursuit of the player through sight or sound. Escaping pursuit later does not restore Unseen eligibility.</li>
+      <li>Keep gameplay rules independent of the Steamworks adapter. Steamworks API IDs above are drafts; publish nothing until implementation and playtest verification.</li>
+    </ul>
+    <p>Icon sources and exports: <a href="achievements/render.py">achievements/render.py</a>. Each concept has a 256 x 256 unlocked PNG and a dim locked PNG. The matching SVG files are editable masters.</p>
+  </section>
+</main>
+<script>
+  const toggle = document.getElementById('toggle');
+  toggle.addEventListener('click', () => {
+    const locked = toggle.getAttribute('aria-pressed') !== 'true';
+    toggle.setAttribute('aria-pressed', String(locked));
+    toggle.textContent = locked ? 'Show unlocked icons' : 'Show locked icons';
+    document.querySelectorAll('img[data-key]').forEach(image => {
+      image.src = `achievements/${image.dataset.key}-${locked ? 'locked' : 'unlocked'}.png`;
+    });
+  });
+</script>
+</body>
+</html>
