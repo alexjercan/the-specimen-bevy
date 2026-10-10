@@ -78,6 +78,11 @@ fn spawn_main_menu(
                     super::settings::SettingsAction::Open,
                     menu_button("Settings", font.clone()),
                 ),
+                (
+                    Name::new("Credits button"),
+                    MenuAction::Credits,
+                    menu_button("Credits", font.clone()),
+                ),
             ],
         ))
         .id();

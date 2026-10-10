@@ -6,7 +6,8 @@ use gameplay::{
 };
 
 use super::{
-    cinematic::{self, Cinematic, CinematicCamera},
+    cinematic::{self, Cinematic, CinematicCamera, REVEAL_AT},
+    credits::CreditsRoute,
     release_cursor, GameState,
 };
 
@@ -29,7 +30,10 @@ pub(super) fn plugin(app: &mut App) {
             OnEnter(GameState::Complete),
             (spawn_complete_screen, release_cursor),
         )
-        .add_systems(Update, close_door.run_if(in_state(GameState::Complete)));
+        .add_systems(
+            Update,
+            (close_door, roll_credits).run_if(in_state(GameState::Complete)),
+        );
 }
 
 fn finish_run(
@@ -77,5 +81,19 @@ fn close_door(
             toggles.write(ToggleDoor(door.0));
             commands.entity(entity).remove::<ClosingDoor>();
         }
+    }
+}
+
+fn roll_credits(
+    screens: Query<&Cinematic, With<CompleteScreen>>,
+    mut route: ResMut<CreditsRoute>,
+    mut next: ResMut<NextState<GameState>>,
+) {
+    if screens
+        .iter()
+        .any(|cinematic| cinematic.elapsed >= REVEAL_AT)
+    {
+        *route = CreditsRoute::Ending;
+        next.set(GameState::Credits);
     }
 }

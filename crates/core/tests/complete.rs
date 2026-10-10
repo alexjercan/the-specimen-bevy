@@ -151,7 +151,7 @@ fn assert_fresh_run(app: &mut App) {
 }
 
 #[test]
-fn escaping_shows_the_completion_cinematic_and_replay_starts_a_fresh_run() {
+fn escaping_shows_the_completion_cinematic_then_credits_and_retry_starts_a_fresh_run() {
     let mut app = app();
     press(&mut app, "Play button");
     assert_fresh_run(&mut app);
@@ -176,6 +176,7 @@ fn escaping_shows_the_completion_cinematic_and_replay_starts_a_fresh_run() {
     );
 
     settle(&mut app);
+    assert_eq!(game_state(&app), GameState::Credits);
     assert_eq!(buttons(&mut app), 3);
     press(&mut app, "Main menu button");
     assert_eq!(game_state(&app), GameState::MainMenu);
@@ -187,6 +188,7 @@ fn escaping_shows_the_completion_cinematic_and_replay_starts_a_fresh_run() {
     escape(&mut app);
     assert_completion_scene(&mut app);
     settle(&mut app);
+    assert_eq!(game_state(&app), GameState::Credits);
     press(&mut app, "Retry button");
     assert_fresh_run(&mut app);
     assert_eq!(count::<With<LevelRoot>>(&mut app), 4);
@@ -204,7 +206,7 @@ fn escaping_shows_the_completion_cinematic_and_replay_starts_a_fresh_run() {
 }
 
 #[test]
-fn quit_from_the_completion_screen_requests_app_exit() {
+fn quit_from_the_ending_credits_requests_app_exit() {
     let mut app = app();
     press(&mut app, "Play button");
     escape(&mut app);

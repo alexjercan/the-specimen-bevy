@@ -43,7 +43,11 @@ impl CinematicCamera {
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
         Update,
-        (advance, move_cameras, reveal_options)
+        (
+            advance,
+            move_cameras,
+            reveal_options.run_if(in_state(GameState::GameOver)),
+        )
             .chain()
             .run_if(in_state(GameState::Complete).or_else(in_state(GameState::GameOver))),
     );
@@ -109,25 +113,14 @@ pub(super) fn overlay(
             ..default()
         },
         BackgroundColor(SHADE.with_alpha(0.0)),
-        children![
-            (
-                CinematicTitle,
-                text(title, 64.0, theme::ACCENT.with_alpha(0.0), font),
-                Node {
-                    margin: UiRect::bottom(px(28)),
-                    ..default()
-                },
-            ),
-            (
-                CinematicOptions,
-                Node {
-                    width: px(240),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: px(10),
-                    ..default()
-                },
-            ),
-        ],
+        children![(
+            CinematicTitle,
+            text(title, 64.0, theme::ACCENT.with_alpha(0.0), font),
+            Node {
+                margin: UiRect::bottom(px(28)),
+                ..default()
+            },
+        )],
     )
 }
 
@@ -163,36 +156,42 @@ fn move_cameras(
     }
 }
 
-fn reveal_options(
-    mut screens: Query<&mut Cinematic>,
-    slots: Query<Entity, With<CinematicOptions>>,
-    mut commands: Commands,
-) {
-    for mut cinematic in &mut screens {
+fn reveal_options(mut screens: Query<(Entity, &mut Cinematic)>, mut commands: Commands) {
+    for (screen, mut cinematic) in &mut screens {
         if cinematic.revealed || cinematic.elapsed < REVEAL_AT {
             continue;
         }
         cinematic.revealed = true;
         let font = cinematic.font.clone();
-        for slot in &slots {
-            commands.entity(slot).with_children(|options| {
-                options.spawn((
-                    Name::new("Retry button"),
-                    MenuAction::Retry,
-                    menu_button("Retry", font.clone()),
-                ));
-                options.spawn((
-                    Name::new("Main menu button"),
-                    MenuAction::MainMenu,
-                    menu_button("Main Menu", font.clone()),
-                ));
-                #[cfg(not(target_arch = "wasm32"))]
-                options.spawn((
-                    Name::new("Quit button"),
-                    MenuAction::Quit,
-                    menu_button("Quit", font.clone()),
-                ));
-            });
-        }
+        commands.entity(screen).with_children(|parent| {
+            parent
+                .spawn((
+                    CinematicOptions,
+                    Node {
+                        width: px(240),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(10),
+                        ..default()
+                    },
+                ))
+                .with_children(|options| {
+                    options.spawn((
+                        Name::new("Retry button"),
+                        MenuAction::Retry,
+                        menu_button("Retry", font.clone()),
+                    ));
+                    options.spawn((
+                        Name::new("Main menu button"),
+                        MenuAction::MainMenu,
+                        menu_button("Main Menu", font.clone()),
+                    ));
+                    #[cfg(not(target_arch = "wasm32"))]
+                    options.spawn((
+                        Name::new("Quit button"),
+                        MenuAction::Quit,
+                        menu_button("Quit", font.clone()),
+                    ));
+                });
+        });
     }
 }

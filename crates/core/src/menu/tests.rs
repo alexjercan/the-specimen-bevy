@@ -24,8 +24,9 @@ use gameplay::{
 };
 
 use super::{
-    cinematic::{Cinematic, CinematicCamera, CinematicOptions, REVEAL_AT, TITLE_AT, TITLE_FADE},
+    cinematic::{Cinematic, CinematicCamera, REVEAL_AT, TITLE_AT, TITLE_FADE},
     complete::{CompleteScreen, DOOR_CLOSE_AT},
+    credits::{wrap_offset, CreditsRoute, CreditsScreen, HUMAN_DEER_CREDIT, ROLL_SPEED},
     game_over::{CaughtShot, GameOverScreen},
     loading::LoadingScreen,
     main_menu::MainMenu,
@@ -518,6 +519,7 @@ fn assert_cinematic_gone(app: &mut App) {
     assert_eq!(count::<With<MonsterFigure>>(app), 0);
     assert_eq!(count::<With<CompleteScreen>>(app), 0);
     assert_eq!(count::<With<GameOverScreen>>(app), 0);
+    assert_eq!(count::<With<CreditsScreen>>(app), 0);
     assert!(app.world().get_resource::<CaughtShot>().is_none());
 }
 
@@ -570,7 +572,8 @@ fn escape_transitions_to_completion_and_returns_to_menu() {
     assert_eq!(count::<With<Camera3d>>(&mut app), 1);
     assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
 
-    run_for(&mut app, REVEAL_AT);
+    run_for(&mut app, REVEAL_AT + 0.2);
+    assert_eq!(game_state(&app), GameState::Credits);
     press(&mut app, MenuAction::MainMenu);
     assert_eq!(game_state(&app), GameState::MainMenu);
     assert_cinematic_gone(&mut app);
@@ -589,7 +592,7 @@ fn escape_transitions_to_completion_and_returns_to_menu() {
 }
 
 #[test]
-fn completion_cinematic_closes_the_door_then_reveals_options() {
+fn completion_cinematic_closes_the_door_then_rolls_credits() {
     let mut app = app();
     ready(&mut app);
     press(&mut app, MenuAction::Play);
@@ -618,20 +621,135 @@ fn completion_cinematic_closes_the_door_then_reveals_options() {
         .state;
     assert_eq!(door, DoorState::Closed);
     assert!(options(&mut app).is_empty());
+    assert_eq!(count::<With<CreditsScreen>>(&mut app), 0);
 
     run_for(&mut app, TITLE_AT + TITLE_FADE - DOOR_CLOSE_AT - 0.4);
     assert!(title_alpha(&mut app) > 0.99);
     assert!(options(&mut app).is_empty());
     assert_eq!(count::<With<Button>>(&mut app), 0);
+    assert_eq!(game_state(&app), GameState::Complete);
+    assert_eq!(count::<With<CreditsScreen>>(&mut app), 0);
 
     run_for(&mut app, REVEAL_AT - TITLE_AT - TITLE_FADE + 0.2);
+    assert_eq!(game_state(&app), GameState::Credits);
+    assert_eq!(
+        *app.world().resource::<CreditsRoute>(),
+        CreditsRoute::Ending
+    );
+    assert_eq!(count::<With<CreditsScreen>>(&mut app), 1);
+    assert_eq!(count::<With<CompleteScreen>>(&mut app), 0);
+    assert_eq!(count::<With<Cinematic>>(&mut app), 0);
+    assert_eq!(count::<With<CinematicCamera>>(&mut app), 0);
+    assert_eq!(count::<With<Door>>(&mut app), 0);
+    assert_eq!(count::<With<Room>>(&mut app), 0);
+    assert_eq!(count::<With<Camera2d>>(&mut app), 1);
+    assert_eq!(count::<With<Camera3d>>(&mut app), 0);
+    assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
     assert_eq!(
         options(&mut app),
         vec![MenuAction::Retry, MenuAction::MainMenu, MenuAction::Quit]
     );
+    assert!(has_text(&mut app, "Main Menu"));
     run_for(&mut app, 2.0);
     assert_eq!(options(&mut app).len(), 3);
-    assert_eq!(count::<With<CinematicOptions>>(&mut app), 1);
+    assert_eq!(count::<With<CreditsScreen>>(&mut app), 1);
+}
+
+fn has_text(app: &mut App, value: &str) -> bool {
+    app.world_mut()
+        .query::<&Text>()
+        .iter(app.world())
+        .any(|text| text.0 == value)
+}
+
+fn win(app: &mut App) {
+    let player = run_player(app);
+    app.world_mut().entity_mut(player).insert(Escaped);
+    app.update();
+    app.update();
+    assert_eq!(game_state(app), GameState::Complete);
+    run_for(app, REVEAL_AT + 0.2);
+    assert_eq!(game_state(app), GameState::Credits);
+}
+
+fn assert_menu_credits(app: &mut App) {
+    assert_eq!(game_state(app), GameState::Credits);
+    assert_eq!(
+        *app.world().resource::<CreditsRoute>(),
+        CreditsRoute::MainMenu
+    );
+    assert_eq!(count::<With<CreditsScreen>>(app), 1);
+    assert_eq!(count::<With<MainMenu>>(app), 0);
+    assert_eq!(count::<With<Camera2d>>(app), 1);
+    assert_eq!(options(app), vec![MenuAction::MainMenu]);
+    assert!(has_text(app, "Back"));
+    assert!(!has_text(app, "Retry"));
+    assert!(has_text(app, HUMAN_DEER_CREDIT));
+    assert!(has_text(app, "Alex Jercan"));
+}
+
+#[test]
+fn main_menu_credits_show_back_without_retry_and_clean_up() {
+    let mut app = app();
+    ready(&mut app);
+    press(&mut app, MenuAction::Play);
+    escape(&mut app);
+    press(&mut app, MenuAction::MainMenu);
+    let menu = count::<Without<IsResource>>(&mut app);
+    press(&mut app, MenuAction::Credits);
+    assert_menu_credits(&mut app);
+
+    escape(&mut app);
+    assert_eq!(game_state(&app), GameState::Credits);
+    assert_eq!(count::<With<PauseMenu>>(&mut app), 0);
+    assert_eq!(count::<With<SettingsOverlay>>(&mut app), 0);
+
+    press(&mut app, MenuAction::MainMenu);
+    assert_eq!(game_state(&app), GameState::MainMenu);
+    assert_eq!(count::<With<CreditsScreen>>(&mut app), 0);
+    assert_eq!(count::<With<MainMenu>>(&mut app), 1);
+    assert_eq!(count::<With<Camera2d>>(&mut app), 1);
+    assert_eq!(count::<Without<IsResource>>(&mut app), menu);
+
+    press(&mut app, MenuAction::Play);
+    win(&mut app);
+    assert_eq!(
+        *app.world().resource::<CreditsRoute>(),
+        CreditsRoute::Ending
+    );
+    press(&mut app, MenuAction::MainMenu);
+    assert_eq!(game_state(&app), GameState::MainMenu);
+    assert_cinematic_gone(&mut app);
+    assert_eq!(count::<Without<IsResource>>(&mut app), menu);
+    press(&mut app, MenuAction::Credits);
+    assert_menu_credits(&mut app);
+}
+
+#[test]
+fn settings_overlay_blocks_the_credits_button() {
+    let mut app = app();
+    ready(&mut app);
+    open_settings(&mut app);
+    assert_eq!(count::<With<SettingsOverlay>>(&mut app), 1);
+    press(&mut app, MenuAction::Credits);
+    assert_eq!(game_state(&app), GameState::MainMenu);
+    assert_eq!(count::<With<CreditsScreen>>(&mut app), 0);
+}
+
+#[test]
+fn credits_roll_wraps_and_never_goes_negative() {
+    assert_eq!(wrap_offset(12.0, 0.0), 0.0);
+    assert_eq!(wrap_offset(-5.0, 100.0), 0.0);
+    assert_eq!(wrap_offset(40.0, 100.0), 40.0);
+    assert_eq!(wrap_offset(100.0 + ROLL_SPEED, 100.0), ROLL_SPEED);
+}
+
+#[test]
+fn credits_show_the_exact_human_deer_attribution() {
+    let credits = include_str!("../../../../credits/CREDITS.md");
+    let notice = include_str!("../../../../credits/licenses/The-Human-Deer-source-license.txt");
+    assert!(credits.contains(HUMAN_DEER_CREDIT));
+    assert!(notice.contains(HUMAN_DEER_CREDIT));
 }
 
 #[test]
@@ -736,6 +854,8 @@ fn retry_starts_a_fresh_run_directly_without_leaking_cinematics() {
             assert_eq!(count::<With<MonsterFigure>>(&mut app), 1);
         }
         run_for(&mut app, REVEAL_AT + 0.2);
+        let credits = if round % 2 == 0 { 1 } else { 0 };
+        assert_eq!(count::<With<CreditsScreen>>(&mut app), credits);
         press(&mut app, MenuAction::Retry);
         assert_eq!(game_state(&app), GameState::Playing);
         assert_cinematic_gone(&mut app);

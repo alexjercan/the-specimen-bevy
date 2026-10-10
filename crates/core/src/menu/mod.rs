@@ -1,6 +1,7 @@
 mod background;
 mod cinematic;
 mod complete;
+mod credits;
 mod game_over;
 #[cfg(test)]
 #[path = "../../tests/unit/menu_hover.rs"]
@@ -30,6 +31,7 @@ pub enum GameState {
     Playing,
     Complete,
     GameOver,
+    Credits,
 }
 
 #[derive(SubStates, Default, Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -46,6 +48,7 @@ enum MenuAction {
     Retry,
     Resume,
     MainMenu,
+    Credits,
     #[cfg(not(target_arch = "wasm32"))]
     Quit,
 }
@@ -68,6 +71,7 @@ impl Plugin for MenuPlugin {
                 pause::plugin,
                 cinematic::plugin,
                 complete::plugin,
+                credits::plugin,
                 game_over::plugin,
                 settings::plugin,
             ))
@@ -80,6 +84,7 @@ fn activate_buttons(
     overlay: Query<(), With<settings::SettingsOverlay>>,
     mut game: ResMut<NextState<GameState>>,
     mut pause: ResMut<NextState<PauseState>>,
+    mut route: ResMut<credits::CreditsRoute>,
     #[cfg(not(target_arch = "wasm32"))] mut exit: MessageWriter<AppExit>,
     mut sounds: MessageWriter<PlaySound>,
 ) {
@@ -106,6 +111,11 @@ fn activate_buttons(
             MenuAction::MainMenu => {
                 game.set(GameState::MainMenu);
                 Sound::UiBack
+            }
+            MenuAction::Credits => {
+                *route = credits::CreditsRoute::MainMenu;
+                game.set(GameState::Credits);
+                Sound::UiConfirm
             }
             #[cfg(not(target_arch = "wasm32"))]
             MenuAction::Quit => {
