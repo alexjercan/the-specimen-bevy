@@ -772,7 +772,7 @@ fn chase_stops_at_contact_range_so_the_head_stays_in_front_of_the_view() {
 }
 
 #[test]
-fn walls_block_sprint_sound_and_a_player_behind_them_is_not_tracked() {
+fn sprint_is_heard_through_walls_within_range_but_not_outside_it() {
     use crate::controller::{PlayerController, PlayerInput, Stamina};
     use crate::levels::{Monster, Room};
 
@@ -795,28 +795,64 @@ fn walls_block_sprint_sound_and_a_player_behind_them_is_not_tracked() {
         .get_mut::<Stamina>(player)
         .unwrap()
         .sprinting = true;
-    for _ in 0..10 {
-        app.update();
-        assert!(monster_state(&app, monster).pursuit.is_none());
-    }
-    app.world_mut()
-        .entity_mut(monster)
-        .insert(Transform::from_xyz(0.0, 0.0, 4.5));
-    app.world_mut()
-        .entity_mut(player)
-        .insert(Transform::from_xyz(0.0, 1.6, 2.0));
     app.update();
-    let last = monster_state(&app, monster).pursuit.unwrap().last_sensed;
-    assert_eq!(last, Vec2::new(0.0, 2.0));
+    assert_eq!(
+        monster_state(&app, monster).pursuit.unwrap().last_sensed,
+        Vec2::new(0.0, -1.5)
+    );
     app.world_mut()
         .entity_mut(player)
-        .insert(Transform::from_xyz(1.5, 1.6, -3.0));
-    for _ in 0..20 {
-        app.update();
-        let state = monster_state(&app, monster);
-        assert_eq!(state.pursuit.unwrap().last_sensed, last);
-        assert!(app.world().get::<Transform>(monster).unwrap().translation.z > 0.0);
-    }
+        .insert(Transform::from_xyz(0.0, 1.6, -4.0));
+    app.update();
+    assert_eq!(
+        monster_state(&app, monster).pursuit.unwrap().last_sensed,
+        Vec2::new(0.0, -4.0)
+    );
+    app.world_mut()
+        .entity_mut(player)
+        .insert(Transform::from_xyz(0.0, 1.6, -9.0));
+    app.update();
+    assert_eq!(
+        monster_state(&app, monster).pursuit.unwrap().last_sensed,
+        Vec2::new(0.0, -4.0)
+    );
+}
+
+#[test]
+fn walking_is_heard_through_walls_only_while_moving_within_walk_range() {
+    use crate::controller::{PlayerController, PlayerInput};
+    use crate::levels::{Monster, Room};
+
+    let mut app = monster_app(7);
+    app.world_mut().spawn(Room(Rect::new(-2.5, -5.0, 2.5, 0.0)));
+    app.world_mut().spawn(Room(Rect::new(-2.5, 0.0, 2.5, 5.0)));
+    let monster = app
+        .world_mut()
+        .spawn((Monster::default(), Transform::from_xyz(0.0, 0.0, 1.0)))
+        .id();
+    let player = app
+        .world_mut()
+        .spawn((PlayerController, Transform::from_xyz(0.0, 1.6, -1.5)))
+        .id();
+    app.update();
+    assert!(monster_state(&app, monster).pursuit.is_none());
+    app.world_mut()
+        .get_mut::<PlayerInput>(player)
+        .unwrap()
+        .movement = Vec2::Y;
+    app.update();
+    assert_eq!(
+        monster_state(&app, monster).pursuit.unwrap().last_sensed,
+        Vec2::new(0.0, -1.5)
+    );
+    app.world_mut()
+        .entity_mut(player)
+        .insert(Transform::from_xyz(0.0, 1.6, -3.0));
+    app.update();
+    assert_eq!(
+        monster_state(&app, monster).pursuit.unwrap().last_sensed,
+        Vec2::new(0.0, -1.5)
+    );
 }
 
 #[test]

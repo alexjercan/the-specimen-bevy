@@ -487,8 +487,7 @@ fn sense_player(
                         } else {
                             preset.monster.walk_hearing.value()
                         };
-                (visible || (heard && sight.clear_sight(position, target)))
-                    .then_some((player_entity, target))
+                (visible || heard).then_some((player_entity, target))
             },
         );
         if let Some((player, target)) = sensed {
