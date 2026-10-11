@@ -28,8 +28,10 @@
 | Text Font | Lato |
 | Size | Large |
 | Screenshots layout | Auto |
-| Banner | Upload `banner.png` (960x240), made from the v0.1.1 pinned lab-blackout gallery capture |
+| Banner | Upload `banner.png` (960x240), made from the v0.3.0 pinned lab-blackout gallery capture |
 | Background image | None; use the solid BG color |
 | Embed BG | `#080C10` |
+
+These files come from content-machine's pinned v0.3.0 gallery and trailer captures. The trailer and gallery WebM loops were recaptured with a local VP9 CRF 18 override; the game release did not change. The screenshots are native 1920x1080; the GIFs are 960x540 at 15 fps with a 256-color palette.
 
 Preview at desktop and mobile widths. Check image resolution, GIF playback, and contrast before publishing. The page and its media uploads remain a manual user action.

@@ -24,25 +24,27 @@ locally; Steam sync is an optional build feature with no App ID yet. See
 
 ## Source and provenance
 
-All images and loops come from the v0.1.1 release tag
-(`fc51cf5f4b10585e5f183662e112a7c0741d495e`), captured by content-machine with
-the `the-specimen-bevy/v0.1.1` capsule and the `gallery` scene (seed 7, monster
-AI off, puppet monster, real HUD, `debug` feature off).
+All images and loops come from the v0.3.0 release tag
+(`642ed2a6672f501f11fa455309b49a3d1335419f`), captured by content-machine with
+the `the-specimen-bevy/v0.3.0` capsule and the `gallery` scene (seed 7, monster
+AI off, puppet monster, real HUD, `debug` feature off). The capsule overrides
+only the game's capture crate locally to encode source loops at VP9 CRF 18
+instead of 34. The game release is unchanged.
 
 | Files here | Source in content-machine |
 | --- | --- |
-| `screenshots/*.png` | `media/the-specimen-bevy-gallery/recordings/image/*.png`, copied without change and renamed with the upload order. |
-| `extras/*.gif` | `recordings/video/*.webm`, encoded to GIF by `projects/the-specimen-bevy-gallery/steam.py` with the gallery GIF command. |
-| `capsules/*.png` | `projects/the-specimen-bevy-gallery/steam.py`, from `recordings/image/lab-blackout.png`, with the itch.io banner and cover crop, grade and title. |
+| `screenshots/*.png` | `media/the-specimen-bevy-v030-gallery/recordings/image/*.png`, copied without change and renamed with the upload order. |
+| `extras/*.gif` | `recordings/video/*.webm`, encoded to GIF by `projects/the-specimen-bevy-v030-gallery/steam.py` with the gallery GIF command. |
+| `capsules/*.png` | `projects/the-specimen-bevy-v030-gallery/steam.py`, from `recordings/image/lab-blackout.png`, with the itch.io banner and cover crop, grade and title. |
 
 Reproduce:
 
 ```sh
 cd ../content-machine
-scripts/capture.sh the-specimen-bevy-gallery
-nix develop -c python projects/the-specimen-bevy-gallery/steam.py
-cp media/the-specimen-bevy-gallery/steam/capsules/*.png ../the-specimen-bevy/art/steam/capsules/
-cp media/the-specimen-bevy-gallery/steam/extras/*.gif ../the-specimen-bevy/art/steam/extras/
+scripts/capture.sh the-specimen-bevy-v030-gallery
+nix develop -c python projects/the-specimen-bevy-v030-gallery/steam.py
+cp media/the-specimen-bevy-v030-gallery/steam/capsules/*.png ../the-specimen-bevy/art/steam/capsules/
+cp media/the-specimen-bevy-v030-gallery/steam/extras/*.gif ../the-specimen-bevy/art/steam/extras/
 ```
 
 Then copy the five stills into `screenshots/` with the numbered names below.
@@ -52,15 +54,15 @@ bytes. A subset run (`SPECIMEN_SHOTS=...`) changes lamp pulse and idle phase.
 `steam.py` stops if a capsule has the wrong size, or if the logo is not 1280
 wide with a transparent edge.
 
-Do not mix in `../content/screenshots/` or `../content/gifs/`. Four of those
-five stills and all three GIFs come from an earlier capture of the unpinned
-local checkout. `../content/screenshots/fuse-table.png` is the only byte match.
+`../content/screenshots/` and `../content/gifs/` now use the same pinned v0.3.0
+captures. The Steam stills are numbered copies, and the Steam extras are
+generated separately by `steam.py` from the same three gallery WebMs.
 
 ## Upload order
 
 1. Trailer: `../content/trailer.mp4`, 25.2 s, 1920x1080 at 60 fps, H.264 and
-   AAC. This is the proof-of-concept cut, rendered before the v0.1.1 pin. See
-   "Not settled".
+   AAC. This is the pinned v0.3.0 cut with locally improved source encoding.
+   See "Not settled" for publication checks.
 2. `screenshots/`, all five, in numbered order. Steam requires at least five.
    The first four show in the hover tooltip: the creature in a lit room, a
    hiding spot, the creature in the flashlight, a fuse.
@@ -221,8 +223,10 @@ The Nova sheet also asks for a separate logo master with margins. Here
 - Hero and page background quality. Both scale a 1920x620 or smaller crop of a
   1920x1080 still, so the 3840x1240 hero is soft at full size. Before upload,
   replace them from a HUD-free 3840x2160 capture of the same pose.
-- The trailer. It predates the v0.1.1 pin, and its audio sample provenance is
-  not checked. Recut it from the v0.1.1 capsule, or check it, before upload.
+- The trailer audio sample hashes are checked against pinned v0.3.0 assets,
+  but the original sample licenses retain the caveats in content-machine's
+  `projects/the-specimen-bevy-v030-trailer/SOUND.md`. Listen to the final mix
+  and resolve the provenance caveats before publishing.
 - One more all-ages screenshot.
 - The itch.io URL for the website and the description.
 - Every capsule shows the CC-BY-4.0 creature model. The credit is in the description; keep it there.
