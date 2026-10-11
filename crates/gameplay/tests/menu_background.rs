@@ -20,7 +20,22 @@ fn menu_room_uses_authored_room_and_prop_light_pipeline() {
     let props = world.query::<&Prop>().iter(world).count();
     assert_eq!(roots, 1);
     assert_eq!(rooms, 2);
-    assert_eq!(props, 8);
+    assert_eq!(props, 9);
+    let (shelf, shelf_transform) = world
+        .query::<(Entity, &Name, &Transform)>()
+        .iter(world)
+        .find(|(_, name, _)| name.as_str() == "Main menu shelves")
+        .map(|(entity, _, transform)| (entity, *transform))
+        .expect("main menu bin shelf");
+    assert_eq!(shelf_transform.translation, Vec3::new(-2.7, 0.0, -5.7));
+    let (_, module, transform, parent) = world
+        .query::<(&Name, &Prop, &Transform, &ChildOf)>()
+        .iter(world)
+        .find(|(name, _, _, _)| name.as_str() == "Main menu shelf contents")
+        .expect("stocked menu bins");
+    assert_eq!(module.0, "shelf_bin_contents");
+    assert_eq!(*transform, Transform::IDENTITY);
+    assert_eq!(parent.parent(), shelf);
     let bench = world
         .query::<(&Name, &Transform)>()
         .iter(world)

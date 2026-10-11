@@ -99,14 +99,22 @@ pub fn build_main_menu_background(commands: &mut Commands) -> Entity {
         ),
         ChildOf(root),
     ));
-    commands.spawn((
-        prop(
-            "Main menu shelves",
-            "shelf_unit_bins",
-            Transform::from_xyz(-2.7, 0.0, -5.7),
-        ),
-        ChildOf(root),
-    ));
+    commands
+        .spawn((
+            prop(
+                "Main menu shelves",
+                "shelf_unit_bins",
+                Transform::from_xyz(-2.7, 0.0, -5.7),
+            ),
+            ChildOf(root),
+        ))
+        .with_children(|children| {
+            children.spawn(prop(
+                "Main menu shelf contents",
+                "shelf_bin_contents",
+                Transform::IDENTITY,
+            ));
+        });
     commands.spawn((
         prop(
             "Main menu crate",
