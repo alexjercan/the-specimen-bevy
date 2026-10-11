@@ -1,46 +1,15 @@
 use bevy::prelude::*;
-use gameplay::levels::{FacilityLight, LightIntensity, MainMenuAccentLight};
-
-const FACILITY_LIGHT_SCALE: f32 = 0.45;
-const FACILITY_AMBIENT_BRIGHTNESS: f32 = 6.0;
-const AMBIENT_LIGHT_SCALE: f32 = 0.55;
+use gameplay::levels::LightingSettings;
 
 pub struct HalloweenLightingPlugin;
 
 impl Plugin for HalloweenLightingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            PostUpdate,
-            (dim_facility_lights, dim_menu_flashlight, dim_ambient),
-        );
-    }
-}
-
-fn dim_facility_lights(
-    mut lights: Query<
-        (&mut PointLight, &mut LightIntensity),
-        (With<FacilityLight>, Added<FacilityLight>),
-    >,
-) {
-    for (mut light, mut base) in &mut lights {
-        base.0 *= FACILITY_LIGHT_SCALE;
-        light.intensity *= FACILITY_LIGHT_SCALE;
-    }
-}
-
-fn dim_menu_flashlight(
-    mut lights: Query<&mut SpotLight, (With<MainMenuAccentLight>, Added<MainMenuAccentLight>)>,
-) {
-    for mut light in &mut lights {
-        light.intensity *= FACILITY_LIGHT_SCALE;
-    }
-}
-
-fn dim_ambient(mut ambient: Option<ResMut<GlobalAmbientLight>>) {
-    if let Some(ambient) = ambient.as_deref_mut() {
-        if (ambient.brightness - FACILITY_AMBIENT_BRIGHTNESS).abs() < 0.01 {
-            ambient.brightness *= AMBIENT_LIGHT_SCALE;
-        }
+        app.init_resource::<LightingSettings>();
+        let mut settings = app.world_mut().resource_mut::<LightingSettings>();
+        settings.facility_modifier *= 0.45;
+        settings.menu_modifier *= 0.45;
+        settings.ambient_modifier *= 0.55;
     }
 }
 
@@ -49,113 +18,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn halloween_dimming_keeps_outages_dark_and_scales_new_lights_once() {
+    fn halloween_configures_only_the_shared_lighting_settings() {
         let mut app = App::new();
-        app.insert_resource(GlobalAmbientLight {
-            brightness: 6.0,
-            ..default()
-        })
-        .add_plugins(HalloweenLightingPlugin);
-        let light = app
-            .world_mut()
-            .spawn((
-                PointLight {
-                    intensity: 100.0,
-                    ..default()
-                },
-                LightIntensity(100.0),
-                FacilityLight,
-            ))
-            .id();
-        let menu_light = app
-            .world_mut()
-            .spawn((
-                Name::new("renamed menu accent"),
-                MainMenuAccentLight,
-                SpotLight {
-                    intensity: 18_000.0,
-                    ..default()
-                },
-            ))
-            .id();
-        let other_light = app
-            .world_mut()
-            .spawn((Name::new("ordinary spotlight"), SpotLight::default()))
-            .id();
-        let other_point = app
-            .world_mut()
-            .spawn((PointLight::default(), LightIntensity(100.0)))
-            .id();
-        let unpowered_light = app
-            .world_mut()
-            .spawn((PointLight::default(), LightIntensity(100.0), FacilityLight))
-            .id();
-        app.world_mut()
-            .get_mut::<PointLight>(unpowered_light)
-            .unwrap()
-            .intensity = 0.0;
-        app.update();
-        assert_eq!(
-            app.world().resource::<GlobalAmbientLight>().brightness,
-            6.0 * AMBIENT_LIGHT_SCALE
-        );
-        assert_eq!(
-            app.world().get::<SpotLight>(menu_light).unwrap().intensity,
-            18_000.0 * FACILITY_LIGHT_SCALE
-        );
-        assert_eq!(
-            app.world().get::<SpotLight>(other_light).unwrap().intensity,
-            SpotLight::default().intensity
-        );
-        assert_eq!(
-            app.world().get::<LightIntensity>(other_point).unwrap().0,
-            100.0
-        );
-        assert_eq!(
-            app.world()
-                .get::<PointLight>(other_point)
-                .unwrap()
-                .intensity,
-            PointLight::default().intensity
-        );
-        assert_eq!(
-            app.world().get::<PointLight>(light).unwrap().intensity,
-            100.0 * FACILITY_LIGHT_SCALE
-        );
-        assert_eq!(
-            app.world().get::<LightIntensity>(light).unwrap().0,
-            100.0 * FACILITY_LIGHT_SCALE
-        );
-        assert_eq!(
-            app.world()
-                .get::<PointLight>(unpowered_light)
-                .unwrap()
-                .intensity,
-            0.0
-        );
-        assert_eq!(
-            app.world()
-                .get::<LightIntensity>(unpowered_light)
-                .unwrap()
-                .0,
-            100.0 * FACILITY_LIGHT_SCALE
-        );
-        app.update();
-        assert_eq!(
-            app.world().get::<SpotLight>(menu_light).unwrap().intensity,
-            18_000.0 * FACILITY_LIGHT_SCALE
-        );
-        assert_eq!(
-            app.world().get::<PointLight>(light).unwrap().intensity,
-            100.0 * FACILITY_LIGHT_SCALE
-        );
-        app.world_mut()
-            .resource_mut::<GlobalAmbientLight>()
-            .brightness = 0.35;
-        app.update();
-        assert_eq!(
-            app.world().resource::<GlobalAmbientLight>().brightness,
-            0.35
-        );
+        app.add_plugins(HalloweenLightingPlugin);
+        let settings = app.world().resource::<LightingSettings>();
+        let normal = LightingSettings::default();
+        assert_eq!(settings.facility_modifier, normal.facility_modifier * 0.45);
+        assert_eq!(settings.menu_modifier, normal.menu_modifier * 0.45);
+        assert_eq!(settings.ambient_modifier, normal.ambient_modifier * 0.55);
+        assert_eq!(settings.ambient_brightness, normal.ambient_brightness);
+        assert_eq!(settings.outage_brightness, normal.outage_brightness);
     }
 }

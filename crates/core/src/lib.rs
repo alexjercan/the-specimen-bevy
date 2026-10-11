@@ -1,4 +1,5 @@
 mod glue;
+mod lighting;
 mod menu;
 
 use std::{path::PathBuf, time::Duration};
@@ -24,9 +25,7 @@ use game_assets::GameAssetsState;
 use game_settings::{DisplayMode, GameSettings, GameSettingsPlugin, GraphicsQuality};
 #[cfg(feature = "debug")]
 use gameplay::controller::{PlayerController, PlayerControlsEnabled};
-use gameplay::levels::{
-    build_first_floor, spawn_first_floor_actors, FacilityPower, FuseSeed, LightIntensity,
-};
+use gameplay::levels::{build_first_floor, spawn_first_floor_actors, FuseSeed};
 
 pub use menu::{GameState, MenuPlugin, PauseState};
 
@@ -35,8 +34,6 @@ pub use menu::{GameState, MenuPlugin, PauseState};
 mod debug_controls_tests;
 
 const LOG_FILTER: &str = "wgpu=error,naga=warn,bevy_ecs=warn,bevy_time=warn";
-const WINDOWED_AMBIENT_BRIGHTNESS: f32 = 6.0;
-const WINDOWED_LIGHT_SCALE: f32 = 0.45;
 
 #[derive(States, Default, Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum CoreState {
@@ -227,15 +224,8 @@ impl AppBuilder {
             app.add_plugins(debug::DebugPlugin)
                 .add_systems(PostUpdate, sync_debug_controls);
             if facility_lighting {
-                app.insert_resource(GlobalAmbientLight {
-                    color: Color::WHITE,
-                    brightness: WINDOWED_AMBIENT_BRIGHTNESS,
-                    ..default()
-                })
-                .add_systems(
-                    Update,
-                    (dim_new_lights, dim_ambient_on_outage, apply_graphics),
-                );
+                app.add_plugins(lighting::FacilityLightingPlugin)
+                    .add_systems(Update, apply_graphics);
             }
             if menu {
                 app.add_systems(Update, apply_window_mode);
@@ -342,31 +332,6 @@ fn apply_graphics(
         if current != Some(&quality) {
             commands.entity(entity).insert(quality);
         }
-    }
-}
-
-fn dim_new_lights(
-    mut lights: Query<(&mut PointLight, &mut LightIntensity), Added<LightIntensity>>,
-) {
-    for (mut light, mut base) in &mut lights {
-        base.0 *= WINDOWED_LIGHT_SCALE;
-        light.intensity = base.0;
-    }
-}
-
-fn dim_ambient_on_outage(
-    power: Option<Res<FacilityPower>>,
-    game: Option<Res<State<GameState>>>,
-    mut ambient: ResMut<GlobalAmbientLight>,
-) {
-    let playing = game.is_none_or(|game| *game.get() == GameState::Playing);
-    let brightness = if playing && power.is_some_and(|power| !power.on) {
-        0.35
-    } else {
-        WINDOWED_AMBIENT_BRIGHTNESS
-    };
-    if ambient.brightness != brightness {
-        ambient.brightness = brightness;
     }
 }
 

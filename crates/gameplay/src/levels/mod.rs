@@ -43,7 +43,9 @@ pub use hiding::{
     Hidden, HidingMotion, HidingPhase, HidingPlugin, HidingSpot, UseHidingSpot, HIDING_TRANSITION,
 };
 pub use interaction::{InteractTarget, InteractTargets};
-pub use lights::{FacilityLight, LightConfig, MainMenuAccentLight, PropLightsPlugin};
+pub use lights::{
+    FacilityLight, LightConfig, LightingSettings, MainMenuAccentLight, PropLightsPlugin,
+};
 pub use menu_background::build_main_menu_background;
 pub use module_names::BOILER_UNIT;
 pub use monster::{

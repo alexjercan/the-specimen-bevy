@@ -14,6 +14,27 @@ const FAULT_RED: Color = Color::linear_rgb(1.0, 0.06, 0.03);
 const FIRE: Color = Color::linear_rgb(1.0, 0.35, 0.08);
 const SPECIMEN: Color = Color::linear_rgb(0.3, 0.95, 0.85);
 
+#[derive(Resource, Clone, Copy)]
+pub struct LightingSettings {
+    pub ambient_brightness: f32,
+    pub outage_brightness: f32,
+    pub ambient_modifier: f32,
+    pub facility_modifier: f32,
+    pub menu_modifier: f32,
+}
+
+impl Default for LightingSettings {
+    fn default() -> Self {
+        Self {
+            ambient_brightness: 6.0,
+            outage_brightness: 0.35,
+            ambient_modifier: 1.0,
+            facility_modifier: 0.45,
+            menu_modifier: 1.0,
+        }
+    }
+}
+
 #[derive(Component)]
 pub struct FacilityLight;
 
