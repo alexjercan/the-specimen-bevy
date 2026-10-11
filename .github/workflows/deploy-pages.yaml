@@ -1,6 +1,15 @@
 name: deploy-pages
 on:
   workflow_dispatch:
+    inputs:
+      flavor:
+        description: Web build variant
+        required: true
+        default: normal
+        type: choice
+        options:
+          - normal
+          - halloween
 permissions:
   contents: read
 concurrency:
@@ -14,7 +23,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31
       - name: Build game for the web
-        run: nix develop --command trunk build --release
+        shell: bash
+        run: |
+          if [[ "${{ inputs.flavor }}" == halloween ]]; then
+            nix develop --command trunk build --release --features halloween
+          else
+            nix develop --command trunk build --release
+          fi
       - name: Prepare Pages site
         run: touch dist/.nojekyll
       - uses: actions/upload-pages-artifact@v3

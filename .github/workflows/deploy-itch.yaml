@@ -6,6 +6,15 @@ on:
         description: Existing release tag, for example v0.1.0
         required: true
         type: string
+      flavors:
+        description: Which builds to upload
+        required: true
+        default: normal
+        type: choice
+        options:
+          - normal
+          - halloween
+          - both
 permissions:
   contents: read
 concurrency:
@@ -19,6 +28,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ inputs.tag }}
+      RELEASE_FLAVORS: ${{ inputs.flavors }}
       ITCH_TARGET: ${{ vars.ITCH_TARGET }}
       BUTLER_VERSION: ${{ vars.BUTLER_VERSION }}
       BUTLER_SHA256_LINUX_AMD64: ${{ vars.BUTLER_SHA256_LINUX_AMD64 }}
@@ -40,35 +50,43 @@ jobs:
           set -euo pipefail
           test "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = false || { echo "GitHub Release $RELEASE_TAG is still a draft" >&2; exit 1; }
           mkdir -p downloads
-          for platform in linux-x86_64 windows-x86_64 html5; do
-            name="the-specimen-bevy-${platform}"
-            case "$platform" in linux-x86_64) extension=tar.gz ;; *) extension=zip ;; esac
-            archive="the-specimen-bevy-${RELEASE_TAG}-${platform}.${extension}"
-            gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$archive" --dir "downloads/$name"
+          for flavor in normal halloween; do
+            if [[ "$RELEASE_FLAVORS" != both && "$RELEASE_FLAVORS" != "$flavor" ]]; then continue; fi
+            suffix=""
+            if [[ "$flavor" == halloween ]]; then suffix="-halloween"; fi
+            for platform in linux-x86_64 windows-x86_64 html5; do
+              case "$platform" in linux-x86_64) extension=tar.gz ;; *) extension=zip ;; esac
+              archive="the-specimen-bevy-${RELEASE_TAG}-${platform}${suffix}.${extension}"
+              gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$archive" --dir "downloads/$flavor/$platform"
+              test -f "downloads/$flavor/$platform/$archive"
+            done
           done
-          test -f "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz"
-          test -f "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip"
-          test -f "downloads/the-specimen-bevy-html5/the-specimen-bevy-${RELEASE_TAG}-html5.zip"
           find downloads -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > release-sha256.txt
       - name: Prepare and verify Butler payloads
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p itch-upload/linux itch-upload/windows itch-upload/html5
-          tar -xzf "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz" -C itch-upload/linux
-          unzip -q "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip" -d itch-upload/windows
-          unzip -q "downloads/the-specimen-bevy-html5/the-specimen-bevy-${RELEASE_TAG}-html5.zip" -d itch-upload/html5
-          test -x itch-upload/linux/the-specimen-bevy
-          test -f itch-upload/linux/LICENSE
-          test -d itch-upload/linux/assets
-          test -d itch-upload/linux/credits
-          test -f itch-upload/windows/the-specimen-bevy.exe
-          test -f itch-upload/windows/LICENSE
-          test -d itch-upload/windows/assets
-          test -d itch-upload/windows/credits
-          test -f itch-upload/html5/index.html
-          test -d itch-upload/html5/assets
-          find itch-upload/html5 -maxdepth 1 -type f -name '*_bg.wasm' -print -quit | grep -q .
+          for flavor in normal halloween; do
+            if [[ "$RELEASE_FLAVORS" != both && "$RELEASE_FLAVORS" != "$flavor" ]]; then continue; fi
+            suffix=""
+            if [[ "$flavor" == halloween ]]; then suffix="-halloween"; fi
+            root="itch-upload/$flavor"
+            mkdir -p "$root/linux" "$root/windows" "$root/html5"
+            tar -xzf "downloads/$flavor/linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64${suffix}.tar.gz" -C "$root/linux"
+            unzip -q "downloads/$flavor/windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64${suffix}.zip" -d "$root/windows"
+            unzip -q "downloads/$flavor/html5/the-specimen-bevy-${RELEASE_TAG}-html5${suffix}.zip" -d "$root/html5"
+            test -x "$root/linux/the-specimen-bevy"
+            test -f "$root/linux/LICENSE"
+            test -d "$root/linux/assets"
+            test -d "$root/linux/credits"
+            test -f "$root/windows/the-specimen-bevy.exe"
+            test -f "$root/windows/LICENSE"
+            test -d "$root/windows/assets"
+            test -d "$root/windows/credits"
+            test -f "$root/html5/index.html"
+            test -d "$root/html5/assets"
+            find "$root/html5" -maxdepth 1 -type f -name '*_bg.wasm' -print -quit | grep -q .
+          done
           (cd itch-upload && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > ../upload-sha256.txt)
       - name: Install pinned Butler
         shell: bash
@@ -92,8 +110,13 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$BUTLER_API_KEY" || { echo "BUTLER_API_KEY is not configured" >&2; exit 1; }
-          for platform in html5 windows linux; do
-            butler push "itch-upload/$platform" "${ITCH_TARGET}:$platform" --userversion "${RELEASE_TAG#v}"
+          for flavor in normal halloween; do
+            if [[ "$RELEASE_FLAVORS" != both && "$RELEASE_FLAVORS" != "$flavor" ]]; then continue; fi
+            suffix=""
+            if [[ "$flavor" == halloween ]]; then suffix="-halloween"; fi
+            for platform in html5 windows linux; do
+              butler push "itch-upload/$flavor/$platform" "${ITCH_TARGET}:$platform$suffix" --userversion "${RELEASE_TAG#v}$suffix"
+            done
           done
       - name: Store deployment evidence
         if: always()

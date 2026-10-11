@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing vX.Y.Z tag (Normal) or vX.Y.Z-halloween tag (Halloween)
+        description: Existing vX.Y.Z tag for both flavors
         required: true
         type: string
       flavor:
@@ -18,13 +18,18 @@ on:
           - halloween
 permissions:
   contents: read
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 env:
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
   RELEASE_FLAVOR: ${{ inputs.flavor || 'normal' }}
+  FLAVOR_SUFFIX: ${{ (inputs.flavor == 'halloween' && '-halloween') || '' }}
 jobs:
   validate:
-    if: ${{ github.event_name == 'workflow_dispatch' || !endsWith(github.ref_name, '-halloween') }}
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,10 +38,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must have the form vX.Y.Z" >&2; exit 1; }
           if [[ "$RELEASE_FLAVOR" == halloween ]]; then
-            [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-halloween$ ]] || { echo "Halloween releases require a vX.Y.Z-halloween tag" >&2; exit 1; }
-          else
-            [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Normal releases require a vX.Y.Z tag" >&2; exit 1; }
+            gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null || { echo "Publish the normal release before adding Halloween builds" >&2; exit 1; }
           fi
           test "$(git rev-parse HEAD)" = "$(git rev-list -n 1 "refs/tags/$RELEASE_TAG")"
   linux:
@@ -64,11 +68,11 @@ jobs:
           mkdir -p package
           install -m 755 target/release/the-specimen-bevy package/the-specimen-bevy
           cp -r assets credits LICENSE package/
-          tar -czf "the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz" -C package .
+          tar -czf "the-specimen-bevy-${RELEASE_TAG}-linux-x86_64${FLAVOR_SUFFIX}.tar.gz" -C package .
       - uses: actions/upload-artifact@v4
         with:
-          name: the-specimen-bevy-linux-x86_64
-          path: the-specimen-bevy-*-linux-x86_64.tar.gz
+          name: the-specimen-bevy-linux-x86_64${{ env.FLAVOR_SUFFIX }}
+          path: the-specimen-bevy-*-linux-x86_64*.tar.gz
           if-no-files-found: error
   web:
     needs: validate
@@ -92,11 +96,11 @@ jobs:
           test -f dist/index.html
           test -d dist/assets
           find dist -maxdepth 1 -type f -name '*_bg.wasm' -print -quit | grep -q .
-          (cd dist && zip -qr "../the-specimen-bevy-${RELEASE_TAG}-html5.zip" .)
+          (cd dist && zip -qr "../the-specimen-bevy-${RELEASE_TAG}-html5${FLAVOR_SUFFIX}.zip" .)
       - uses: actions/upload-artifact@v4
         with:
-          name: the-specimen-bevy-html5
-          path: the-specimen-bevy-*-html5.zip
+          name: the-specimen-bevy-html5${{ env.FLAVOR_SUFFIX }}
+          path: the-specimen-bevy-*-html5*.zip
           if-no-files-found: error
   windows:
     needs: validate
@@ -122,11 +126,11 @@ jobs:
           Copy-Item -Recurse assets package/assets
           Copy-Item -Recurse credits package/credits
           Copy-Item LICENSE package/
-          Compress-Archive -Path package/* -DestinationPath "the-specimen-bevy-${env:RELEASE_TAG}-windows-x86_64.zip"
+          Compress-Archive -Path package/* -DestinationPath "the-specimen-bevy-${env:RELEASE_TAG}-windows-x86_64${env:FLAVOR_SUFFIX}.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: the-specimen-bevy-windows-x86_64
-          path: the-specimen-bevy-*-windows-x86_64.zip
+          name: the-specimen-bevy-windows-x86_64${{ env.FLAVOR_SUFFIX }}
+          path: the-specimen-bevy-*-windows-x86_64*.zip
           if-no-files-found: error
   publish:
     needs: [linux, web, windows]
@@ -147,12 +151,11 @@ jobs:
           set -euo pipefail
           mkdir -p downloads
           for platform in linux-x86_64 windows-x86_64 html5; do
-            name="the-specimen-bevy-${platform}"
+            name="the-specimen-bevy-${platform}${FLAVOR_SUFFIX}"
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "downloads/$name"
+            case "$platform" in linux-x86_64) extension=tar.gz ;; *) extension=zip ;; esac
+            test -f "downloads/$name/the-specimen-bevy-${RELEASE_TAG}-${platform}${FLAVOR_SUFFIX}.${extension}"
           done
-          test -f "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz"
-          test -f "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip"
-          test -f "downloads/the-specimen-bevy-html5/the-specimen-bevy-${RELEASE_TAG}-html5.zip"
       - name: Prepare release notes from tagged changelog
         shell: bash
         run: |
@@ -160,7 +163,7 @@ jobs:
           import os
           from pathlib import Path
 
-          version = os.environ['RELEASE_TAG'].removeprefix('v').removesuffix('-halloween')
+          version = os.environ['RELEASE_TAG'].removeprefix('v')
           heading = f'## [{version}]'
           notes = []
           recording = False
@@ -174,28 +177,35 @@ jobs:
           content = '\n'.join(notes).strip()
           if not content:
               raise SystemExit(f'Missing release notes for {version} in CHANGELOG.md')
-          if os.environ['RELEASE_FLAVOR'] == 'halloween':
-              content = 'Halloween feature build (Linux, Windows, and HTML5).\n\n' + content
           Path('release-notes.md').write_text(content + '\n')
           PY
-      - name: Create GitHub Release with all three archives
+      - name: Publish flavor archives
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "GitHub Release $RELEASE_TAG already exists; refusing to overwrite it" >&2
-            exit 1
-          fi
-          release_options=()
-          if [[ "$RELEASE_FLAVOR" == halloween ]]; then
-            release_options+=(--prerelease)
-          fi
-          gh release create "$RELEASE_TAG" \
-            "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz" \
-            "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip" \
-            "downloads/the-specimen-bevy-html5/the-specimen-bevy-${RELEASE_TAG}-html5.zip" \
-            --repo "$GITHUB_REPOSITORY" --verify-tag --title "$RELEASE_TAG" --notes-file release-notes.md "${release_options[@]}"
-          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | LC_ALL=C sort > release-assets.txt
+          archives=()
           for platform in linux-x86_64 windows-x86_64 html5; do
-            grep -qx "the-specimen-bevy-${RELEASE_TAG}-${platform}.$([[ "$platform" == linux-x86_64 ]] && echo tar.gz || echo zip)" release-assets.txt
+            case "$platform" in linux-x86_64) extension=tar.gz ;; *) extension=zip ;; esac
+            archives+=("downloads/the-specimen-bevy-${platform}${FLAVOR_SUFFIX}/the-specimen-bevy-${RELEASE_TAG}-${platform}${FLAVOR_SUFFIX}.${extension}")
+          done
+          if [[ "$RELEASE_FLAVOR" == halloween ]]; then
+            gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > existing-assets.txt
+            for archive in "${archives[@]}"; do
+              if grep -Fxq "${archive##*/}" existing-assets.txt; then
+                echo "Asset ${archive##*/} already exists; refusing to overwrite it" >&2
+                exit 1
+              fi
+            done
+            gh release upload "$RELEASE_TAG" "${archives[@]}" --repo "$GITHUB_REPOSITORY"
+          else
+            if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "GitHub Release $RELEASE_TAG already exists; refusing to overwrite it" >&2
+              exit 1
+            fi
+            gh release create "$RELEASE_TAG" "${archives[@]}" \
+              --repo "$GITHUB_REPOSITORY" --verify-tag --title "$RELEASE_TAG" --notes-file release-notes.md
+          fi
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | LC_ALL=C sort > release-assets.txt
+          for archive in "${archives[@]}"; do
+            grep -Fxq "${archive##*/}" release-assets.txt
           done
