@@ -2,9 +2,9 @@ use bevy::{
     asset::AssetPath,
     input::touch::TouchPhase,
     input::{
-        ButtonState, InputPlugin,
         keyboard::{Key, KeyboardInput},
         mouse::{MouseButtonInput, MouseScrollUnit, MouseWheel},
+        ButtonState, InputPlugin,
     },
     platform::collections::HashMap,
     state::app::StatesPlugin,
@@ -13,7 +13,7 @@ use bevy_asset_loader::mapped::{AssetFileStem, MapKey};
 use game_assets::key_glyph_stem;
 
 use super::*;
-use crate::{CoreState, menu::MenuPlugin};
+use crate::{menu::MenuPlugin, CoreState};
 
 fn glyphs(stems: &[&str]) -> (HashMap<AssetFileStem, Handle<Image>>, Vec<Handle<Image>>) {
     let mut map = HashMap::default();
@@ -273,13 +273,12 @@ fn settings_tabs_switch_pages_and_hold_labeled_groups() {
     assert_eq!(chip_text(&mut app, SettingsAction::Forward), "W");
 
     click(&mut app, SettingsAction::Back);
-    assert!(
-        app.world_mut()
-            .query::<&SettingsOverlay>()
-            .iter(app.world())
-            .next()
-            .is_none()
-    );
+    assert!(app
+        .world_mut()
+        .query::<&SettingsOverlay>()
+        .iter(app.world())
+        .next()
+        .is_none());
     click(&mut app, SettingsAction::Open);
     assert_eq!(visible_tabs(&mut app), vec![SettingsTab::Graphics]);
 }

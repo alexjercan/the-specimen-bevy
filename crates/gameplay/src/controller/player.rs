@@ -9,7 +9,9 @@ use crate::levels::{
     Passage, PropCollider, Room,
 };
 use game_audio::{PlaySound, Sound};
-use game_settings::{parse_binding, parse_key, GameSettings, InputBinding, MovementKeys};
+use game_settings::{
+    parse_binding, parse_key, GameSettings, InputBinding, MovementKeys, DEFAULT_SENSITIVITY,
+};
 
 use super::{
     collision, flashlight,
@@ -18,12 +20,24 @@ use super::{
 
 pub const WALK_SPEED: f32 = 3.0;
 pub const RUN_SPEED: f32 = 6.0;
-pub const LOOK_SENSITIVITY: f32 = 0.002;
 pub const PITCH_LIMIT: f32 = 1.54;
 
 #[derive(Component, Default)]
 #[require(Transform, PlayerInput, Stamina, Visibility)]
 pub struct PlayerController;
+
+#[derive(Resource, Clone, Copy, Debug)]
+pub struct PlayerControllerSettings {
+    pub look_sensitivity: f32,
+}
+
+impl Default for PlayerControllerSettings {
+    fn default() -> Self {
+        Self {
+            look_sensitivity: DEFAULT_SENSITIVITY,
+        }
+    }
+}
 
 #[derive(Resource)]
 pub struct PlayerControlsEnabled(pub bool);
@@ -90,6 +104,7 @@ impl Plugin for PlayerControllerPlugin {
         app.register_type::<flashlight::Flashlight>()
             .register_type::<Stamina>()
             .init_resource::<PlayerControlsEnabled>()
+            .init_resource::<PlayerControllerSettings>()
             .init_resource::<LastBindings>()
             .add_message::<PlaySound>()
             .add_message::<SprintExhausted>()
@@ -273,7 +288,7 @@ fn update_cursor(
 pub(crate) fn apply_input(
     time: Res<Time>,
     enabled: Res<PlayerControlsEnabled>,
-    settings: Option<Res<GameSettings>>,
+    settings: Res<PlayerControllerSettings>,
     rooms: Query<(&Room, Option<&Doors>)>,
     links: Query<(&DoorRef, &DoorOf)>,
     doors: Query<(&Door, &DoorSwing)>,
@@ -311,9 +326,7 @@ pub(crate) fn apply_input(
             continue;
         }
         let (yaw, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
-        let sensitivity = settings
-            .as_ref()
-            .map_or(LOOK_SENSITIVITY, |settings| settings.mouse_sensitivity);
+        let sensitivity = settings.look_sensitivity;
         let yaw = yaw - input.look.x * sensitivity;
         let pitch = (pitch - input.look.y * sensitivity).clamp(-PITCH_LIMIT, PITCH_LIMIT);
         transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);

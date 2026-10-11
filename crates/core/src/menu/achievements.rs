@@ -9,7 +9,7 @@ use game_ui::{menu_button, text, theme};
 use gameplay::achievements::{Achievement, AchievementProgress, AchievementUnlocked};
 
 use super::{
-    GameState, MenuAction, PauseState, background, pause::PauseMenu, release_cursor, screen_camera,
+    background, pause::PauseMenu, release_cursor, screen_camera, GameState, MenuAction, PauseState,
 };
 
 const TOAST_SECS: f32 = 4.0;

@@ -654,6 +654,7 @@ fn caught_player_cannot_move_look_or_hide_and_faces_the_full_attack() {
         .insert_resource(PlayerControlsEnabled(true))
         .add_message::<SprintExhausted>()
         .add_message::<game_audio::PlaySound>()
+        .init_resource::<crate::controller::PlayerControllerSettings>()
         .add_systems(Update, apply_input);
     app.world_mut().spawn(Room(Rect::new(-5.0, -5.0, 5.0, 5.0)));
     let spot = app

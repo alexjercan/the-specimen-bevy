@@ -10,8 +10,8 @@ use bevy::{
 use bevy_enhanced_input::EnhancedInputPlugin;
 use game_settings::GameSettings;
 use gameplay::controller::{
-    Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput,
-    RUN_SPEED, WALK_SPEED,
+    Flashlight, PlayerController, PlayerControllerPlugin, PlayerControllerSettings,
+    PlayerControlsEnabled, PlayerInput, RUN_SPEED, WALK_SPEED,
 };
 
 fn app(camera: bool) -> (App, Entity) {
@@ -151,6 +151,25 @@ fn changing_flashlight_binding_replaces_mouse_action() {
         .press(KeyCode::KeyQ);
     app.update();
     assert!(app.world().get::<Flashlight>(player).unwrap().on);
+}
+
+#[test]
+fn mouse_look_uses_controller_settings() {
+    let (mut app, player) = app(false);
+    app.world_mut()
+        .resource_mut::<PlayerControllerSettings>()
+        .look_sensitivity = 0.004;
+    app.world_mut().write_message(MouseMotion {
+        delta: Vec2::new(100.0, 0.0),
+    });
+    app.update();
+    let (yaw, _, _) = app
+        .world()
+        .get::<Transform>(player)
+        .unwrap()
+        .rotation
+        .to_euler(EulerRot::YXZ);
+    assert!((yaw + 0.4).abs() < 0.001);
 }
 
 #[test]

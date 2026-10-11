@@ -9,12 +9,12 @@ use bevy::{
 use game_assets::UiAssets;
 use game_audio::{PlaySound, Sound};
 use game_settings::{
-    DEFAULT_SENSITIVITY, GameSettings, MAX_SENSITIVITY, MIN_SENSITIVITY, SettingsDirty,
-    parse_binding, parse_key,
+    parse_binding, parse_key, GameSettings, SettingsDirty, DEFAULT_SENSITIVITY, MAX_SENSITIVITY,
+    MIN_SENSITIVITY,
 };
-use game_ui::{MenuButton, menu_button, text, theme};
+use game_ui::{menu_button, text, theme, MenuButton};
 
-use super::{GameState, PauseState, main_menu::MainMenu};
+use super::{main_menu::MainMenu, GameState, PauseState};
 
 const GLYPH_SIZE: f32 = 30.0;
 const CHIP_WIDTH: f32 = 230.0;
@@ -511,7 +511,11 @@ fn tab_button(tab: SettingsTab, selected: bool, font: Handle<Font>) -> impl Bund
 }
 
 fn tab_color(selected: bool) -> Color {
-    if selected { theme::TEXT } else { theme::MUTED }
+    if selected {
+        theme::TEXT
+    } else {
+        theme::MUTED
+    }
 }
 
 fn tab_display(selected: bool) -> Display {

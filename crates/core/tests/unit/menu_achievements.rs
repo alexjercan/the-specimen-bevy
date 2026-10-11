@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use bevy::{
     input::{
-        ButtonState, InputPlugin,
         keyboard::{Key, KeyboardInput},
+        ButtonState, InputPlugin,
     },
     state::app::StatesPlugin,
     time::TimeUpdateStrategy,
@@ -11,7 +11,7 @@ use bevy::{
 };
 
 use super::*;
-use crate::{CoreState, menu::MenuPlugin, menu::main_menu::MainMenu};
+use crate::{menu::main_menu::MainMenu, menu::MenuPlugin, CoreState};
 
 fn app() -> App {
     let mut app = App::new();

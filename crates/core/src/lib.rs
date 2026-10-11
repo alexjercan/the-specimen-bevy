@@ -118,6 +118,7 @@ impl AppBuilder {
             ..default()
         };
         app.add_plugins(GameSettingsPlugin { persist: menu })
+            .add_plugins(glue::PlayerControllerSettingsGluePlugin)
             .add_plugins(game_achievements::AchievementStorePlugin { persist: menu });
         if self.headless {
             app.add_plugins(
