@@ -10,6 +10,7 @@ bevy.workspace = true
 bevy_asset_loader.workspace = true
 game_assets.workspace = true
 gameplay.workspace = true
+game_settings.workspace = true
 
 [dev-dependencies]
 serde_json = "1"

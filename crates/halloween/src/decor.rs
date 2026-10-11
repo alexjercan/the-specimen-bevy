@@ -45,7 +45,7 @@ const fn decor(
     }
 }
 
-pub static DECOR: [Decor; 7] = [
+pub static DECOR: [Decor; 20] = [
     decor("steel_drum", -4.4, -23.1, JACK_O_LANTERN, DRUM_SPOT, PI),
     decor(
         "steel_drum",
@@ -92,8 +92,63 @@ pub static DECOR: [Decor; 7] = [
         2.8,
         -2.4,
         JACK_O_LANTERN,
-        Vec3::new(-0.3, CRATE_TOP, 0.1),
+        Vec3::new(-0.15, CRATE_TOP, 0.1),
         PI - 0.5,
+    ),
+    decor(
+        "potted_plant",
+        -5.75,
+        -14.7,
+        JACK_O_LANTERN,
+        Vec3::ZERO,
+        0.4,
+    ),
+    decor(
+        "potted_plant",
+        5.75,
+        -14.8,
+        JACK_O_LANTERN,
+        Vec3::ZERO,
+        -0.2,
+    ),
+    decor("potted_plant", -5.7, -6.9, PUMPKIN_SMALL, Vec3::ZERO, 1.0),
+    decor("potted_plant", 5.75, -6.8, JACK_O_LANTERN, Vec3::ZERO, 0.7),
+    decor("potted_plant", -5.7, 2.8, PUMPKIN_SMALL, Vec3::ZERO, -0.5),
+    decor("potted_plant", 5.7, 2.7, JACK_O_LANTERN, Vec3::ZERO, 0.3),
+    decor(
+        "potted_plant",
+        -5.7,
+        18.25,
+        JACK_O_LANTERN,
+        Vec3::ZERO,
+        -0.4,
+    ),
+    decor("potted_plant", 5.7, 18.25, PUMPKIN_SMALL, Vec3::ZERO, 0.2),
+    decor("steel_drum", 13.2, -9.7, PUMPKIN_SMALL, DRUM_SPOT, 0.3),
+    decor("steel_drum", 12.6, 11.8, JACK_O_LANTERN, DRUM_SPOT, -0.6),
+    decor(
+        "storage_crate",
+        -10.3,
+        -22.9,
+        PUMPKIN_SMALL,
+        Vec3::new(0.0, CRATE_TOP, 0.0),
+        0.2,
+    ),
+    decor(
+        "storage_crate",
+        11.0,
+        6.2,
+        PUMPKIN_SMALL,
+        Vec3::new(0.0, CRATE_TOP, 0.0),
+        -0.3,
+    ),
+    decor(
+        "storage_crate",
+        7.8,
+        15.6,
+        JACK_O_LANTERN,
+        Vec3::new(0.0, CRATE_TOP, 0.0),
+        0.5,
     ),
 ];
 
@@ -104,7 +159,8 @@ pub(crate) struct DecorPlugin;
 
 impl Plugin for DecorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(decorate_prop);
+        app.add_observer(decorate_prop)
+            .add_observer(replace_plant_visual);
     }
 }
 
@@ -145,6 +201,9 @@ fn decorate_prop(
     let Ok((prop, transform)) = props.get(added.entity) else {
         return;
     };
+    if prop.0 == "potted_plant" {
+        return;
+    }
     for decor in decor_for(&prop.0, transform) {
         if let Some(module) = assets.module(decor.module) {
             spawn_decor(
@@ -154,6 +213,42 @@ fn decorate_prop(
                 decor,
                 module.clone(),
             );
+        }
+    }
+}
+
+fn replace_plant_visual(
+    added: On<Add, WorldAssetRoot>,
+    roots: Query<&ChildOf, With<WorldAssetRoot>>,
+    props: Query<(&Prop, &Transform)>,
+    assets: Option<Res<HalloweenAssets>>,
+    mut commands: Commands,
+) {
+    let Some(assets) = assets else {
+        return;
+    };
+    let Ok(parent) = roots.get(added.entity) else {
+        return;
+    };
+    let Ok((prop, transform)) = props.get(parent.parent()) else {
+        return;
+    };
+    if prop.0 != "potted_plant" {
+        return;
+    }
+    if let Some(decor) = decor_for(&prop.0, transform).next() {
+        if let Some(module) = assets.module(decor.module) {
+            commands.entity(added.entity).insert((
+                Name::new(format!("halloween {}", decor.module)),
+                HalloweenDecor,
+                WorldAssetRoot(module.clone()),
+                Transform::from_rotation(
+                    transform.rotation.inverse() * Quat::from_rotation_y(decor.yaw),
+                ),
+            ));
+            if decor.module == JACK_O_LANTERN {
+                commands.entity(added.entity).with_child(candle_light());
+            }
         }
     }
 }

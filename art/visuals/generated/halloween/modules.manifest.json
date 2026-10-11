@@ -58,28 +58,29 @@
       "file": "jack_o_lantern.glb",
       "category": "decoration",
       "snap": "floor",
-      "triangles": 452,
+      "triangles": 426,
       "materials": [
         "pumpkin_skin",
         "pumpkin_stem",
+        "pumpkin_cut",
         "pumpkin_glow"
       ],
       "textured": false,
       "bounds_bevy": {
         "min": [
-          -0.1531,
+          -0.2347,
           0.0,
-          -0.17
+          -0.2589
         ],
         "max": [
-          0.162,
-          0.3,
-          0.1531
+          0.2484,
+          0.415,
+          0.2347
         ]
       },
       "light_anchor_bevy": [
         0.0,
-        0.11,
+        0.17,
         0.0
       ],
       "light_color_linear": [
@@ -87,8 +88,8 @@
         0.65,
         0.15
       ],
-      "glb_sha256": "90e76bc35bb54ea443427200ec2359ca3b3d04e4a073e6826d22d62ec30cc643",
-      "glb_bytes": 28392
+      "glb_sha256": "b926c7c37890917c304a3eafd3cd54938520de2b602c5806250101afc8622042",
+      "glb_bytes": 31136
     },
     "pumpkin_small": {
       "file": "pumpkin_small.glb",
@@ -102,17 +103,17 @@
       "textured": false,
       "bounds_bevy": {
         "min": [
-          -0.108,
+          -0.1458,
           0.0,
-          -0.108
+          -0.1458
         ],
         "max": [
-          0.108,
-          0.19,
-          0.108
+          0.1458,
+          0.26,
+          0.1458
         ]
       },
-      "glb_sha256": "2d57f0fe754e3f33dcc8db34740bec2b06f396a5e5f9d159b29dcabf3ab6a3d5",
+      "glb_sha256": "489454c3df1bc9557db811009fbf4b5f1900ee130febc4897a321c8756902465",
       "glb_bytes": 18056
     }
   }

@@ -64,6 +64,10 @@ fn decorations_rest_on_their_prop_surfaces() {
     let facility = manifest("facility/modules");
     let halloween = manifest("halloween");
     for decor in game_halloween::DECOR {
+        if decor.prop == "potted_plant" {
+            assert_eq!(decor.offset, bevy::prelude::Vec3::ZERO);
+            continue;
+        }
         let prop = &facility["modules"][decor.prop];
         let top = bounds(prop, "max")[1] as f32;
         let module = &halloween["modules"][decor.module];
@@ -78,8 +82,26 @@ fn decorations_rest_on_their_prop_surfaces() {
         let half_width = (bounds(module, "max")[0] - bounds(module, "min")[0]) as f32 / 2.0;
         let prop_min = bounds(prop, "min");
         let prop_max = bounds(prop, "max");
-        assert!(decor.offset.x - half_width >= prop_min[0] as f32 - 0.02);
-        assert!(decor.offset.x + half_width <= prop_max[0] as f32 + 0.02);
-        assert!(decor.offset.z.abs() + half_width <= prop_max[2] as f32 + 0.02);
+        assert!(
+            decor.offset.x - half_width >= prop_min[0] as f32 - 0.02,
+            "{} on {} at {}",
+            decor.module,
+            decor.prop,
+            decor.anchor
+        );
+        assert!(
+            decor.offset.x + half_width <= prop_max[0] as f32 + 0.02,
+            "{} on {} at {}",
+            decor.module,
+            decor.prop,
+            decor.anchor
+        );
+        assert!(
+            decor.offset.z.abs() + half_width <= prop_max[2] as f32 + 0.02,
+            "{} on {} at {}",
+            decor.module,
+            decor.prop,
+            decor.anchor
+        );
     }
 }

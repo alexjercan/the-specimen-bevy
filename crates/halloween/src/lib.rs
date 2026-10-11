@@ -1,6 +1,7 @@
 mod decor;
 mod eyes;
 mod fuse;
+mod tint;
 
 use bevy::{prelude::*, world_serialization::WorldAsset};
 use bevy_asset_loader::prelude::*;
@@ -42,6 +43,11 @@ impl Plugin for HalloweenPlugin {
         app.configure_loading_state(
             LoadingStateConfig::new(GameAssetsState::Loading).load_collection::<HalloweenAssets>(),
         )
-        .add_plugins((MonsterEyesPlugin, fuse::CandyFusePlugin, decor::DecorPlugin));
+        .add_plugins((
+            MonsterEyesPlugin,
+            fuse::CandyFusePlugin,
+            decor::DecorPlugin,
+            tint::TintPlugin,
+        ));
     }
 }

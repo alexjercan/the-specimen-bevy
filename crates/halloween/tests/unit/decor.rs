@@ -37,13 +37,12 @@ fn every_decoration_anchors_to_exactly_one_authored_prop() {
 }
 
 #[test]
-fn decorations_stay_sparse_and_clear_of_pickups() {
+fn decorations_stay_clear_of_pickups() {
     let lit = DECOR
         .iter()
         .filter(|decor| decor.module == JACK_O_LANTERN)
         .count();
-    assert!(lit <= 5);
-    assert!(DECOR.len() <= 8);
+    assert!(lit >= 8);
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
         .add_systems(Startup, build_first_floor);
@@ -84,13 +83,13 @@ fn decorations_spawn_as_visual_children_without_gameplay_components() {
         .query_filtered::<Entity, With<HalloweenDecor>>()
         .iter(world)
         .collect();
-    assert_eq!(placed.len(), DECOR.len() - 1);
+    assert_eq!(placed.len(), DECOR.len() - 9);
     let lights = world
         .query_filtered::<&ChildOf, With<PointLight>>()
         .iter(world)
         .filter(|parent| placed.contains(&parent.parent()))
         .count();
-    assert_eq!(lights, 4);
+    assert_eq!(lights, 6);
     for entity in placed {
         let entity = world.entity(entity);
         assert!(entity.get::<Prop>().is_none());
@@ -98,5 +97,46 @@ fn decorations_spawn_as_visual_children_without_gameplay_components() {
         assert!(entity.get::<PickupKind>().is_none());
         let parent = entity.get::<ChildOf>().expect("decor follows its prop");
         assert!(world.get::<Prop>(parent.parent()).is_some());
+    }
+}
+
+#[test]
+fn plant_visuals_become_pumpkins_without_changing_their_prop_identity() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .insert_resource(HalloweenAssets {
+            candy_fuse: Handle::default(),
+            jack_o_lantern: Handle::default(),
+            pumpkin_small: Handle::default(),
+        })
+        .add_plugins(DecorPlugin)
+        .add_systems(Startup, build_first_floor);
+    app.update();
+    let plants: Vec<Entity> = {
+        let world = app.world_mut();
+        world
+            .query::<(Entity, &Prop)>()
+            .iter(world)
+            .filter(|(_, prop)| prop.0 == "potted_plant")
+            .map(|(entity, _)| entity)
+            .collect()
+    };
+    assert_eq!(plants.len(), 8);
+    for &plant in &plants {
+        app.world_mut()
+            .spawn((WorldAssetRoot(Handle::default()), ChildOf(plant)));
+    }
+    app.update();
+    let world = app.world_mut();
+    assert_eq!(
+        world
+            .query_filtered::<Entity, With<HalloweenDecor>>()
+            .iter(world)
+            .count(),
+        DECOR.len() - 1
+    );
+    for plant in plants {
+        assert_eq!(world.get::<Prop>(plant).unwrap().0, "potted_plant");
+        assert!(world.get::<gameplay::levels::PropCollider>(plant).is_none());
     }
 }

@@ -56,6 +56,7 @@ def make_halloween_materials():
             emission=(1.0, 0.65, 0.15), strength=6.0,
         ),
         "pumpkin_stem": material("pumpkin_stem", (0.3, 0.26, 0.1), roughness=0.75),
+        "pumpkin_cut": material("pumpkin_cut", (0.11, 0.035, 0.015), roughness=0.9),
     }
 
 
@@ -126,24 +127,35 @@ def candy_fuse(palette):
     return b.build()
 
 
-JACKO_RADIUS = 0.15
-JACKO_HALF_HEIGHT = 0.12
+JACKO_RADIUS = 0.23
+JACKO_HALF_HEIGHT = 0.17
 JACKO_RIBS = 9
 JACKO_RIB_AMP = 0.08
-JACKO_STEM_R0 = 0.025
-JACKO_STEM_R1 = 0.012
-JACKO_STEM_H = 0.06
-JACKO_FACE_Y0 = 0.0
-JACKO_FACE_Y1 = 0.17
-JACKO_EYE_R = 0.025
-JACKO_EYE_Z = 0.17
-JACKO_EYE_X = 0.055
-JACKO_MOUTH_Z0 = 0.06
-JACKO_MOUTH_Z1 = 0.1
-JACKO_MOUTH_TOOTH_R = 0.02
-JACKO_MOUTH_X = (-0.08, -0.04, 0.0, 0.04, 0.08)
-JACKO_LIGHT_ANCHOR = (0.0, 0.0, 0.11)
+JACKO_STEM_R0 = 0.032
+JACKO_STEM_R1 = 0.015
+JACKO_STEM_H = 0.075
+JACKO_LIGHT_ANCHOR = (0.0, 0.0, 0.17)
 JACKO_LIGHT_COLOR = (1.0, 0.65, 0.15)
+
+
+def face_patch(b, points, mat, lift=0.023):
+    cx = sum(x for x, _ in points) / len(points)
+    cz = sum(z for _, z in points) / len(points)
+
+    def surface(x, z):
+        theta = math.atan2(1.0, x)
+        rib = 1.0 + JACKO_RIB_AMP * math.cos(JACKO_RIBS * theta)
+        shell = max(0.0, 1.0 - ((z - JACKO_HALF_HEIGHT) / JACKO_HALF_HEIGHT) ** 2)
+        return math.sqrt(max(0.0, (JACKO_RADIUS * rib) ** 2 * shell - x * x)) + lift
+
+    center = b.bm.verts.new((cx, surface(cx, cz), cz))
+    edges = [b.bm.verts.new((x, surface(x, z), z)) for x, z in points]
+    for i, vertex in enumerate(edges):
+        face = b.bm.faces.new((center, edges[(i + 1) % len(edges)], vertex))
+        face.material_index = b.slot(mat)
+        face.normal_update()
+        if face.normal.y < 0:
+            face.normal_flip()
 
 
 def jack_o_lantern(palette):
@@ -155,26 +167,25 @@ def jack_o_lantern(palette):
         JACKO_STEM_R0, JACKO_STEM_R1, "pumpkin_stem", segments=8,
     )
     for s in (-1.0, 1.0):
-        b.cylinder(
-            (s * JACKO_EYE_X, JACKO_FACE_Y0, JACKO_EYE_Z), (s * JACKO_EYE_X, JACKO_FACE_Y1, JACKO_EYE_Z),
-            JACKO_EYE_R, "pumpkin_glow", segments=3,
-        )
-    for i, x in enumerate(JACKO_MOUTH_X):
-        z = JACKO_MOUTH_Z1 if i % 2 == 0 else JACKO_MOUTH_Z0
-        b.cylinder(
-            (x, JACKO_FACE_Y0, z), (x, JACKO_FACE_Y1, z),
-            JACKO_MOUTH_TOOTH_R, "pumpkin_glow", segments=3,
-        )
+        face_patch(b, [(s * 0.035, 0.225), (s * 0.115, 0.235), (s * 0.105, 0.17), (s * 0.067, 0.165)], "pumpkin_cut")
+        face_patch(b, [(s * 0.05, 0.215), (s * 0.103, 0.223), (s * 0.095, 0.178), (s * 0.069, 0.176)], "pumpkin_glow", 0.026)
+        face_patch(b, [(s * 0.008, 0.16), (s * 0.023, 0.14), (s * 0.006, 0.132)], "pumpkin_glow")
+    face_patch(b, [(-0.105, 0.19), (-0.065, 0.17), (0.0, 0.166), (0.065, 0.17), (0.105, 0.19),
+                   (0.09, 0.128), (0.045, 0.121), (0.0, 0.12), (-0.045, 0.121), (-0.09, 0.128)], "pumpkin_cut")
+    for x in (-0.092, -0.046, 0.0, 0.046, 0.092):
+        face_patch(b, [(x - 0.01, 0.163), (x + 0.01, 0.163), (x + 0.008, 0.142), (x - 0.008, 0.142)], "pumpkin_glow", 0.026)
+    for x in (-0.066, 0.066):
+        face_patch(b, [(x - 0.012, 0.129), (x + 0.012, 0.129), (x, 0.148)], "pumpkin_glow", 0.026)
     return b.build()
 
 
-PUMPKIN_SMALL_RADIUS = 0.1
-PUMPKIN_SMALL_HALF_HEIGHT = 0.075
+PUMPKIN_SMALL_RADIUS = 0.135
+PUMPKIN_SMALL_HALF_HEIGHT = 0.105
 PUMPKIN_SMALL_RIBS = 8
 PUMPKIN_SMALL_RIB_AMP = 0.08
-PUMPKIN_SMALL_STEM_R0 = 0.015
-PUMPKIN_SMALL_STEM_R1 = 0.008
-PUMPKIN_SMALL_STEM_H = 0.04
+PUMPKIN_SMALL_STEM_R0 = 0.02
+PUMPKIN_SMALL_STEM_R1 = 0.01
+PUMPKIN_SMALL_STEM_H = 0.05
 
 
 def pumpkin_small(palette):
