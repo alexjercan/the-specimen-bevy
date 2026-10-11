@@ -1,6 +1,6 @@
 # Review the shit out of this thing
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 0
 - TAGS: review
 
