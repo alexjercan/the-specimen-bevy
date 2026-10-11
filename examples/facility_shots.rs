@@ -13,13 +13,17 @@ const SHOTS: &[Shot] = &[
     Shot::overhead("overhead"),
     Shot::eye("exit", [2.5, 1.6, -27.5], [5.0, 1.4, -30.0]),
     Shot::eye("prep", [10.5, 1.6, -7.3], [7.0, 1.1, -7.3]),
+    Shot::eye("prep_shelf", [10.5, 1.6, -7.3], [13.15, 1.0, -6.25]),
     Shot::eye("office", [6.4, 1.6, -19.5], [3.7, 1.1, -19.0]),
+    Shot::eye("security", [10.5, 1.6, -26.0], [13.4, 1.3, -26.25]),
     Shot::eye("storage", [8.0, 1.6, -10.0], [11.0, 1.4, -14.0]),
     Shot::eye("lab", [0.0, 1.6, -2.5], [0.0, 1.4, 1.5]),
+    Shot::eye("east_hall_sign", [5.2, 2.6, 0.0], [3.85, 2.6, 0.0]),
     Shot::eye("boiler", [-10.0, 1.6, -3.5], [-10.0, 1.2, 0.0]),
     Shot::eye("utility", [-8.0, 1.6, -10.8], [-12.5, 0.9, -8.2]),
     Shot::eye("utility_bins", [-8.0, 1.6, -10.0], [-9.5, 1.2, -7.0]),
     Shot::eye("maintenance", [-7.0, 1.6, -19.0], [-12.4, 1.1, -18.0]),
+    Shot::eye("maintenance_table", [-9.0, 1.65, -20.8], [-7.5, 0.8, -22.9]),
     Shot::eye(
         "maintenance_claw",
         [-11.1, 2.15, -23.1],
@@ -235,7 +239,15 @@ mod tests {
                     rooms.iter().any(|(name, room)| (name == shot.name
                         || matches!(
                             shot.name.strip_prefix(name.as_str()),
-                            Some("_bins" | "_claw" | "_drum" | "_crate")
+                            Some(
+                                "_bins"
+                                    | "_claw"
+                                    | "_drum"
+                                    | "_crate"
+                                    | "_sign"
+                                    | "_table"
+                                    | "_shelf"
+                            )
                         ))
                         && room.contains(position.xz())),
                     "{}",

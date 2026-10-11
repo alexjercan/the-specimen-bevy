@@ -343,11 +343,12 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         CONCEPT_LOCKER,
         Transform::from_xyz(-13.35, 0.0, -18.75).with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
     ));
-    commands.spawn(prop(
-        CONCEPT_TABLE,
+    spawn_composition(
+        commands,
         CONCEPT_TABLE,
         Transform::from_xyz(-7.5, 0.0, -22.9).with_rotation(Quat::from_rotation_y(PI)),
-    ));
+        &[("toolbox", Transform::from_xyz(-0.5, 0.8, 0.0))],
+    );
     commands.spawn(prop(
         "shelf_unit_low",
         "shelf_unit_low",
@@ -399,11 +400,12 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
         "storage_crate",
         Transform::from_xyz(7.4, 0.0, -29.8).with_rotation(Quat::from_rotation_y(PI)),
     ));
-    commands.spawn(prop(
-        CONCEPT_TABLE,
+    spawn_composition(
+        commands,
         CONCEPT_TABLE,
         Transform::from_xyz(6.8, 0.0, -25.7).with_rotation(Quat::from_rotation_y(PI)),
-    ));
+        &[("toolbox", Transform::from_xyz(-0.5, 0.8, 0.0))],
+    );
     commands.spawn(prop(
         "shelf_unit_alt",
         "shelf_unit_alt",
@@ -719,6 +721,15 @@ pub(super) fn spawn_dressing(commands: &mut Commands) {
             Transform::from_xyz(x, y, z)
                 .with_rotation(Quat::from_rotation_y(yaw))
                 .with_scale(Vec3::splat(0.5)),
+        ));
+    }
+    for (x, z, yaw) in [(-12.4, -11.5, 0.3), (12.3, -4.2, -0.4)] {
+        commands.spawn(prop(
+            "clutter_tools",
+            "clutter_tools",
+            Transform::from_xyz(x, 0.0, z)
+                .with_rotation(Quat::from_rotation_y(yaw))
+                .with_scale(Vec3::splat(0.6)),
         ));
     }
     for (x, y, z, yaw, scale) in [(7.0, 0.9, -7.12, 0.0, 0.65), (13.0, 0.9, -0.37, 0.0, 0.7)] {

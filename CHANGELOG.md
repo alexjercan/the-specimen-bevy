@@ -16,11 +16,14 @@
 - Add composed, nonblocking tabletop and floor decorations, hallway plants, larger walk-through tipped chairs, filled shelf bins, an open crate, and an open-drawer file cabinet. Give every crawl vent either a bolted cover or a nearby floor grille.
 - Add an orbiting prop gallery with furniture, pickups, devices, wall and doorway variants, boiler-room pipes and tool panels. Fix the lab console's upright panel and boiler valve face flicker.
 - Replace the old facility gallery, layout, and probe examples with `facility_shots`, which captures top-down, overhead, and room views of the current dressed floor under `target/facility-shots/`.
+- Add two walk-through floor tool piles and stock two more tables with toolboxes, keeping props fixed across runs.
 
 ### Halloween theme (opt-in)
 
 - Add the `halloween` Cargo feature. It adds sparse lit jack-o'-lanterns and small pumpkins on facility and main menu props, a candy-striped fuse model with the same blade terminals, and glowing orange monster eyes. Gameplay, collision, and monster behavior are unchanged, and builds without the feature look the same as before.
 - Add `halloween_gallery`, an orbiting gallery of the Halloween models, placements, and monster eyes. `prop_gallery` now shares its gallery code.
+- Dim facility lights only in Halloween builds and add more jack-o'-lanterns. Uncarved pumpkins match the lantern body size without a glowing face or light. Remove the artificial fog/ambient color tint; normal builds retain their lighting.
+- Add jars, candles, and lanterns to tables, crates, and safe floor corners. Dress every room label with spider-web trim and a spider without covering its text.
 
 ### Gameplay and debug tools
 

@@ -361,7 +361,21 @@ fn first_floor_props_and_lights_are_linked() {
     assert_eq!(actual.get("shelf_unit_alt"), Some(&4));
     assert_eq!(actual.get("storage_crate_open"), Some(&1));
     assert_eq!(actual.get("shelf_bin_contents"), Some(&6));
-    assert_eq!(actual.get("toolbox"), Some(&1));
+    assert_eq!(actual.get("toolbox"), Some(&3));
+    for (x, z) in [(-12.4, -11.5), (12.3, -4.2)] {
+        let tools = world
+            .query::<(Entity, &Prop, &Transform)>()
+            .iter(world)
+            .find(|(_, prop, transform)| {
+                prop.0 == "clutter_tools" && transform.translation.xz() == Vec2::new(x, z)
+            })
+            .map(|(entity, _, transform)| (entity, *transform))
+            .expect("floor tools near a wall");
+        assert_eq!(tools.1.scale, Vec3::splat(0.6));
+        assert!(world
+            .get::<gameplay::levels::PropCollider>(tools.0)
+            .is_none());
+    }
     let mut attached = world.query::<(&Prop, &ChildOf)>();
     for (decoration, expected) in [
         ("toolbox", "concept_table"),
@@ -376,8 +390,25 @@ fn first_floor_props_and_lights_are_linked() {
                         .is_some_and(|base| base.0 == expected)
             })
             .count();
-        assert_eq!(count, if decoration == "toolbox" { 1 } else { 6 });
+        assert_eq!(count, if decoration == "toolbox" { 3 } else { 6 });
     }
+
+    let toolbox_tables: Vec<Vec2> = world
+        .query::<(&Prop, &Transform, &ChildOf)>()
+        .iter(world)
+        .filter(|(prop, local, _)| {
+            prop.0 == "toolbox" && local.translation == Vec3::new(-0.5, 0.8, 0.0)
+        })
+        .map(|(_, _, parent)| {
+            world
+                .get::<Transform>(parent.parent())
+                .unwrap()
+                .translation
+                .xz()
+        })
+        .collect();
+    assert!(toolbox_tables.contains(&Vec2::new(-7.5, -22.9)));
+    assert!(toolbox_tables.contains(&Vec2::new(6.8, -25.7)));
 
     let mut vent_parts = world.query::<(&Prop, &Transform, &ChildOf)>();
     let grille_locations: Vec<_> = vent_parts

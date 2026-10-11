@@ -60,16 +60,65 @@ fn candy_fuse_fits_inside_the_base_fuse_outline() {
 }
 
 #[test]
+fn small_pumpkin_is_unlit_and_light_sources_are_explicit() {
+    let halloween = manifest("halloween");
+    let small = &halloween["modules"]["pumpkin_small"];
+    let jack = &halloween["modules"]["jack_o_lantern"];
+    for edge in ["min", "max"] {
+        let small_bounds = bounds(small, edge);
+        let jack_bounds = bounds(jack, edge);
+        for axis in [0, 1] {
+            assert!(
+                (small_bounds[axis] - jack_bounds[axis]).abs() < 1e-4,
+                "pumpkins differ in {edge} axis {axis}"
+            );
+        }
+        assert!(
+            (small_bounds[2] - jack_bounds[2]).abs() < 0.03,
+            "only the jack-o'-lantern face may protrude beyond the body"
+        );
+    }
+    assert!(small.get("light_anchor_bevy").is_none());
+    let materials = small["materials"].as_array().unwrap();
+    assert!(!materials.iter().any(|material| material == "pumpkin_ember"));
+    for name in ["jack_o_lantern", "lantern", "candle_cluster"] {
+        assert!(
+            halloween["modules"][name]["light_anchor_bevy"].is_array(),
+            "{name}"
+        );
+    }
+}
+
+#[test]
 fn decorations_rest_on_their_prop_surfaces() {
     let facility = manifest("facility/modules");
     let halloween = manifest("halloween");
     for decor in game_halloween::DECOR {
+        if decor.prop == "ceiling_light_amber" {
+            assert_eq!(decor.anchor, bevy::prelude::Vec2::new(0.0, -2.5));
+            assert!(decor.offset.y >= 1.8 && decor.offset.y <= 2.2);
+            continue;
+        }
         if decor.prop == "potted_plant" {
             assert_eq!(decor.offset, bevy::prelude::Vec3::ZERO);
             continue;
         }
+        if decor.prop == "clutter_tools" {
+            assert_eq!(decor.offset.y, 0.0);
+            assert!(decor.offset.x.abs() >= 0.8);
+            continue;
+        }
         let prop = &facility["modules"][decor.prop];
-        let top = bounds(prop, "max")[1] as f32;
+        if prop["snap"] == "wall_mount" {
+            assert!(decor.offset.y.abs() <= 0.17);
+            assert!(decor.offset.z <= 0.0);
+            continue;
+        }
+        let top = if decor.prop == "workbench" {
+            0.9
+        } else {
+            bounds(prop, "max")[1] as f32
+        };
         let module = &halloween["modules"][decor.module];
         let base = bounds(module, "min")[1] as f32;
         assert!(base.abs() < 1e-3, "{} base", decor.module);

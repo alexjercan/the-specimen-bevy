@@ -10,6 +10,12 @@ use crate::HalloweenAssets;
 
 pub const JACK_O_LANTERN: &str = "jack_o_lantern";
 pub const PUMPKIN_SMALL: &str = "pumpkin_small";
+pub const SPECIMEN_JAR: &str = "specimen_jar";
+pub const LANTERN: &str = "lantern";
+pub const CANDLE_CLUSTER: &str = "candle_cluster";
+pub const SPIDER_WEB: &str = "spider_web";
+pub const SPIDER: &str = "spider";
+pub const SIGN_TRIM: &str = "sign_trim";
 
 const DRUM_SPOT: Vec3 = Vec3::new(-0.06, 0.89, 0.0);
 const CRATE_TOP: f32 = 0.7;
@@ -45,7 +51,7 @@ const fn decor(
     }
 }
 
-pub static DECOR: [Decor; 20] = [
+pub static DECOR: [Decor; 49] = [
     decor("steel_drum", -4.4, -23.1, JACK_O_LANTERN, DRUM_SPOT, PI),
     decor(
         "steel_drum",
@@ -82,7 +88,7 @@ pub static DECOR: [Decor; 20] = [
     decor(
         "storage_crate",
         12.8,
-        18.2,
+        18.1,
         PUMPKIN_SMALL,
         Vec3::new(-0.2, CRATE_TOP, 0.0),
         -0.6,
@@ -125,6 +131,30 @@ pub static DECOR: [Decor; 20] = [
     ),
     decor("potted_plant", 5.7, 18.25, PUMPKIN_SMALL, Vec3::ZERO, 0.2),
     decor("steel_drum", 13.2, -9.7, PUMPKIN_SMALL, DRUM_SPOT, 0.3),
+    decor(
+        "storage_crate",
+        2.5,
+        -26.25,
+        JACK_O_LANTERN,
+        Vec3::new(0.0, CRATE_TOP, 0.0),
+        PI,
+    ),
+    decor(
+        "storage_crate",
+        12.5,
+        -30.0,
+        JACK_O_LANTERN,
+        Vec3::new(0.0, CRATE_TOP, 0.0),
+        PI,
+    ),
+    decor(
+        "storage_crate",
+        12.0,
+        -8.0,
+        JACK_O_LANTERN,
+        Vec3::new(0.0, CRATE_TOP, 0.0),
+        PI,
+    ),
     decor("steel_drum", 12.6, 11.8, JACK_O_LANTERN, DRUM_SPOT, -0.6),
     decor(
         "storage_crate",
@@ -150,33 +180,278 @@ pub static DECOR: [Decor; 20] = [
         Vec3::new(0.0, CRATE_TOP, 0.0),
         0.5,
     ),
+    decor(
+        "concept_table",
+        -1.5,
+        12.5,
+        SPECIMEN_JAR,
+        Vec3::new(-0.4, 0.8, 0.0),
+        0.3,
+    ),
+    decor(
+        "concept_table",
+        9.0,
+        0.0,
+        SPECIMEN_JAR,
+        Vec3::new(-0.45, 0.8, 0.0),
+        -0.2,
+    ),
+    decor(
+        "storage_crate",
+        -7.0,
+        4.4,
+        LANTERN,
+        Vec3::new(0.0, CRATE_TOP, 0.0),
+        0.0,
+    ),
+    decor(
+        "storage_crate",
+        -7.4,
+        2.6,
+        LANTERN,
+        Vec3::new(0.0, CRATE_TOP, 0.0),
+        0.0,
+    ),
+    decor(
+        "concept_table",
+        -7.5,
+        13.75,
+        CANDLE_CLUSTER,
+        Vec3::new(-0.35, 0.8, 0.0),
+        0.0,
+    ),
+    decor(
+        "workbench",
+        2.2,
+        -4.6,
+        CANDLE_CLUSTER,
+        Vec3::new(-0.35, 0.9, 0.0),
+        0.0,
+    ),
+    decor(
+        "workbench",
+        2.2,
+        -4.6,
+        SPECIMEN_JAR,
+        Vec3::new(0.3, 0.9, 0.0),
+        0.0,
+    ),
+    decor(
+        "ceiling_light_amber",
+        0.0,
+        -2.5,
+        LANTERN,
+        Vec3::new(0.0, 1.9, -1.8),
+        0.0,
+    ),
+    decor(
+        "concept_table",
+        -2.5,
+        -10.0,
+        SPECIMEN_JAR,
+        Vec3::new(0.5, 0.8, 0.0),
+        0.2,
+    ),
+    decor(
+        "concept_table",
+        -7.5,
+        -22.9,
+        LANTERN,
+        Vec3::new(0.5, 0.8, 0.0),
+        0.0,
+    ),
+    decor(
+        "concept_table",
+        6.8,
+        -25.7,
+        CANDLE_CLUSTER,
+        Vec3::new(0.5, 0.8, 0.0),
+        0.0,
+    ),
+    decor(
+        "concept_table",
+        9.0,
+        0.0,
+        CANDLE_CLUSTER,
+        Vec3::new(0.5, 0.8, 0.0),
+        0.0,
+    ),
+    decor(
+        "concept_table",
+        -1.5,
+        12.5,
+        LANTERN,
+        Vec3::new(0.5, 0.8, 0.0),
+        0.0,
+    ),
+    decor(
+        "clutter_tools",
+        -12.4,
+        -11.5,
+        LANTERN,
+        Vec3::new(0.85, 0.0, 0.0),
+        0.0,
+    ),
+    decor(
+        "clutter_tools",
+        12.3,
+        -4.2,
+        CANDLE_CLUSTER,
+        Vec3::new(-0.85, 0.0, 0.0),
+        0.0,
+    ),
+    decor(
+        "concept_table",
+        3.75,
+        -18.75,
+        SPECIMEN_JAR,
+        Vec3::new(-0.42, 0.8, 0.1),
+        0.0,
+    ),
+    decor(
+        "shelf_unit",
+        13.35,
+        -18.75,
+        SPECIMEN_JAR,
+        Vec3::new(0.0, 2.005, 0.0),
+        0.0,
+    ),
+    decor(
+        "shelf_unit_bins",
+        8.1,
+        -17.5,
+        SPECIMEN_JAR,
+        Vec3::new(-0.35, 2.005, 0.0),
+        0.0,
+    ),
+    decor(
+        "file_cabinet_open",
+        13.4,
+        -26.25,
+        SPECIMEN_JAR,
+        Vec3::new(-0.18, 1.32, 0.0),
+        0.0,
+    ),
+    decor(
+        "shelf_unit_low",
+        8.3,
+        -23.5,
+        LANTERN,
+        Vec3::new(0.35, 1.005, 0.0),
+        0.0,
+    ),
+    decor(
+        "shelf_unit_alt",
+        10.75,
+        -12.5,
+        SPECIMEN_JAR,
+        Vec3::new(-0.35, 2.005, 0.0),
+        0.0,
+    ),
+    decor(
+        "shelf_unit_bins",
+        10.75,
+        -14.8,
+        LANTERN,
+        Vec3::new(0.0, 2.005, 0.0),
+        0.0,
+    ),
+    decor(
+        "shelf_unit_low",
+        13.15,
+        -6.25,
+        CANDLE_CLUSTER,
+        Vec3::new(0.0, 1.005, 0.0),
+        0.0,
+    ),
+    decor(
+        "shelf_unit_low",
+        13.15,
+        -6.25,
+        SPECIMEN_JAR,
+        Vec3::new(-0.36, 1.005, 0.0),
+        0.0,
+    ),
+    decor(
+        "shelf_unit_low",
+        13.15,
+        -6.25,
+        LANTERN,
+        Vec3::new(0.36, 1.005, 0.0),
+        0.0,
+    ),
+    decor(
+        "file_cabinet_open",
+        13.4,
+        -26.25,
+        LANTERN,
+        Vec3::new(0.18, 1.32, 0.0),
+        0.0,
+    ),
 ];
+
+const SIGN_TRIM_DECOR: Decor = decor("", 0.0, 0.0, SIGN_TRIM, Vec3::ZERO, 0.0);
+const SIGN_WEB_DECOR: [Decor; 2] = [
+    decor("", 0.0, 0.0, SPIDER_WEB, Vec3::new(0.48, 0.02, -0.06), 0.0),
+    decor("", 0.0, 0.0, SPIDER, Vec3::new(0.48, 0.01, -0.065), 0.0),
+];
+
+fn webbed_sign(prop: &str, transform: &Transform) -> bool {
+    transform.translation.y > 2.5
+        && matches!(
+            prop,
+            "sign_label_boiler_room" | "sign_label_lab" | "sign_label_security" | "sign_label_prep"
+        )
+}
 
 #[derive(Component)]
 pub struct HalloweenDecor;
+
+#[derive(Component)]
+struct MenuLanternCable;
 
 pub(crate) struct DecorPlugin;
 
 impl Plugin for DecorPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(decorate_prop)
-            .add_observer(replace_plant_visual);
+            .add_observer(replace_plant_visual)
+            .add_systems(
+                Update,
+                (
+                    decorate_preloaded_props.run_if(resource_added::<HalloweenAssets>),
+                    add_menu_lantern_cable,
+                ),
+            );
     }
 }
 
 pub fn candle_light() -> impl Bundle {
+    pumpkin_light(JACK_O_LANTERN)
+}
+
+fn pumpkin_light(module: &str) -> impl Bundle {
+    let (height, intensity) = match module {
+        LANTERN => (0.18, 2_300.0),
+        CANDLE_CLUSTER => (0.21, 1_900.0),
+        _ => (CANDLE_HEIGHT, CANDLE_INTENSITY),
+    };
     (
         Name::new("halloween candle"),
         PointLight {
             color: CANDLE_COLOR,
-            intensity: CANDLE_INTENSITY,
+            intensity,
             range: CANDLE_RANGE,
             radius: 0.04,
             shadow_maps_enabled: false,
             ..default()
         },
-        Transform::from_xyz(0.0, CANDLE_HEIGHT, 0.0),
+        Transform::from_xyz(0.0, height, 0.0),
     )
+}
+
+fn has_light(module: &str) -> bool {
+    matches!(module, JACK_O_LANTERN | LANTERN | CANDLE_CLUSTER)
 }
 
 pub(crate) fn decor_for<'a>(
@@ -187,6 +462,23 @@ pub(crate) fn decor_for<'a>(
     DECOR
         .iter()
         .filter(move |decor| decor.prop == prop && decor.anchor.distance(at) <= ANCHOR_TOLERANCE)
+}
+
+fn decorate_preloaded_props(
+    props: Query<(Entity, &Prop, &Transform, Option<&Children>)>,
+    decorated: Query<(), With<HalloweenDecor>>,
+    assets: Res<HalloweenAssets>,
+    mut commands: Commands,
+) {
+    for (entity, prop, transform, children) in &props {
+        if prop.0 == "potted_plant"
+            || children
+                .is_some_and(|children| children.iter().any(|child| decorated.contains(child)))
+        {
+            continue;
+        }
+        spawn_prop_decor(&mut commands, entity, prop, transform, &assets);
+    }
 }
 
 fn decorate_prop(
@@ -204,15 +496,37 @@ fn decorate_prop(
     if prop.0 == "potted_plant" {
         return;
     }
+    spawn_prop_decor(&mut commands, added.entity, prop, transform, &assets);
+}
+
+fn spawn_prop_decor(
+    commands: &mut Commands,
+    entity: Entity,
+    prop: &Prop,
+    transform: &Transform,
+    assets: &HalloweenAssets,
+) {
     for decor in decor_for(&prop.0, transform) {
         if let Some(module) = assets.module(decor.module) {
+            spawn_decor(commands, entity, transform.rotation, decor, module.clone());
+        }
+    }
+    if prop.0.starts_with("sign_label_") {
+        if let Some(module) = assets.module(SIGN_TRIM) {
             spawn_decor(
-                &mut commands,
-                added.entity,
+                commands,
+                entity,
                 transform.rotation,
-                decor,
+                &SIGN_TRIM_DECOR,
                 module.clone(),
             );
+        }
+        if webbed_sign(&prop.0, transform) {
+            for decor in &SIGN_WEB_DECOR {
+                if let Some(module) = assets.module(decor.module) {
+                    spawn_decor(commands, entity, transform.rotation, decor, module.clone());
+                }
+            }
         }
     }
 }
@@ -246,10 +560,35 @@ fn replace_plant_visual(
                     transform.rotation.inverse() * Quat::from_rotation_y(decor.yaw),
                 ),
             ));
-            if decor.module == JACK_O_LANTERN {
-                commands.entity(added.entity).with_child(candle_light());
+            if has_light(decor.module) {
+                commands
+                    .entity(added.entity)
+                    .with_child(pumpkin_light(decor.module));
             }
         }
+    }
+}
+
+fn add_menu_lantern_cable(
+    lanterns: Query<Entity, Added<MenuLanternCable>>,
+    meshes: Option<ResMut<Assets<Mesh>>>,
+    materials: Option<ResMut<Assets<StandardMaterial>>>,
+    mut commands: Commands,
+) {
+    let (Some(mut meshes), Some(mut materials)) = (meshes, materials) else {
+        return;
+    };
+    for lantern in &lanterns {
+        commands.entity(lantern).with_child((
+            Name::new("halloween lantern suspension"),
+            Mesh3d(meshes.add(Cylinder::new(0.008, 0.66))),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::srgb(0.12, 0.1, 0.08),
+                metallic: 0.8,
+                ..default()
+            })),
+            Transform::from_xyz(0.0, 0.665, 0.0),
+        ));
     }
 }
 
@@ -263,14 +602,22 @@ pub fn spawn_decor(
     let mut placed = commands.spawn((
         Name::new(format!("halloween {}", decor.module)),
         HalloweenDecor,
-        Transform::from_translation(decor.offset)
-            .with_rotation(prop_rotation.inverse() * Quat::from_rotation_y(decor.yaw)),
+        Transform::from_translation(decor.offset).with_rotation(
+            if decor.module == SIGN_TRIM || decor.module == SPIDER_WEB || decor.module == SPIDER {
+                Quat::IDENTITY
+            } else {
+                prop_rotation.inverse() * Quat::from_rotation_y(decor.yaw)
+            },
+        ),
         Visibility::default(),
         ChildOf(prop),
     ));
+    if decor.prop == "ceiling_light_amber" {
+        placed.insert(MenuLanternCable);
+    }
     placed.with_child((WorldAssetRoot(module), Transform::IDENTITY));
-    if decor.module == JACK_O_LANTERN {
-        placed.with_child(candle_light());
+    if has_light(decor.module) {
+        placed.with_child(pumpkin_light(decor.module));
     }
 }
 

@@ -55,8 +55,20 @@ def make_halloween_materials():
             "pumpkin_glow", (1.0, 0.75, 0.25), roughness=0.4,
             emission=(1.0, 0.65, 0.15), strength=6.0,
         ),
+        "pumpkin_ember": material(
+            "pumpkin_ember", (0.85, 0.25, 0.03), roughness=0.5,
+            emission=(1.0, 0.22, 0.01), strength=2.0,
+        ),
         "pumpkin_stem": material("pumpkin_stem", (0.3, 0.26, 0.1), roughness=0.75),
         "pumpkin_cut": material("pumpkin_cut", (0.11, 0.035, 0.015), roughness=0.9),
+        "jar_glass": material("jar_glass", (0.18, 0.36, 0.38), roughness=0.25, metallic=0.15, alpha=0.3),
+        "jar_sample": material("jar_sample", (0.46, 0.28, 0.14), roughness=0.75),
+        "lantern_glass": material("lantern_glass", (0.62, 0.24, 0.035), roughness=0.3,
+                                  emission=(1.0, 0.27, 0.015), strength=2.0),
+        "wax": material("wax", (0.87, 0.73, 0.55), roughness=0.9),
+        "flame": material("flame", (1.0, 0.7, 0.12), roughness=0.3,
+                          emission=(1.0, 0.48, 0.06), strength=5.0),
+        "web_silk": material("web_silk", (0.64, 0.66, 0.59), roughness=0.9),
     }
 
 
@@ -138,15 +150,16 @@ JACKO_LIGHT_ANCHOR = (0.0, 0.0, 0.17)
 JACKO_LIGHT_COLOR = (1.0, 0.65, 0.15)
 
 
-def face_patch(b, points, mat, lift=0.023):
+def face_patch(b, points, mat, lift=0.023, radius=JACKO_RADIUS, half_height=JACKO_HALF_HEIGHT,
+               ribs=JACKO_RIBS, rib_amp=JACKO_RIB_AMP):
     cx = sum(x for x, _ in points) / len(points)
     cz = sum(z for _, z in points) / len(points)
 
     def surface(x, z):
         theta = math.atan2(1.0, x)
-        rib = 1.0 + JACKO_RIB_AMP * math.cos(JACKO_RIBS * theta)
-        shell = max(0.0, 1.0 - ((z - JACKO_HALF_HEIGHT) / JACKO_HALF_HEIGHT) ** 2)
-        return math.sqrt(max(0.0, (JACKO_RADIUS * rib) ** 2 * shell - x * x)) + lift
+        rib = 1.0 + rib_amp * math.cos(ribs * theta)
+        shell = max(0.0, 1.0 - ((z - half_height) / half_height) ** 2)
+        return math.sqrt(max(0.0, (radius * rib) ** 2 * shell - x * x)) + lift
 
     center = b.bm.verts.new((cx, surface(cx, cz), cz))
     edges = [b.bm.verts.new((x, surface(x, z), z)) for x, z in points]
@@ -179,13 +192,13 @@ def jack_o_lantern(palette):
     return b.build()
 
 
-PUMPKIN_SMALL_RADIUS = 0.135
-PUMPKIN_SMALL_HALF_HEIGHT = 0.105
-PUMPKIN_SMALL_RIBS = 8
-PUMPKIN_SMALL_RIB_AMP = 0.08
-PUMPKIN_SMALL_STEM_R0 = 0.02
-PUMPKIN_SMALL_STEM_R1 = 0.01
-PUMPKIN_SMALL_STEM_H = 0.05
+PUMPKIN_SMALL_RADIUS = JACKO_RADIUS
+PUMPKIN_SMALL_HALF_HEIGHT = JACKO_HALF_HEIGHT
+PUMPKIN_SMALL_RIBS = JACKO_RIBS
+PUMPKIN_SMALL_RIB_AMP = JACKO_RIB_AMP
+PUMPKIN_SMALL_STEM_R0 = JACKO_STEM_R0
+PUMPKIN_SMALL_STEM_R1 = JACKO_STEM_R1
+PUMPKIN_SMALL_STEM_H = JACKO_STEM_H
 
 
 def pumpkin_small(palette):
@@ -202,16 +215,98 @@ def pumpkin_small(palette):
     return b.build()
 
 
+def specimen_jar(palette):
+    b = Builder("specimen_jar", palette)
+    b.cylinder((0, 0, 0), (0, 0, 0.018), 0.09, "steel_dark", segments=16)
+    b.cylinder((0, 0, 0.018), (0, 0, 0.28), 0.075, "jar_glass", segments=16)
+    b.cylinder((0, 0, 0.28), (0, 0, 0.303), 0.083, "conduit", segments=16)
+    frustum(b, (-0.015, 0, 0.08), (0.025, 0, 0.205), 0.03, 0.014, "jar_sample")
+    return b.build()
+
+
+def lantern(palette):
+    b = Builder("lantern", palette)
+    b.box((-0.11, -0.11, 0), (0.11, 0.11, 0.025), "steel_dark", bevel=0.01)
+    b.box((-0.085, -0.085, 0.035), (0.085, 0.085, 0.27), "lantern_glass")
+    for x in (-0.095, 0.095):
+        for y in (-0.095, 0.095):
+            b.box((x - 0.01, y - 0.01, 0.025), (x + 0.01, y + 0.01, 0.3), "conduit")
+    b.box((-0.12, -0.12, 0.27), (0.12, 0.12, 0.31), "steel_dark", bevel=0.01)
+    b.box((-0.04, -0.015, 0.31), (0.04, 0.015, 0.36), "conduit")
+    b.cylinder((0, 0, 0.035), (0, 0, 0.16), 0.025, "wax", segments=12)
+    frustum(b, (0, 0, 0.16), (0, 0, 0.22), 0.019, 0.002, "flame", segments=12)
+    return b.build()
+
+
+def candle_cluster(palette):
+    b = Builder("candle_cluster", palette)
+    b.box((-0.18, -0.12, 0), (0.18, 0.12, 0.015), "steel_dark", bevel=0.01)
+    for x, y, h in ((-0.095, 0.01, 0.19), (0.0, -0.035, 0.27), (0.105, 0.025, 0.14)):
+        b.cylinder((x, y, 0.015), (x, y, h), 0.03, "wax", segments=12)
+        frustum(b, (x, y, h), (x, y, h + 0.055), 0.017, 0.002, "flame", segments=12)
+    return b.build()
+
+
+def spider_web(palette):
+    b = Builder("spider_web", palette)
+    for radius in (0.11, 0.2, 0.29):
+        pts = [(radius * math.cos(i * math.pi / 4), 0.024, radius * math.sin(i * math.pi / 4)) for i in range(5)]
+        for a, c in zip(pts, pts[1:]):
+            frustum(b, a, c, 0.003, 0.003, "web_silk", segments=6)
+    for i in range(5):
+        angle = i * math.pi / 4
+        frustum(b, (0, 0.024, 0), (0.29 * math.cos(angle), 0.024, 0.29 * math.sin(angle)),
+                0.003, 0.003, "web_silk", segments=6)
+    return b.build()
+
+
+def spider(palette):
+    b = Builder("spider", palette)
+    b.cylinder((0, 0.025, 0.0), (0, 0.025, 0.035), 0.035, "steel_dark", segments=12)
+    b.cylinder((0, 0.025, 0.036), (0, 0.025, 0.06), 0.021, "steel_dark", segments=12)
+    for s in (-1, 1):
+        for n in range(4):
+            z = 0.013 + n * 0.012
+            frustum(b, (s * 0.02, 0.025, z), (s * 0.065, 0.032, z + (n - 1.5) * 0.026),
+                    0.004, 0.003, "steel_dark", segments=6)
+            frustum(b, (s * 0.065, 0.032, z + (n - 1.5) * 0.026),
+                    (s * 0.095, 0.008, z + (n - 1.5) * 0.038),
+                    0.003, 0.001, "steel_dark", segments=6)
+    bmesh.ops.translate(b.bm, verts=list(b.bm.verts), vec=(0, 0.025, 0))
+    return b.build()
+
+
+def sign_trim(palette):
+    b = Builder("sign_trim", palette)
+    for x in (-0.63, 0.63):
+        b.box((x - 0.012, 0.035, -0.12), (x + 0.012, 0.052, 0.12), "pumpkin_skin")
+    for z in (-0.115, 0.115):
+        b.box((-0.64, 0.035, z - 0.009), (0.64, 0.052, z + 0.009), "pumpkin_skin")
+    return b.build()
+
+
 HALLOWEEN_KIT = {
     "candy_fuse": ("prop", "floor", None, None),
     "jack_o_lantern": ("decoration", "floor", (JACKO_LIGHT_ANCHOR, JACKO_LIGHT_COLOR), None),
     "pumpkin_small": ("decoration", "floor", None, None),
+    "specimen_jar": ("decoration", "surface", None, None),
+    "lantern": ("decoration", "surface", ((0, 0, 0.18), JACKO_LIGHT_COLOR), None),
+    "candle_cluster": ("decoration", "surface", ((0, 0, 0.21), JACKO_LIGHT_COLOR), None),
+    "spider_web": ("decoration", "wall_mount", None, None),
+    "spider": ("decoration", "wall_mount", None, None),
+    "sign_trim": ("decoration", "wall_mount", None, None),
 }
 
 HALLOWEEN_MAKERS = {
     "candy_fuse": candy_fuse,
     "jack_o_lantern": jack_o_lantern,
     "pumpkin_small": pumpkin_small,
+    "specimen_jar": specimen_jar,
+    "lantern": lantern,
+    "candle_cluster": candle_cluster,
+    "spider_web": spider_web,
+    "spider": spider,
+    "sign_trim": sign_trim,
 }
 
 

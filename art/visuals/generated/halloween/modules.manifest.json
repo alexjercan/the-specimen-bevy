@@ -103,18 +103,191 @@
       "textured": false,
       "bounds_bevy": {
         "min": [
-          -0.1458,
+          -0.2347,
           0.0,
-          -0.1458
+          -0.2347
         ],
         "max": [
-          0.1458,
-          0.26,
-          0.1458
+          0.2484,
+          0.415,
+          0.2347
         ]
       },
-      "glb_sha256": "489454c3df1bc9557db811009fbf4b5f1900ee130febc4897a321c8756902465",
-      "glb_bytes": 18056
+      "glb_sha256": "3fc3099ccd662b9f0c6c448c0b3c49eccf9ee7ffbbb8de08ddab588f9b1af344",
+      "glb_bytes": 20160
+    },
+    "specimen_jar": {
+      "file": "specimen_jar.glb",
+      "category": "decoration",
+      "snap": "surface",
+      "triangles": 240,
+      "materials": [
+        "steel_dark",
+        "jar_glass",
+        "conduit",
+        "jar_sample"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.09,
+          0.0,
+          -0.09
+        ],
+        "max": [
+          0.09,
+          0.303,
+          0.09
+        ]
+      },
+      "glb_sha256": "c3ff602e2071e7d35f72508a9a0bd7051c4c28c7cf51bd3c36adab5b4eacf262",
+      "glb_bytes": 19464
+    },
+    "lantern": {
+      "file": "lantern.glb",
+      "category": "decoration",
+      "snap": "surface",
+      "triangles": 256,
+      "materials": [
+        "steel_dark",
+        "lantern_glass",
+        "conduit",
+        "wax",
+        "flame"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.12,
+          0.0,
+          -0.12
+        ],
+        "max": [
+          0.12,
+          0.36,
+          0.12
+        ]
+      },
+      "light_anchor_bevy": [
+        0.0,
+        0.18,
+        0.0
+      ],
+      "light_color_linear": [
+        1.0,
+        0.65,
+        0.15
+      ],
+      "glb_sha256": "43b25d25412270a6b840c0b68067f170f11bedea7aaae0a717e39b9167e769f4",
+      "glb_bytes": 29340
+    },
+    "candle_cluster": {
+      "file": "candle_cluster.glb",
+      "category": "decoration",
+      "snap": "surface",
+      "triangles": 332,
+      "materials": [
+        "steel_dark",
+        "wax",
+        "flame"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.18,
+          0.0,
+          -0.12
+        ],
+        "max": [
+          0.18,
+          0.325,
+          0.12
+        ]
+      },
+      "light_anchor_bevy": [
+        0.0,
+        0.21,
+        0.0
+      ],
+      "light_color_linear": [
+        1.0,
+        0.65,
+        0.15
+      ],
+      "glb_sha256": "4d91bd58cbef40eb5a808f49027e2ec4ad73014f514e7a95df5fc75d4e60eff5",
+      "glb_bytes": 27340
+    },
+    "spider_web": {
+      "file": "spider_web.glb",
+      "category": "decoration",
+      "snap": "wall_mount",
+      "triangles": 408,
+      "materials": [
+        "web_silk"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.2924,
+          -0.0026,
+          -0.027
+        ],
+        "max": [
+          0.2924,
+          0.2924,
+          -0.021
+        ]
+      },
+      "glb_sha256": "437d2a1951546305cc98930b0379ecde62ffea3596e66ef4418bb38a2573a691",
+      "glb_bytes": 31184
+    },
+    "spider": {
+      "file": "spider.glb",
+      "category": "decoration",
+      "snap": "wall_mount",
+      "triangles": 480,
+      "materials": [
+        "steel_dark"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.0957,
+          -0.0449,
+          -0.085
+        ],
+        "max": [
+          0.0957,
+          0.1069,
+          -0.015
+        ]
+      },
+      "glb_sha256": "20f2c81b0805eccb0688c896b1bd09be2f6d3ac8366c03aa96ee3c401602df70",
+      "glb_bytes": 35952
+    },
+    "sign_trim": {
+      "file": "sign_trim.glb",
+      "category": "decoration",
+      "snap": "wall_mount",
+      "triangles": 48,
+      "materials": [
+        "pumpkin_skin"
+      ],
+      "textured": false,
+      "bounds_bevy": {
+        "min": [
+          -0.642,
+          -0.124,
+          -0.052
+        ],
+        "max": [
+          0.642,
+          0.124,
+          -0.035
+        ]
+      },
+      "glb_sha256": "1f6a29000e5299bc27413a0876d6ff16cc5cb66ba5dd67bf245511356e470431",
+      "glb_bytes": 6264
     }
   }
 }
