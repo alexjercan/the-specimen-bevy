@@ -119,7 +119,7 @@ pub(super) fn spawn_fixtures(commands: &mut Commands) {
     commands.spawn(prop(
         "trace_claw_marks",
         "trace_claw_marks",
-        Transform::from_xyz(12.05, 1.5, 11.35).with_rotation(Quat::from_rotation_y(0.0)),
+        Transform::from_xyz(12.05, 1.5, 11.35).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
         "tool_pegboard",
@@ -139,7 +139,7 @@ pub(super) fn spawn_fixtures(commands: &mut Commands) {
     commands.spawn(prop(
         "trace_claw_marks",
         "trace_claw_marks",
-        Transform::from_xyz(-3.0, 1.6, 18.65).with_rotation(Quat::from_rotation_y(PI)),
+        Transform::from_xyz(-3.0, 1.6, 18.65).with_rotation(Quat::from_rotation_y(0.0)),
     ));
 }
 
@@ -336,7 +336,7 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
     commands.spawn(prop(
         "clutter_tools",
         "clutter_tools",
-        Transform::from_xyz(-10.0, 0.0, -7.5).with_rotation(Quat::from_rotation_y(0.0)),
+        Transform::from_xyz(-10.0, 0.0, -7.65).with_rotation(Quat::from_rotation_y(0.0)),
     ));
     commands.spawn(prop(
         CONCEPT_LOCKER,
@@ -472,7 +472,7 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
     commands.spawn(prop(
         "shelf_unit_low",
         "shelf_unit_low",
-        Transform::from_xyz(-2.0, 0.0, 3.5).with_rotation(Quat::from_rotation_y(PI)),
+        Transform::from_xyz(-2.0, 0.0, 3.35).with_rotation(Quat::from_rotation_y(PI)),
     ));
     commands.spawn(prop(
         "workbench",
@@ -609,7 +609,7 @@ pub(super) fn spawn_furniture(commands: &mut Commands) {
     commands.spawn(prop(
         "storage_crate",
         "storage_crate",
-        Transform::from_xyz(12.8, 0.0, 18.2).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+        Transform::from_xyz(12.8, 0.0, 18.1).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
     ));
     commands.spawn(prop(
         "drum_spilled",
@@ -721,7 +721,7 @@ pub(super) fn spawn_dressing(commands: &mut Commands) {
                 .with_scale(Vec3::splat(0.5)),
         ));
     }
-    for (x, y, z, yaw, scale) in [(7.0, 0.9, -7.12, 0.0, 0.65), (13.0, 0.9, 0.1, -0.2, 1.0)] {
+    for (x, y, z, yaw, scale) in [(7.0, 0.9, -7.12, 0.0, 0.65), (13.0, 0.9, -0.37, 0.0, 0.7)] {
         commands.spawn(prop(
             "clutter_tools",
             "clutter_tools",
@@ -736,7 +736,7 @@ pub(super) fn spawn_flashbang(commands: &mut Commands) {
     commands.spawn((
         Name::new("flashbang"),
         PickupKind::Flashbang,
-        Transform::from_xyz(7.2, 0.78, -15.5).with_rotation(Quat::from_rotation_y(0.5)),
+        Transform::from_xyz(7.2, 0.7, -15.5).with_rotation(Quat::from_rotation_y(0.5)),
     ));
 }
 
@@ -744,6 +744,6 @@ pub(super) fn spawn_detector(commands: &mut Commands) {
     commands.spawn((
         Name::new("detector"),
         PickupKind::Detector,
-        Transform::from_xyz(-2.0, 1.0, 3.5).with_rotation(Quat::from_rotation_y(PI - 0.3)),
+        Transform::from_xyz(-2.0, 1.005, 3.35).with_rotation(Quat::from_rotation_y(PI - 0.3)),
     ));
 }

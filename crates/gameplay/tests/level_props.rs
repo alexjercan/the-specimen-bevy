@@ -5,7 +5,8 @@ use std::{
 
 use bevy::prelude::*;
 use gameplay::levels::{
-    build_first_floor, Door, LightEffect, LightIntensity, Passage, Prop, PropLightsPlugin, Room,
+    build_first_floor, Door, LightEffect, LightIntensity, Passage, PickupKind, Prop,
+    PropLightsPlugin, Room,
 };
 
 #[test]
@@ -72,8 +73,13 @@ fn room_props_face_inward_and_tabletop_dressing_rests_on_surfaces() {
     assert!(prep_tools.translation.z + 0.65 * 0.303 < -6.78);
     assert!(prep_tools.translation.x - 0.65 * 0.443 > 6.65);
     assert!(prep_tools.translation.x + 0.65 * 0.443 < 7.35);
-    let other_tools = at("clutter_tools", 13.0, 0.1);
-    assert!((other_tools.translation.y - 0.9).abs() < 0.001);
+    let second_prep_tools = at("clutter_tools", 13.0, -0.37);
+    assert!((second_prep_tools.translation.y - 0.9).abs() < 0.001);
+    assert_eq!(second_prep_tools.scale, Vec3::splat(0.7));
+    assert!(second_prep_tools.translation.z + 0.7 * 0.303 < 0.1 - 0.2);
+    assert!(second_prep_tools.translation.z - 0.7 * 0.303 > -0.8);
+    assert!(second_prep_tools.translation.x - 0.7 * 0.443 > 13.0 - 0.35);
+    assert!(second_prep_tools.translation.x + 0.7 * 0.443 < 13.0 + 0.35);
 }
 
 #[test]
@@ -189,6 +195,149 @@ fn utility_shelves_clear_the_floor_grille_and_doorway() {
     assert!(large.translation.z + 0.275 < -6.375 - 0.25);
     assert!(large.translation.x + 0.9 < -6.25 - 1.0);
     assert!((large.rotation * Vec3::Z).distance(Vec3::NEG_Z) < 0.001);
+
+    let tools = props
+        .iter(world)
+        .find(|(prop, transform)| {
+            prop.0 == "clutter_tools" && transform.translation.xz() == Vec2::new(-10.0, -7.65)
+        })
+        .expect("utility tool pile")
+        .1;
+    assert_eq!(tools.rotation, Quat::IDENTITY);
+    assert!(tools.translation.z + 0.303 < large.translation.z - 0.275);
+}
+
+#[test]
+fn lab_shelf_and_rear_hall_crate_clear_wall_faces() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_systems(Startup, build_first_floor);
+    app.update();
+
+    let world = app.world_mut();
+    let placements: Vec<_> = world
+        .query::<(&Prop, &Transform)>()
+        .iter(world)
+        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .collect();
+    let at = |name: &str, x: f32, z: f32| {
+        placements
+            .iter()
+            .find(|(module, transform)| {
+                module == name
+                    && (transform.translation.x - x).abs() < 0.001
+                    && (transform.translation.z - z).abs() < 0.001
+            })
+            .unwrap_or_else(|| panic!("missing {name} at ({x}, {z})"))
+            .1
+    };
+
+    let lab_shelf = at("shelf_unit_low", -2.0, 3.35);
+    assert!(lab_shelf.translation.z + 0.245 < 3.75 - 0.125);
+
+    let rear_crate = at("storage_crate", 12.8, 18.1);
+    assert!((rear_crate.rotation * Vec3::X).distance(Vec3::NEG_Z) < 0.001);
+    assert!(rear_crate.translation.z + 0.51 < 18.75 - 0.125);
+    let rear_tools = at("clutter_tools", 12.3, 17.0);
+    let tools_far_z = [
+        (-0.423, -0.18),
+        (-0.423, 0.303),
+        (0.443, -0.18),
+        (0.443, 0.303),
+    ]
+    .into_iter()
+    .map(|(x, z)| rear_tools.transform_point(Vec3::new(x, 0.0, z)).z)
+    .fold(f32::MIN, f32::max);
+    assert!(tools_far_z < rear_crate.translation.z - 0.51);
+}
+
+#[test]
+fn claw_marks_face_away_from_their_wall_lines() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_systems(Startup, build_first_floor);
+    app.update();
+
+    let world = app.world_mut();
+    let rooms: Vec<_> = world
+        .query::<&Room>()
+        .iter(world)
+        .map(|room| room.0)
+        .collect();
+    let marks: Vec<_> = world
+        .query::<(&Prop, &Transform)>()
+        .iter(world)
+        .filter(|(prop, _)| prop.0 == "trace_claw_marks")
+        .map(|(_, transform)| *transform)
+        .collect();
+    assert_eq!(marks.len(), 7);
+    for mark in marks {
+        let front = mark.rotation * Vec3::NEG_Z;
+        let wall = mark.translation - front * 0.1;
+        let line = if front.x.abs() > 0.999 {
+            wall.x
+        } else {
+            assert!(
+                front.z.abs() > 0.999,
+                "claw mark at {} is not wall aligned",
+                mark.translation
+            );
+            wall.z
+        };
+        assert!(
+            (line / 1.25 - (line / 1.25).round()).abs() < 0.001,
+            "claw mark at {} faces into its wall",
+            mark.translation
+        );
+        let ahead = (mark.translation + front * 0.3).xz();
+        assert!(
+            rooms.iter().any(|rect| rect.contains(ahead)),
+            "claw mark at {} faces out of the floor",
+            mark.translation
+        );
+    }
+}
+
+#[test]
+fn device_pickups_rest_on_their_supports() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_systems(Startup, build_first_floor);
+    app.update();
+
+    let world = app.world_mut();
+    let pickups: HashMap<_, _> = world
+        .query::<(&PickupKind, &Transform)>()
+        .iter(world)
+        .filter(|(kind, _)| !matches!(kind, PickupKind::Fuse { .. }))
+        .map(|(kind, transform)| (*kind, transform.translation))
+        .collect();
+    let placements: Vec<_> = world
+        .query::<(&Prop, &Transform)>()
+        .iter(world)
+        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .collect();
+
+    for (kind, module, top, half_width, half_depth) in [
+        (PickupKind::Flashbang, "storage_crate", 0.7, 0.51, 0.41),
+        (PickupKind::Detector, "shelf_unit_low", 1.005, 0.625, 0.245),
+    ] {
+        let pickup = pickups[&kind];
+        assert!(
+            (pickup.y - top).abs() < 0.001,
+            "{kind:?} floats above {module}"
+        );
+        let support = placements
+            .iter()
+            .find(|(name, transform)| {
+                name == module && transform.translation.xz().distance(pickup.xz()) < 0.001
+            })
+            .unwrap_or_else(|| panic!("{kind:?} has no {module} under it"))
+            .1;
+        let local = support.compute_affine().inverse().transform_point3(pickup);
+        assert!(local.x.abs() + 0.1 < half_width);
+        assert!(local.z.abs() + 0.1 < half_depth);
+    }
 }
 
 #[test]
