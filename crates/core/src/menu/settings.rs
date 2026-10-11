@@ -8,8 +8,7 @@ use bevy::{
 use game_assets::UiAssets;
 use game_audio::{PlaySound, Sound};
 use game_settings::{
-    GameSettings, InputBinding, SettingsDirty, DEFAULT_SENSITIVITY, MAX_SENSITIVITY,
-    MIN_SENSITIVITY,
+    GameSettings, InputBinding, SettingsDirty, MAX_SENSITIVITY, MIN_SENSITIVITY,
 };
 use game_ui::{menu_button, text, theme, MenuButton};
 
@@ -220,7 +219,7 @@ impl SettingSlider {
 
     pub(super) fn readout(self, value: f32) -> String {
         match self {
-            Self::Sensitivity => format!("{:.1}", value / (DEFAULT_SENSITIVITY / 2.0)),
+            Self::Sensitivity => format!("{:.1}", value * 1000.0),
             _ => format!("{}%", (value * 100.0).round()),
         }
     }

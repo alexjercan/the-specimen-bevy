@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-11
+
 ### Insane mode
 
 - Add Custom mode after the first escape, with four three-step monster controls and four gameplay toggles. Winning with settings identical to Insane awards its hidden achievement and unlocks the Insane selector. Save the last selected mode and Custom options across native and browser restarts.
@@ -27,6 +29,7 @@
 
 ### Gameplay and debug tools
 
+- Show mouse sensitivity as 0.0-4.0 in Settings, with 1.5 at the default sensitivity.
 - Send the monster toward the farthest reachable room at least 24 meters away after several local patrol legs; it sometimes runs there to avoid lingering near a hiding player.
 - Prevent the monster from stopping at its attack distance while a doorway blocks sight to a witnessed hiding spot; it can cross the office door and finish the encounter.
 - Let the monster hear moving players through walls based only on distance and the selected walking or sprinting hearing range; sight and capture still require clear paths.
@@ -78,7 +81,8 @@ First playable release of The Specimen.
 - Manual workflows deploy the browser game to GitHub Pages and reuse tagged release artifacts for the itch.io HTML5, Windows, and Linux channels.
 - Debug inspector shows grouped entities and lets testers edit the player's fuse inventory.
 
-[Unreleased]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/alexjercan/the-specimen-bevy/tree/v0.1.0

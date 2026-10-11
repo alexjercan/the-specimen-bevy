@@ -14,7 +14,7 @@ use game_assets::{key_glyph_stem, UiAssets};
 use game_audio::Sound;
 use game_core::{GameState, PauseState};
 use game_settings::{
-    parse_key, DisplayMode, GameSettings, InputBinding, DEFAULT_SENSITIVITY, MAX_SENSITIVITY,
+    parse_key, DisplayMode, GameSettings, InputBinding, MAX_SENSITIVITY,
 };
 use game_ui::SliderFill;
 
@@ -207,8 +207,14 @@ fn settings_sliders_change_persist_and_sync_in_menu_and_pause() {
     assert_eq!(readout(&mut app, "Music (reserved)"), "50%");
     assert_eq!(
         readout(&mut app, "Mouse sensitivity"),
-        format!("{:.1}", DEFAULT_SENSITIVITY / (DEFAULT_SENSITIVITY / 2.0))
+        "1.5"
     );
+    slide(&mut app, "Mouse sensitivity", 0.0);
+    assert_eq!(
+        app.world().resource::<GameSettings>().mouse_sensitivity,
+        0.0
+    );
+    assert_eq!(readout(&mut app, "Mouse sensitivity"), "0.0");
     slide(&mut app, "Mouse sensitivity", 1.0);
     assert_eq!(
         app.world().resource::<GameSettings>().mouse_sensitivity,
@@ -216,7 +222,7 @@ fn settings_sliders_change_persist_and_sync_in_menu_and_pause() {
     );
     assert_eq!(
         readout(&mut app, "Mouse sensitivity"),
-        format!("{:.1}", MAX_SENSITIVITY / (DEFAULT_SENSITIVITY / 2.0))
+        "4.0"
     );
     assert!(played_sounds(&mut app).contains(&Sound::UiFocus));
 
