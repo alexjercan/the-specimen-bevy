@@ -250,10 +250,6 @@ fn measure_bounds(
     *done = true;
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/human_deer_viewer.rs"]
-mod tests;
-
 fn orbit_camera(time: Res<Time>, mut cameras: Query<&mut Transform, With<OrbitCamera>>) {
     let transform = orbit_transform(time.elapsed_secs() * ORBIT_SPEED);
     for mut camera in &mut cameras {

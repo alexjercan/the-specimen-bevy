@@ -8,8 +8,6 @@ use std::{path::PathBuf, time::Duration};
 use bevy::asset::{AssetMetaCheck, AssetPlugin};
 #[cfg(not(target_arch = "wasm32"))]
 use bevy::window::MonitorSelection;
-#[cfg(feature = "debug")]
-use bevy::window::{CursorGrabMode, CursorOptions};
 use bevy::{
     app::ScheduleRunnerPlugin,
     audio::{GlobalVolume, Volume},
@@ -20,18 +18,13 @@ use bevy::{
     window::{PrimaryWindow, WindowMode, WindowPlugin},
 };
 use bevy_enhanced_input::EnhancedInputPlugin;
-use bevy_rand::prelude::{ChaCha8Rng, EntropyPlugin};
+use bevy_rand::prelude::{ChaCha8Rng, EntropyPlugin, GlobalRng};
 use game_assets::GameAssetsState;
 use game_settings::{DisplayMode, GameSettings, GameSettingsPlugin, GraphicsQuality};
-#[cfg(feature = "debug")]
-use gameplay::controller::{PlayerController, PlayerControlsEnabled};
-use gameplay::levels::{build_first_floor, spawn_first_floor_actors, FuseSeed};
+use gameplay::levels::{build_first_floor, spawn_first_floor_actors, FacilityPower, FuseSeed};
+use rand_core::Rng;
 
 pub use menu::{GameState, MenuPlugin, PauseState};
-
-#[cfg(all(test, feature = "debug"))]
-#[path = "../tests/unit/debug_controls.rs"]
-mod debug_controls_tests;
 
 const LOG_FILTER: &str = "wgpu=error,naga=warn,bevy_ecs=warn,bevy_time=warn";
 
@@ -118,40 +111,17 @@ impl AppBuilder {
             ..default()
         };
         app.add_plugins(GameSettingsPlugin { persist: menu })
-            .add_plugins(glue::PlayerControllerSettingsGluePlugin)
-            .add_plugins(game_achievements::AchievementStorePlugin { persist: menu });
+            .add_plugins(glue::ControllerSettingsPlugin)
+            .add_plugins(game_achievements::AchievementStorePlugin {
+                store: game_achievements::AchievementStore::persistent(menu),
+            });
         if self.headless {
             app.add_plugins(
                 MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_millis(10))),
             )
             .add_plugins(logging)
             .add_plugins((InputPlugin, StatesPlugin))
-            .insert_state(CoreState::Ready)
-            .add_plugins(match self.seed {
-                Some(seed) => {
-                    let mut bytes = [0; 32];
-                    bytes[..8].copy_from_slice(&seed.to_le_bytes());
-                    EntropyPlugin::<ChaCha8Rng>::with_seed(bytes)
-                }
-                None => EntropyPlugin::<ChaCha8Rng>::default(),
-            })
-            .add_plugins(EnhancedInputPlugin)
-            .add_plugins(gameplay::controller::PlayerControllerPlugin::default().without_camera())
-            .add_plugins(gameplay::achievements::AchievementPlugin)
-            .add_plugins((
-                gameplay::levels::DoorPlugin,
-                gameplay::levels::FusePlugin,
-                gameplay::levels::HidingPlugin,
-                gameplay::levels::ObjectivePlugin,
-                gameplay::levels::FacilityPowerPlugin,
-                gameplay::levels::PropSoundsPlugin,
-                gameplay::levels::PropLightsPlugin,
-                gameplay::levels::MonsterPlugin,
-                gameplay::levels::DevicePlugin,
-            ));
-            if self.transport {
-                app.add_plugins(transport::TransportPlugin);
-            }
+            .insert_state(CoreState::Ready);
         } else {
             let mut window = Window::default();
             #[cfg(target_arch = "wasm32")]
@@ -175,43 +145,36 @@ impl AppBuilder {
             if self.muted_audio {
                 app.insert_resource(GlobalVolume::new(Volume::Linear(0.0)));
             }
-            if let Some(seed) = self.seed {
-                let mut bytes = [0; 32];
-                bytes[..8].copy_from_slice(&seed.to_le_bytes());
-                app.add_plugins(EntropyPlugin::<ChaCha8Rng>::with_seed(bytes));
-            } else {
-                app.add_plugins(EntropyPlugin::<ChaCha8Rng>::default());
-            }
             app.init_state::<CoreState>()
-                .add_plugins((
-                    game_assets::GameAssetsPlugin,
-                    gameplay::levels::LevelRenderPlugin,
-                    gameplay::levels::MonsterRenderPlugin,
-                ))
+                .add_plugins((game_assets::GameAssetsPlugin, game_ui::GameUiPlugin))
                 .add_systems(OnEnter(GameAssetsState::Ready), core_ready)
-                .add_systems(OnEnter(GameAssetsState::Failed), core_failed)
-                .add_plugins(EnhancedInputPlugin)
-                .add_plugins(gameplay::controller::PlayerControllerPlugin::default())
-                .add_plugins(gameplay::achievements::AchievementPlugin)
-                .add_plugins((
-                    gameplay::levels::DoorPlugin,
-                    gameplay::levels::FusePlugin,
-                    gameplay::levels::HidingPlugin,
-                    gameplay::levels::ObjectivePlugin,
-                    gameplay::levels::FacilityPowerPlugin,
-                    gameplay::levels::PropSoundsPlugin,
-                    gameplay::levels::PropLightsPlugin,
-                    gameplay::levels::MonsterPlugin,
-                    gameplay::levels::DevicePlugin,
-                ))
-                .add_plugins((
-                    glue::InteractionHintPlugin,
-                    glue::FuseHudPlugin,
-                    glue::FlashlightHudPlugin,
-                    glue::StaminaHudPlugin,
-                    glue::DeviceHudPlugin,
-                ))
-                .add_plugins((game_audio::GameAudioPlugin, glue::SoundGluePlugin));
+                .add_systems(OnEnter(GameAssetsState::Failed), core_failed);
+        }
+        let seed = seed_entropy(&mut app, self.seed);
+        app.insert_resource(FuseSeed(seed))
+            .add_sub_state::<GameState>()
+            .add_sub_state::<PauseState>()
+            .add_systems(OnExit(GameState::Playing), reset_facility_power)
+            .add_plugins((EnhancedInputPlugin, gameplay::GameplayPlugin));
+        if self.headless {
+            if self.transport {
+                app.add_plugins(transport::TransportPlugin);
+            }
+        } else {
+            app.add_plugins((
+                gameplay::controller::PlayerPresentationPlugin,
+                gameplay::levels::LevelRenderPlugin,
+                gameplay::levels::MonsterRenderPlugin,
+            ))
+            .add_plugins((
+                glue::InteractionHintPlugin,
+                glue::FuseHudPlugin,
+                glue::FlashlightHudPlugin,
+                glue::StaminaHudPlugin,
+                glue::DeviceHudPlugin,
+                glue::FpsOverlayPlugin,
+            ))
+            .add_plugins((game_audio::GameAudioPlugin, glue::SoundGluePlugin));
             #[cfg(feature = "halloween")]
             app.add_plugins(game_halloween::HalloweenPlugin);
             if let Some(path) = self.recording {
@@ -222,8 +185,7 @@ impl AppBuilder {
                 app.add_plugins(transport::RenderedTransportPlugin);
             }
             #[cfg(feature = "debug")]
-            app.add_plugins(debug::DebugPlugin)
-                .add_systems(PostUpdate, sync_debug_controls);
+            app.add_plugins(debug::DebugPlugin);
             if facility_lighting {
                 app.add_plugins(lighting::FacilityLightingPlugin)
                     .add_systems(Update, apply_graphics);
@@ -234,9 +196,6 @@ impl AppBuilder {
         }
         if self.transport {
             app.add_systems(OnEnter(CoreState::Ready), transport_ready);
-        }
-        if let Some(seed) = self.seed {
-            app.insert_resource(FuseSeed(seed));
         }
         match self.main_plugin {
             Some(main_plugin) => main_plugin(&mut app),
@@ -251,42 +210,43 @@ impl AppBuilder {
     }
 }
 
+fn seed_entropy(app: &mut App, seed: Option<u64>) -> u64 {
+    match seed {
+        Some(seed) => {
+            let mut bytes = [0; 32];
+            bytes[..8].copy_from_slice(&seed.to_le_bytes());
+            app.add_plugins(EntropyPlugin::<ChaCha8Rng>::with_seed(bytes));
+            seed
+        }
+        None => {
+            app.add_plugins(EntropyPlugin::<ChaCha8Rng>::default());
+            let world = app.world_mut();
+            let mut global = world.query_filtered::<&mut ChaCha8Rng, With<GlobalRng>>();
+            global
+                .single_mut(world)
+                .expect("EntropyPlugin spawns the global rng")
+                .next_u64()
+        }
+    }
+}
+
 struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(CoreState::Ready),
-            (build_first_floor, spawn_first_floor_actors).chain(),
+            (start_playing, build_first_floor, spawn_first_floor_actors).chain(),
         );
     }
 }
 
-#[cfg(feature = "debug")]
-fn sync_debug_controls(
-    debug: Res<debug::DebugSettings>,
-    pause: Option<Res<State<PauseState>>>,
-    players: Query<(), With<PlayerController>>,
-    mut controls: ResMut<PlayerControlsEnabled>,
-    mut time: ResMut<Time<Virtual>>,
-    mut cursors: Query<&mut CursorOptions, With<PrimaryWindow>>,
-) {
-    let paused = debug.inspector || pause.is_some_and(|state| *state.get() == PauseState::Paused);
-    controls.0 = !paused;
-    if paused {
-        time.pause();
-    } else {
-        time.unpause();
-    }
-    let capture = controls.0 && !players.is_empty();
-    for mut cursor in &mut cursors {
-        cursor.visible = !capture;
-        cursor.grab_mode = if capture {
-            CursorGrabMode::Locked
-        } else {
-            CursorGrabMode::None
-        };
-    }
+fn start_playing(mut next: ResMut<NextState<GameState>>) {
+    next.set(GameState::Playing);
+}
+
+fn reset_facility_power(mut commands: Commands) {
+    commands.insert_resource(FacilityPower::default());
 }
 
 fn window_mode(mode: DisplayMode) -> WindowMode {
@@ -347,11 +307,3 @@ fn core_failed(mut exit: MessageWriter<AppExit>) {
 fn transport_ready(mut timeline: ResMut<transport::TransportTimeline>) {
     timeline.ready();
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/dark_lighting.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../tests/unit/window_mode.rs"]
-mod window_mode_tests;

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use game_ui::{fuse_slots, FuseSlots, GameUiPlugin, FUSE_SLOT_COUNT};
+use game_ui::{fuse_slots, FuseSlots, FUSE_SLOT_COUNT};
 use gameplay::{
     controller::PlayerController,
     levels::{FuseInventory, FUSE_COUNT},
@@ -11,9 +11,6 @@ pub struct FuseHudPlugin;
 
 impl Plugin for FuseHudPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<GameUiPlugin>() {
-            app.add_plugins(GameUiPlugin);
-        }
         app.add_systems(Startup, spawn_hud)
             .add_systems(Update, sync_hud);
     }

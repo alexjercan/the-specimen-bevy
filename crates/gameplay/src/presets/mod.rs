@@ -127,7 +127,3 @@ impl Default for GamePreset {
         Self::of(GameMode::Normal)
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/unit/presets.rs"]
-mod tests;

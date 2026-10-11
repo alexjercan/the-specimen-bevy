@@ -2,9 +2,15 @@ use std::{path::PathBuf, time::Duration};
 
 use bevy::{
     prelude::*,
+    render::{
+        render_resource::WgpuAdapterInfo,
+        renderer::{RenderAdapterInfo, WgpuWrapper},
+    },
     window::{PresentMode, PrimaryWindow},
-    world_serialization::{WorldAsset, WorldAssetRoot},
+    world_serialization::{WorldAsset, WorldAssetRoot, WorldInstanceSpawner},
 };
+use wgpu_types::{Backend, DeviceType};
+
 use probe::{
     world_instances_ready, Output, Phase, ProbeConfig, ProbeError, ProbePlugin, ProbeState,
     Readiness,
@@ -23,6 +29,19 @@ fn app(config: ProbeConfig, ready: fn(&World) -> Readiness) -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.world_mut().spawn((Window::default(), PrimaryWindow));
+    app.insert_resource(RenderAdapterInfo(WgpuWrapper::new(WgpuAdapterInfo {
+        name: "test adapter".to_string(),
+        vendor: 0,
+        device: 0,
+        device_type: DeviceType::Cpu,
+        device_pci_bus_id: String::new(),
+        driver: String::new(),
+        driver_info: String::new(),
+        backend: Backend::Noop,
+        subgroup_min_size: 0,
+        subgroup_max_size: 0,
+        transient_saves_memory: false,
+    })));
     app.add_plugins(ProbePlugin::new(config, ready).unwrap());
     app.finish();
     app.cleanup();
@@ -219,6 +238,7 @@ fn invalid_config_is_rejected() {
 #[test]
 fn world_instances_wait_for_spawned_roots() {
     let mut world = World::new();
+    world.init_resource::<WorldInstanceSpawner>();
     assert!(world_instances_ready(&world));
     world.spawn(WorldAssetRoot(Handle::<WorldAsset>::default()));
     assert!(!world_instances_ready(&world));

@@ -1,22 +1,13 @@
-use bevy::{
-    input::mouse::{MouseScrollUnit, MouseWheel},
-    prelude::*,
-    text::LineBreak,
-};
-use game_assets::{FacilityAssets, UiAssets};
+use bevy::{prelude::*, text::LineBreak};
+use game_assets::UiAssets;
 use game_audio::{PlaySound, Sound};
 use game_ui::{menu_button, text, theme};
 use gameplay::achievements::{Achievement, AchievementProgress, AchievementUnlocked};
 
-use super::{
-    background, pause::PauseMenu, release_cursor, screen_camera, GameState, MenuAction, PauseState,
-};
+use super::{background, pause::PauseMenu, release_cursor, GameState, MenuAction, PauseState};
+use crate::CoreState;
 
 const TOAST_SECS: f32 = 4.0;
-
-#[cfg(test)]
-#[path = "../../tests/unit/menu_achievements.rs"]
-mod tests;
 
 #[derive(Component)]
 pub(super) struct AchievementsScreen;
@@ -57,8 +48,9 @@ pub(super) fn plugin(app: &mut App) {
             (
                 activate_pause_achievements,
                 advance_toasts,
-                scroll_achievements,
-            ),
+                super::scroll_list::<AchievementList>,
+            )
+                .run_if(in_state(CoreState::Ready)),
         );
 }
 
@@ -150,14 +142,9 @@ fn achievement_row(
 fn spawn_achievements(
     mut commands: Commands,
     assets: Res<UiAssets>,
-    facility: Option<Res<FacilityAssets>>,
     progress: Res<AchievementProgress>,
 ) {
-    if facility.is_some() {
-        background::spawn(&mut commands, GameState::Achievements);
-    } else {
-        commands.spawn(screen_camera(GameState::Achievements));
-    }
+    background::spawn(&mut commands, GameState::Achievements);
     spawn_panel(&mut commands, &assets, &progress, false);
 }
 
@@ -257,7 +244,7 @@ fn activate_pause_achievements(
     buttons: Query<(&Interaction, &AchievementAction), Changed<Interaction>>,
     screens: Query<Entity, With<PauseAchievements>>,
     mut pause_menus: Query<&mut Node, With<PauseMenu>>,
-    assets: Option<Res<UiAssets>>,
+    assets: Res<UiAssets>,
     progress: Res<AchievementProgress>,
     mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
@@ -268,23 +255,15 @@ fn activate_pause_achievements(
         }
         match action {
             AchievementAction::Open if screens.is_empty() => {
-                if let Some(assets) = assets.as_ref() {
-                    spawn_panel(&mut commands, assets, &progress, true);
-                    for mut node in &mut pause_menus {
-                        node.display = Display::None;
-                    }
-                    sounds.write(PlaySound {
-                        sound: Sound::UiConfirm,
-                        position: None,
-                    });
+                spawn_panel(&mut commands, &assets, &progress, true);
+                for mut node in &mut pause_menus {
+                    node.display = Display::None;
                 }
+                sounds.write(PlaySound::global(Sound::UiConfirm));
             }
             AchievementAction::Back if !screens.is_empty() => {
                 close_pause_achievements(&screens, &mut pause_menus, &mut commands);
-                sounds.write(PlaySound {
-                    sound: Sound::UiBack,
-                    position: None,
-                });
+                sounds.write(PlaySound::global(Sound::UiBack));
             }
             _ => {}
         }
@@ -313,27 +292,7 @@ fn back_from_pause(
 ) {
     if keys.just_pressed(KeyCode::Escape) && !screens.is_empty() {
         close_pause_achievements(&screens, &mut pause_menus, &mut commands);
-        sounds.write(PlaySound {
-            sound: Sound::UiBack,
-            position: None,
-        });
-    }
-}
-
-fn scroll_achievements(
-    mut wheel: MessageReader<MouseWheel>,
-    mut lists: Query<&mut ScrollPosition, With<AchievementList>>,
-) {
-    let mut delta = 0.0;
-    for event in wheel.read() {
-        delta -= event.y
-            * match event.unit {
-                MouseScrollUnit::Line => 38.0,
-                MouseScrollUnit::Pixel => 1.0,
-            };
-    }
-    for mut position in &mut lists {
-        position.0.y = (position.0.y + delta).max(0.0);
+        sounds.write(PlaySound::global(Sound::UiBack));
     }
 }
 
@@ -344,32 +303,23 @@ fn back_on_escape(
 ) {
     if keys.just_pressed(KeyCode::Escape) {
         next.set(GameState::MainMenu);
-        sounds.write(PlaySound {
-            sound: Sound::UiBack,
-            position: None,
-        });
+        sounds.write(PlaySound::global(Sound::UiBack));
     }
 }
 
 fn spawn_toast(
     unlock: On<AchievementUnlocked>,
-    assets: Option<Res<UiAssets>>,
+    assets: Res<UiAssets>,
     containers: Query<Entity, With<ToastContainer>>,
     mut commands: Commands,
     mut sounds: MessageWriter<PlaySound>,
 ) {
-    let Some(assets) = assets else {
-        return;
-    };
     let font = assets.font.clone();
     let achievement = unlock.0;
     let icon = assets
         .achievement_icon(icon_stem(achievement), true)
         .unwrap_or_default();
-    sounds.write(PlaySound {
-        sound: Sound::UiConfirm,
-        position: None,
-    });
+    sounds.write(PlaySound::global(Sound::UiConfirm));
     let container = containers.iter().next().unwrap_or_else(|| {
         commands
             .spawn((

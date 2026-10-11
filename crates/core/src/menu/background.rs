@@ -3,10 +3,6 @@ use gameplay::levels::{build_main_menu_background, MainMenuAccentLight};
 
 use super::GameState;
 
-#[cfg(test)]
-#[path = "../../tests/unit/menu_background.rs"]
-mod tests;
-
 pub(super) fn spawn(commands: &mut Commands, state: GameState) {
     let root = build_main_menu_background(commands);
     commands.entity(root).insert(DespawnOnExit(state));

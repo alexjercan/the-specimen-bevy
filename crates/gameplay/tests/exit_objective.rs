@@ -1,26 +1,27 @@
 use std::{any::TypeId, f32::consts::PI, time::Duration};
 
-use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
-use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy::prelude::*;
 use game_audio::{PlaySound, PlaySourceSound, Sound, SourceSounds};
 use gameplay::{
     achievements::{Achievement, AchievementPlugin, AchievementProgress, RunAchievements},
-    controller::{PlayerController, PlayerControllerPlugin},
+    controller::PlayerController,
     levels::{
         build_first_floor, Door, DoorLock, DoorPlugin, DoorState, DoorSwing, Escaped, ExitDoor,
-        FuseInventory, FusePanel, FusePlugin, InstallFuses, ObjectivePlugin, Prop, Room,
-        ToggleDoor, FUSE_COUNT,
+        FacilityPower, FuseInventory, FusePanel, FusePlugin, InstallFuses, ObjectivePlugin, Prop,
+        Room, ToggleDoor, FUSE_COUNT,
     },
 };
 
+mod common;
+
 fn app() -> (App, Entity) {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin))
-        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-            100,
-        )))
-        .add_plugins(PlayerControllerPlugin::default().without_camera())
-        .add_plugins((DoorPlugin, FusePlugin, ObjectivePlugin, AchievementPlugin));
+    let mut app = common::player_app(Duration::from_millis(100));
+    app.init_resource::<FacilityPower>().add_plugins((
+        DoorPlugin,
+        FusePlugin,
+        ObjectivePlugin,
+        AchievementPlugin,
+    ));
     app.finish();
     app.cleanup();
     app.update();
@@ -127,9 +128,8 @@ fn teleport(app: &mut App, player: Entity, x: f32, z: f32) {
 
 #[test]
 fn first_floor_locks_only_the_outside_exit_and_adds_a_logical_panel() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();

@@ -1,24 +1,21 @@
 use std::time::Duration;
 
-use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
-use bevy_enhanced_input::EnhancedInputPlugin;
-use game_settings::GameSettings;
+use bevy::prelude::*;
+use bevy_enhanced_input::prelude::Binding;
 use gameplay::{
-    controller::{Flashlight, PlayerController, PlayerControllerPlugin},
-    levels::{DevicePlugin, Flashbangs, Flashed},
+    controller::{ControllerSettings, Flashlight, PlayerController},
+    levels::{DevicePlugin, FacilityPower, Flashbangs, Flashed},
 };
 
-fn app(flashlight: &str, flashbang: &str) -> (App, Entity) {
-    let mut settings = GameSettings::default();
-    settings.keys.flashlight = flashlight.into();
-    settings.keys.flashbang = flashbang.into();
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin))
-        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-            100,
-        )))
-        .insert_resource(settings)
-        .add_plugins(PlayerControllerPlugin::default().without_camera())
+mod common;
+
+fn app(flashlight: Binding, flashbang: Binding) -> (App, Entity) {
+    let mut settings = common::controller_settings();
+    settings.keys.flashlight = flashlight;
+    settings.keys.flashbang = flashbang;
+    let mut app = common::player_app(Duration::from_millis(100));
+    app.insert_resource(settings)
+        .init_resource::<FacilityPower>()
         .add_plugins(DevicePlugin);
     app.finish();
     app.cleanup();
@@ -56,7 +53,7 @@ fn flashbangs(app: &App, player: Entity) -> usize {
 
 #[test]
 fn default_bindings_keep_left_and_right_mouse() {
-    let (mut app, player) = app("MouseLeft", "MouseRight");
+    let (mut app, player) = app(MouseButton::Left.into(), MouseButton::Right.into());
     tap(&mut app, MouseButton::Left);
     assert!(flashlight_on(&app, player));
     tap(&mut app, MouseButton::Right);
@@ -66,7 +63,7 @@ fn default_bindings_keep_left_and_right_mouse() {
 
 #[test]
 fn rebound_keys_drive_flashlight_and_flashbang() {
-    let (mut app, player) = app("KeyH", "KeyG");
+    let (mut app, player) = app(KeyCode::KeyH.into(), KeyCode::KeyG.into());
     tap(&mut app, MouseButton::Left);
     tap(&mut app, MouseButton::Right);
     assert!(!flashlight_on(&app, player));
@@ -80,7 +77,7 @@ fn rebound_keys_drive_flashlight_and_flashbang() {
 
 #[test]
 fn swapped_mouse_buttons_follow_the_settings() {
-    let (mut app, player) = app("MouseRight", "MouseLeft");
+    let (mut app, player) = app(MouseButton::Right.into(), MouseButton::Left.into());
     tap(&mut app, MouseButton::Left);
     assert!(!flashlight_on(&app, player));
     assert_eq!(flashbangs(&app, player), 1);
@@ -91,11 +88,11 @@ fn swapped_mouse_buttons_follow_the_settings() {
 
 #[test]
 fn changing_settings_rebinds_at_runtime() {
-    let (mut app, player) = app("MouseLeft", "MouseRight");
+    let (mut app, player) = app(MouseButton::Left.into(), MouseButton::Right.into());
     app.world_mut()
-        .resource_mut::<GameSettings>()
+        .resource_mut::<ControllerSettings>()
         .keys
-        .flashbang = "KeyG".into();
+        .flashbang = KeyCode::KeyG.into();
     app.update();
     tap(&mut app, MouseButton::Right);
     assert_eq!(flashbangs(&app, player), 2);
@@ -105,12 +102,10 @@ fn changing_settings_rebinds_at_runtime() {
 
 #[test]
 fn held_rebound_flashlight_key_does_not_toggle_on_spawn() {
-    let mut settings = GameSettings::default();
-    settings.keys.flashlight = "KeyH".into();
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin))
-        .insert_resource(settings)
-        .add_plugins(PlayerControllerPlugin::default().without_camera());
+    let mut settings = common::controller_settings();
+    settings.keys.flashlight = KeyCode::KeyH.into();
+    let mut app = common::player_app(Duration::from_millis(100));
+    app.insert_resource(settings);
     app.finish();
     app.cleanup();
     app.update();

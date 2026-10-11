@@ -1,20 +1,17 @@
 use std::{f32::consts::PI, time::Duration};
 
-use bevy::{
-    input::{mouse::MouseMotion, InputPlugin},
-    prelude::*,
-    time::TimeUpdateStrategy,
-};
-use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy::{input::mouse::MouseMotion, prelude::*};
 use game_audio::{PlaySourceSound, Sound, SourceSounds};
 use gameplay::{
-    controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled, PlayerInput},
+    controller::{PlayerController, PlayerControlsEnabled, PlayerInput},
     levels::{
-        build_first_floor, Door, DoorPlugin, DoorState, FuseInventory, FusePlugin, FuseSeed,
-        Hidden, HidingPhase, HidingPlugin, HidingSpot, PickupKind, Prop, PropCollider, Room,
-        HIDING_TRANSITION,
+        build_first_floor, Door, DoorPlugin, DoorState, FacilityPower, FuseInventory, FusePlugin,
+        Hidden, HidingPhase, HidingPlugin, HidingSpot, PickupKind, PickupPlugin, Prop,
+        PropCollider, Room, HIDING_TRANSITION,
     },
 };
+
+mod common;
 
 const EYE: f32 = 1.6;
 const FRAME: f32 = 0.1;
@@ -29,20 +26,21 @@ fn collect_sounds(mut events: MessageReader<PlaySourceSound>, mut log: ResMut<So
         .extend(events.read().map(|sound| (sound.sound, sound.source)));
 }
 
-fn plugins(app: &mut App) {
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin))
-        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-            100,
-        )))
-        .add_plugins(PlayerControllerPlugin::default().without_camera())
-        .add_plugins((DoorPlugin, FusePlugin, HidingPlugin));
+fn plugins() -> App {
+    let mut app = common::player_app(Duration::from_millis(100));
+    app.init_resource::<FacilityPower>().add_plugins((
+        DoorPlugin,
+        FusePlugin,
+        PickupPlugin,
+        HidingPlugin,
+    ));
     app.finish();
     app.cleanup();
+    app
 }
 
 fn app() -> (App, Entity) {
-    let mut app = App::new();
-    plugins(&mut app);
+    let mut app = plugins();
     app.update();
     let player = app
         .world_mut()
@@ -369,7 +367,7 @@ fn fuse_on_a_table_wins_over_hiding_under_it() {
         .id();
     aim(&mut app, player, Vec3::new(0.0, 0.83, -1.5));
     press_f(&mut app);
-    assert!(app.world().get_entity(fuse).is_err());
+    assert!(app.world().get::<PickupKind>(fuse).is_none());
     assert_eq!(app.world().get::<FuseInventory>(player).unwrap().0, 1);
     assert_eq!(hidden(&app, player), None);
 
@@ -396,7 +394,7 @@ fn hidden_player_cannot_pick_up_fuses() {
         .id();
     aim(&mut app, player, eye + Vec3::new(0.0, 0.0, 0.6));
     press_f(&mut app);
-    assert!(app.world().get_entity(fuse).is_ok());
+    assert!(app.world().get::<PickupKind>(fuse).is_some());
     assert_eq!(app.world().get::<FuseInventory>(player).unwrap().0, 0);
     settle(&mut app);
     assert_eq!(hidden(&app, player), None);
@@ -423,9 +421,7 @@ fn occupied_spot_rejects_a_second_player() {
 
 #[test]
 fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
-    let mut app = App::new();
-    app.insert_resource(FuseSeed(7));
-    plugins(&mut app);
+    let mut app = plugins();
     app.add_systems(Startup, build_first_floor);
     app.update();
     let player = app
@@ -610,9 +606,7 @@ fn hiding_actions_emit_one_kind_specific_cue_per_transition() {
 
 #[test]
 fn storage_lockers_hide_with_f_after_walking_in_from_the_door() {
-    let mut app = App::new();
-    app.insert_resource(FuseSeed(7));
-    plugins(&mut app);
+    let mut app = plugins();
     app.add_systems(Startup, build_first_floor);
     app.update();
     let world = app.world_mut();

@@ -1,26 +1,22 @@
 use std::time::Duration;
 
-use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
-use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy::prelude::*;
 use game_audio::{PlaySound, PlaySourceSound, Sound, SourceSounds};
 use gameplay::{
     achievements::{Achievement, AchievementPlugin, AchievementProgress, RunAchievements},
-    controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
+    controller::{PlayerController, PlayerControlsEnabled},
     levels::{
         build_first_floor, FacilityPower, FacilityPowerPlugin, FuseSeed, Prop, PropSoundsPlugin,
         BOILER_UNIT, MAX_OUTAGE_DELAY_SECS, MIN_OUTAGE_DELAY_SECS,
     },
 };
 
+mod common;
+
 #[test]
 fn boiler_repairs_repeated_timed_outages_with_shared_f_interaction() {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin))
-        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-            100,
-        )))
-        .insert_resource(FuseSeed(42))
-        .add_plugins(PlayerControllerPlugin::default().without_camera())
+    let mut app = common::player_app(Duration::from_millis(100));
+    app.insert_resource(FuseSeed(42))
         .add_plugins((FacilityPowerPlugin, PropSoundsPlugin, AchievementPlugin))
         .add_systems(Startup, build_first_floor);
     app.finish();

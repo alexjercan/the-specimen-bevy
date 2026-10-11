@@ -588,12 +588,9 @@ fn decorate_preloaded_props(
 fn decorate_prop(
     added: On<Add, Prop>,
     props: Query<(&Prop, &Transform)>,
-    assets: Option<Res<HalloweenAssets>>,
+    assets: Res<HalloweenAssets>,
     mut commands: Commands,
 ) {
-    let Some(assets) = assets else {
-        return;
-    };
     let Ok((prop, transform)) = props.get(added.entity) else {
         return;
     };
@@ -639,12 +636,9 @@ fn replace_plant_visual(
     added: On<Add, WorldAssetRoot>,
     roots: Query<&ChildOf, With<WorldAssetRoot>>,
     props: Query<(&Prop, &Transform)>,
-    assets: Option<Res<HalloweenAssets>>,
+    assets: Res<HalloweenAssets>,
     mut commands: Commands,
 ) {
-    let Some(assets) = assets else {
-        return;
-    };
     let Ok(parent) = roots.get(added.entity) else {
         return;
     };
@@ -675,13 +669,10 @@ fn replace_plant_visual(
 
 fn add_menu_lantern_cable(
     lanterns: Query<Entity, Added<MenuLanternCable>>,
-    meshes: Option<ResMut<Assets<Mesh>>>,
-    materials: Option<ResMut<Assets<StandardMaterial>>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut commands: Commands,
 ) {
-    let (Some(mut meshes), Some(mut materials)) = (meshes, materials) else {
-        return;
-    };
     for lantern in &lanterns {
         commands.entity(lantern).with_child((
             Name::new("halloween lantern suspension"),
@@ -724,7 +715,3 @@ pub fn spawn_decor(
         placed.with_child(pumpkin_light(decor.module));
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/decor.rs"]
-mod tests;

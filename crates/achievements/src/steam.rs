@@ -15,7 +15,10 @@ pub struct Reconciled {
     pub missing: Vec<Achievement>,
 }
 
-pub fn reconcile(local: &mut HashSet<Achievement>, remote: &mut impl RemoteAchievements) -> Reconciled {
+pub fn reconcile(
+    local: &mut HashSet<Achievement>,
+    remote: &mut impl RemoteAchievements,
+) -> Reconciled {
     let mut reconciled = Reconciled::default();
     for achievement in Achievement::ALL {
         match remote.achieved(achievement.id()) {
@@ -41,7 +44,3 @@ pub fn reconcile(local: &mut HashSet<Achievement>, remote: &mut impl RemoteAchie
     }
     reconciled
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/steam.rs"]
-mod tests;

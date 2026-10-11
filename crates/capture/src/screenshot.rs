@@ -16,8 +16,7 @@ pub struct ScreenshotCapturePlugin;
 
 impl Plugin for ScreenshotCapturePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<CaptureState>()
-            .init_resource::<CaptureLog>();
+        app.init_resource::<CaptureLog>();
     }
 }
 
@@ -28,8 +27,9 @@ pub struct CaptureLog {
 
 pub fn screenshot_written(world: &World, path: impl AsRef<Path>) -> bool {
     world
-        .get_resource::<CaptureLog>()
-        .is_some_and(|log| log.written.contains(path.as_ref()))
+        .resource::<CaptureLog>()
+        .written
+        .contains(path.as_ref())
 }
 
 pub fn screenshot_written_at(
@@ -93,7 +93,3 @@ fn record_result(
         }
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/screenshot.rs"]
-mod tests;

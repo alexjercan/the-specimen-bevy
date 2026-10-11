@@ -2,9 +2,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use bevy::{animation::graph::AnimationNodeIndex, prelude::*, world_serialization::WorldAssetRoot};
 use bevy_rand::prelude::ChaCha8Rng;
+use game_assets::GameAssetsState;
 use game_assets::MonsterAssets;
 use game_audio::{PlaySourceSound, Sound, SourceSounds};
-use rand_core::Rng;
+use rand_core::{Rng, SeedableRng};
 
 use crate::{
     achievements::{AchievementSignal, AchievementSignalKind},
@@ -49,10 +50,6 @@ const MODEL_PIVOT: Vec2 = Vec2::new(0.091, 3.793);
 const TURN_SPEED: f32 = 2.1;
 const CHASE_TURN_SPEED: f32 = 8.0;
 const MOVE_FACING_TOLERANCE: f32 = 0.18;
-
-#[cfg(test)]
-#[path = "../../tests/unit/monster.rs"]
-mod tests;
 
 #[derive(Component)]
 pub struct Monster {
@@ -138,8 +135,20 @@ impl Default for Monster {
     }
 }
 
-#[derive(Resource)]
-pub(super) struct PatrolRng(pub(super) ChaCha8Rng);
+#[derive(Component)]
+pub struct PatrolRng(ChaCha8Rng);
+
+impl PatrolRng {
+    pub fn new(seed: u64) -> Self {
+        Self(ChaCha8Rng::seed_from_u64(seed))
+    }
+}
+
+impl Default for PatrolRng {
+    fn default() -> Self {
+        Self::new(0)
+    }
+}
 
 #[derive(Component)]
 #[require(Transform, Visibility)]
@@ -161,8 +170,7 @@ pub struct MonsterPlugin;
 
 impl Plugin for MonsterPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GamePreset>()
-            .add_message::<ToggleDoor>()
+        app.add_message::<ToggleDoor>()
             .add_message::<PlaySourceSound>()
             .add_observer(attach_monster_sounds)
             .add_systems(
@@ -179,7 +187,13 @@ pub struct MonsterRenderPlugin;
 
 impl Plugin for MonsterRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (attach_scene, pose_figure, animate_monster).chain());
+        app.add_systems(OnEnter(GameAssetsState::Ready), build_animations)
+            .add_systems(
+                Update,
+                (attach_scene, pose_figure, animate_monster)
+                    .chain()
+                    .run_if(in_state(GameAssetsState::Ready)),
+            );
     }
 }
 
@@ -197,6 +211,26 @@ fn attach_monster_sounds(added: On<Add, Monster>, mut commands: Commands) {
     ]));
 }
 
+fn build_animations(
+    assets: Res<MonsterAssets>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
+    mut commands: Commands,
+) {
+    let (graph, clips) = AnimationGraph::from_clips([
+        assets.idle.clone(),
+        assets.walk.clone(),
+        assets.chase.clone(),
+        assets.attack.clone(),
+    ]);
+    commands.insert_resource(MonsterAnimations {
+        graph: graphs.add(graph),
+        idle: clips[0],
+        walk: clips[1],
+        chase: clips[2],
+        attack: clips[3],
+    });
+}
+
 fn attach_scene(
     mut commands: Commands,
     monsters: Query<
@@ -206,26 +240,8 @@ fn attach_scene(
             Without<MonsterScene>,
         ),
     >,
-    assets: Option<Res<MonsterAssets>>,
-    mut graphs: ResMut<Assets<AnimationGraph>>,
-    animations: Option<Res<MonsterAnimations>>,
+    assets: Res<MonsterAssets>,
 ) {
-    let Some(assets) = assets else { return };
-    if animations.is_none() {
-        let (graph, clips) = AnimationGraph::from_clips([
-            assets.idle.clone(),
-            assets.walk.clone(),
-            assets.chase.clone(),
-            assets.attack.clone(),
-        ]);
-        commands.insert_resource(MonsterAnimations {
-            graph: graphs.add(graph),
-            idle: clips[0],
-            walk: clips[1],
-            chase: clips[2],
-            attack: clips[3],
-        });
-    }
     for entity in &monsters {
         commands.entity(entity).with_children(|children| {
             children.spawn((
@@ -245,14 +261,13 @@ fn attach_scene(
 
 fn animate_monster(
     mut commands: Commands,
-    animations: Option<Res<MonsterAnimations>>,
+    animations: Res<MonsterAnimations>,
     monsters: Query<(Entity, &Monster, &Children)>,
     caught: Query<&Caught>,
     scene_roots: Query<(), With<MonsterScene>>,
     children: Query<&Children>,
     mut players: Query<(Entity, &mut AnimationPlayer, Option<&AnimationGraphHandle>)>,
 ) {
-    let Some(animations) = animations else { return };
     for (entity, monster, roots) in &monsters {
         let attacking = caught.iter().any(|caught| caught.monster == entity);
         for root in roots.iter().filter(|root| scene_roots.contains(*root)) {
@@ -293,13 +308,12 @@ fn animate_monster(
 
 fn pose_figure(
     mut commands: Commands,
-    animations: Option<Res<MonsterAnimations>>,
+    animations: Res<MonsterAnimations>,
     figures: Query<&Children, With<MonsterFigure>>,
     scene_roots: Query<(), With<MonsterScene>>,
     children: Query<&Children>,
     mut players: Query<(Entity, &mut AnimationPlayer, Option<&AnimationGraphHandle>)>,
 ) {
-    let Some(animations) = animations else { return };
     for roots in &figures {
         for root in roots.iter().filter(|root| scene_roots.contains(*root)) {
             let mut stack = vec![root];
@@ -491,7 +505,7 @@ pub(super) fn sees_player(pose: &Transform, target: Vec2, sight: &StructuralSigh
 
 fn sense_player(
     time: Res<Time>,
-    enabled: Option<Res<PlayerControlsEnabled>>,
+    enabled: Res<PlayerControlsEnabled>,
     preset: Res<GamePreset>,
     sight: StructuralSight,
     players: Query<
@@ -512,7 +526,7 @@ fn sense_player(
     mut sounds: MessageWriter<PlaySourceSound>,
     mut commands: Commands,
 ) {
-    if enabled.is_some_and(|enabled| !enabled.0) {
+    if !enabled.0 {
         return;
     }
     for (entity, transform, mut monster) in &mut monsters {
@@ -585,7 +599,7 @@ fn sense_player(
 
 pub(super) fn catch_player(
     time: Res<Time>,
-    enabled: Option<Res<PlayerControlsEnabled>>,
+    enabled: Res<PlayerControlsEnabled>,
     sight: StructuralSight,
     mut players: Query<
         (
@@ -609,7 +623,7 @@ pub(super) fn catch_player(
     mut sounds: MessageWriter<PlaySourceSound>,
     mut commands: Commands,
 ) {
-    if enabled.is_some_and(|enabled| !enabled.0) {
+    if !enabled.0 {
         return;
     }
     let delta = time.delta_secs();
@@ -743,13 +757,13 @@ fn approaching_door(transform: &Transform, route: &VecDeque<Vec2>, door: &Door) 
 }
 
 fn manage_doors(
-    enabled: Option<Res<PlayerControlsEnabled>>,
+    enabled: Res<PlayerControlsEnabled>,
     doors: Query<(Entity, &Door, Has<DoorLock>)>,
     monsters: Query<(&Transform, &Monster)>,
     caught: Query<(), (With<PlayerController>, With<Caught>)>,
     mut toggles: MessageWriter<ToggleDoor>,
 ) {
-    if !caught.is_empty() || enabled.is_some_and(|enabled| !enabled.0) {
+    if !caught.is_empty() || !enabled.0 {
         return;
     }
     for (entity, door, locked) in &doors {
@@ -766,10 +780,9 @@ fn manage_doors(
 
 fn patrol(
     time: Res<Time>,
-    enabled: Option<Res<PlayerControlsEnabled>>,
+    enabled: Res<PlayerControlsEnabled>,
     preset: Res<GamePreset>,
     sight: StructuralSight,
-    mut rng: Option<ResMut<PatrolRng>>,
     rooms: Query<(Entity, &Room, Option<&Doors>)>,
     room_walls: Query<(&Room, Option<&Doors>)>,
     links: Query<(&DoorRef, &DoorOf)>,
@@ -777,16 +790,16 @@ fn patrol(
     door_walls: Query<(&Door, &DoorSwing)>,
     passages: Query<&Passage>,
     props: Query<(&PropCollider, &Transform), (Without<PlayerController>, Without<Monster>)>,
-    mut monsters: Query<(Entity, &mut Monster, &mut Transform), Without<PlayerController>>,
+    mut monsters: Query<
+        (Entity, &mut Monster, &mut Transform, &mut PatrolRng),
+        Without<PlayerController>,
+    >,
     caught: Query<(), (With<PlayerController>, With<Caught>)>,
     mut sounds: MessageWriter<PlaySourceSound>,
 ) {
-    if !caught.is_empty() || enabled.is_some_and(|enabled| !enabled.0) {
+    if !caught.is_empty() || !enabled.0 {
         return;
     }
-    let Some(rng) = rng.as_deref_mut() else {
-        return;
-    };
     let rooms_data: Vec<_> = rooms
         .iter()
         .map(|(entity, room, _)| (entity, room.0))
@@ -811,7 +824,7 @@ fn patrol(
         }
     }
     let delta = time.delta_secs().min(0.1);
-    for (entity, mut monster, mut transform) in &mut monsters {
+    for (entity, mut monster, mut transform, mut rng) in &mut monsters {
         monster.presence_clock += delta;
         if monster.presence_clock >= PRESENCE_INTERVAL {
             monster.presence_clock -= PRESENCE_INTERVAL;

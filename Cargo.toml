@@ -7,6 +7,9 @@ license.workspace = true
 publish = false
 autoexamples = false
 
+[lints]
+workspace = true
+
 [lib]
 name = "game"
 
@@ -28,6 +31,10 @@ members = [
 ]
 resolver = "2"
 
+[workspace.lints.clippy]
+type_complexity = "allow"
+too_many_arguments = "allow"
+
 [workspace.package]
 version = "0.2.0"
 edition = "2021"
@@ -40,6 +47,8 @@ bevy_enhanced_input = "0.26.0"
 bevy_rand = { version = "0.15.0", features = ["chacha20"] }
 rand_core = "0.10.0"
 clap = { version = "4.5.49", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 bevy_egui = { version = "0.40.1", default-features = false, features = ["bevy_ui", "default_fonts", "render"] }
 bevy-inspector-egui = { version = "0.37.0", default-features = false, features = ["bevy"] }
 autopilot = { path = "crates/autopilot" }
@@ -77,6 +86,7 @@ halloween = ["game_core/halloween", "dep:game_halloween"]
 bevy.workspace = true
 clap.workspace = true
 game_core.workspace = true
+game_settings.workspace = true
 game_assets.workspace = true
 game_halloween = { workspace = true, optional = true }
 gameplay.workspace = true

@@ -175,7 +175,7 @@ pub fn key_glyph_stem(key: &str) -> Option<&'static str> {
         .find_map(|(name, stem)| (*name == key).then_some(*stem))
 }
 
-#[derive(AssetCollection, Resource, Default)]
+#[derive(AssetCollection, Resource)]
 pub struct UiAssets {
     #[asset(
         paths(

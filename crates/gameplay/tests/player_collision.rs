@@ -1,19 +1,15 @@
 use std::time::Duration;
 
-use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
-use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy::prelude::*;
 use gameplay::{
-    controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
+    controller::{PlayerController, PlayerControlsEnabled},
     levels::{Door, DoorOf, DoorRef, DoorState, DoorSwing, Passage, Prop, PropCollider, Room},
 };
 
+mod common;
+
 fn app() -> (App, Entity) {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin))
-        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-            100,
-        )))
-        .add_plugins(PlayerControllerPlugin::default().without_camera());
+    let mut app = common::player_app(Duration::from_millis(100));
     app.finish();
     app.cleanup();
     app.update();

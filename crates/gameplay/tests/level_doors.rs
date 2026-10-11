@@ -5,11 +5,12 @@ use gameplay::levels::{
     build_first_floor, Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Passage, Room,
 };
 
+mod common;
+
 #[test]
 fn every_first_floor_room_has_a_ceiling() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -21,9 +22,8 @@ fn every_first_floor_room_has_a_ceiling() {
 
 #[test]
 fn first_floor_openings_link_rooms_and_align_with_walls() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();

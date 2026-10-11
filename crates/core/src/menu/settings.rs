@@ -1,5 +1,4 @@
 use bevy::{
-    input::mouse::{MouseScrollUnit, MouseWheel},
     prelude::*,
     ui::{FocusPolicy, UiSystems},
     ui_widgets::{
@@ -9,12 +8,13 @@ use bevy::{
 use game_assets::UiAssets;
 use game_audio::{PlaySound, Sound};
 use game_settings::{
-    parse_binding, parse_key, GameSettings, SettingsDirty, DEFAULT_SENSITIVITY, MAX_SENSITIVITY,
+    GameSettings, InputBinding, SettingsDirty, DEFAULT_SENSITIVITY, MAX_SENSITIVITY,
     MIN_SENSITIVITY,
 };
 use game_ui::{menu_button, text, theme, MenuButton};
 
 use super::{main_menu::MainMenu, GameState, PauseState};
+use crate::CoreState;
 
 const GLYPH_SIZE: f32 = 30.0;
 const CHIP_WIDTH: f32 = 230.0;
@@ -99,19 +99,18 @@ impl SettingsAction {
         }
     }
 
-    fn key(self, settings: &GameSettings) -> Option<&str> {
-        let keys = &settings.keys;
-        let key = match self {
-            Self::Forward => &keys.forward,
-            Self::Left => &keys.left,
-            Self::Backward => &keys.backward,
-            Self::Right => &keys.right,
-            Self::Interact => &keys.interact,
-            Self::Flashlight => &keys.flashlight,
-            Self::Flashbang => &keys.flashbang,
+    fn key(self, settings: &GameSettings) -> Option<InputBinding> {
+        let keys = settings.keys;
+        Some(match self {
+            Self::Forward => keys.forward.into(),
+            Self::Left => keys.left.into(),
+            Self::Backward => keys.backward.into(),
+            Self::Right => keys.right.into(),
+            Self::Interact => keys.interact.into(),
+            Self::Flashlight => keys.flashlight,
+            Self::Flashbang => keys.flashbang,
             _ => return None,
-        };
-        Some(key.as_str())
+        })
     }
 }
 
@@ -266,16 +265,11 @@ pub(super) fn plugin(app: &mut App) {
                 show_tab,
                 refresh,
             )
-                .chain(),
+                .chain()
+                .run_if(in_state(CoreState::Ready)),
         )
-        .add_systems(Update, scroll_settings)
+        .add_systems(Update, super::scroll_list::<SettingsScroll>)
         .add_systems(PostUpdate, show_scrollbar.after(UiSystems::Layout));
-}
-
-fn key_label(key: &str) -> &str {
-    key.strip_prefix("Key")
-        .or_else(|| key.strip_prefix("Digit"))
-        .unwrap_or(key)
 }
 
 fn chip_state(
@@ -286,7 +280,10 @@ fn chip_state(
     if awaiting == Some(action) {
         AWAITING_TEXT.to_owned()
     } else {
-        action.key(settings).unwrap_or_default().to_owned()
+        action
+            .key(settings)
+            .map(InputBinding::name)
+            .unwrap_or_default()
     }
 }
 
@@ -308,12 +305,9 @@ fn chip_content(chip: &mut ChildSpawnerCommands, shown: &str, assets: &UiAssets)
             ));
         }
         None => {
-            chip.spawn(text(
-                key_label(shown),
-                16.0,
-                theme::TEXT,
-                assets.font.clone(),
-            ));
+            let label =
+                InputBinding::parse(shown).map_or_else(|| shown.to_owned(), InputBinding::label);
+            chip.spawn(text(label, 16.0, theme::TEXT, assets.font.clone()));
         }
     }
 }
@@ -687,23 +681,6 @@ fn show_scrollbar(
     }
 }
 
-fn scroll_settings(
-    mut wheel: MessageReader<MouseWheel>,
-    mut scroll: Query<&mut ScrollPosition, With<SettingsScroll>>,
-) {
-    let mut delta = 0.0;
-    for event in wheel.read() {
-        delta -= event.y
-            * match event.unit {
-                MouseScrollUnit::Line => 38.0,
-                MouseScrollUnit::Pixel => 1.0,
-            };
-    }
-    for mut position in &mut scroll {
-        position.0.y = (position.0.y + delta).max(0.0);
-    }
-}
-
 fn change_slider(
     change: On<ValueChange<f32>>,
     fields: Query<&SettingSlider>,
@@ -721,10 +698,7 @@ fn change_slider(
     }
     field.set(&mut settings, value);
     pending.0 = true;
-    sounds.write(PlaySound {
-        sound: Sound::UiFocus,
-        position: None,
-    });
+    sounds.write(PlaySound::global(Sound::UiFocus));
 }
 
 fn save_sliders(
@@ -760,12 +734,12 @@ fn activate(
     mut menu: Query<&mut Node, (With<MainMenu>, Without<super::pause::PauseMenu>)>,
     mut pause_menu: Query<&mut Node, (With<super::pause::PauseMenu>, Without<MainMenu>)>,
     mut scroll: Query<&mut ScrollPosition, With<SettingsScroll>>,
-    state: Option<Res<State<GameState>>>,
+    state: Res<State<GameState>>,
     mut settings: ResMut<GameSettings>,
     mut dirty: ResMut<SettingsDirty>,
     mut awaiting: ResMut<AwaitingKey>,
     mut active: ResMut<ActiveTab>,
-    assets: Option<Res<UiAssets>>,
+    assets: Res<UiAssets>,
     mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
 ) {
@@ -775,25 +749,17 @@ fn activate(
         }
         match action {
             SettingsAction::Open if overlay.is_empty() => {
-                if let (Some(state), Some(assets)) = (state.as_ref(), assets.as_ref()) {
-                    spawn_overlay(&mut commands, assets, &settings, *state.get(), active.0);
-                    sounds.write(PlaySound {
-                        sound: Sound::UiConfirm,
-                        position: None,
-                    });
-                    for mut node in &mut menu {
-                        node.display = Display::None;
-                    }
-                    for mut node in &mut pause_menu {
-                        node.display = Display::None;
-                    }
+                spawn_overlay(&mut commands, &assets, &settings, *state.get(), active.0);
+                sounds.write(PlaySound::global(Sound::UiConfirm));
+                for mut node in &mut menu {
+                    node.display = Display::None;
+                }
+                for mut node in &mut pause_menu {
+                    node.display = Display::None;
                 }
             }
             SettingsAction::Back => {
-                sounds.write(PlaySound {
-                    sound: Sound::UiBack,
-                    position: None,
-                });
+                sounds.write(PlaySound::global(Sound::UiBack));
                 for entity in &overlay {
                     commands.entity(entity).despawn();
                 }
@@ -807,10 +773,7 @@ fn activate(
             }
             _ if overlay.is_empty() => {}
             SettingsAction::Tab(tab) => {
-                sounds.write(PlaySound {
-                    sound: Sound::UiFocus,
-                    position: None,
-                });
+                sounds.write(PlaySound::global(Sound::UiFocus));
                 active.0 = *tab;
                 awaiting.0 = None;
                 for mut position in &mut scroll {
@@ -818,26 +781,17 @@ fn activate(
                 }
             }
             SettingsAction::Graphics => {
-                sounds.write(PlaySound {
-                    sound: Sound::UiPress,
-                    position: None,
-                });
+                sounds.write(PlaySound::global(Sound::UiPress));
                 settings.graphics = settings.graphics.next();
                 dirty.0 = true;
             }
             SettingsAction::DisplayMode => {
-                sounds.write(PlaySound {
-                    sound: Sound::UiPress,
-                    position: None,
-                });
+                sounds.write(PlaySound::global(Sound::UiPress));
                 settings.display_mode = settings.display_mode.next();
                 dirty.0 = true;
             }
             SettingsAction::FpsOverlay => {
-                sounds.write(PlaySound {
-                    sound: Sound::UiPress,
-                    position: None,
-                });
+                sounds.write(PlaySound::global(Sound::UiPress));
                 settings.fps_overlay = !settings.fps_overlay;
                 dirty.0 = true;
             }
@@ -848,10 +802,7 @@ fn activate(
             | SettingsAction::Interact
             | SettingsAction::Flashlight
             | SettingsAction::Flashbang) => {
-                sounds.write(PlaySound {
-                    sound: Sound::UiFocus,
-                    position: None,
-                });
+                sounds.write(PlaySound::global(Sound::UiFocus));
                 awaiting.0 = Some(*key);
             }
             SettingsAction::Open => {}
@@ -870,13 +821,11 @@ fn capture_key(
     mut pause_menu: Query<&mut Node, (With<super::pause::PauseMenu>, Without<MainMenu>)>,
     mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
+    mut armed: Local<Option<SettingsAction>>,
 ) {
     if keys.just_pressed(KeyCode::Escape) {
         if awaiting.0.is_some() || !overlays.is_empty() {
-            sounds.write(PlaySound {
-                sound: Sound::UiBack,
-                position: None,
-            });
+            sounds.write(PlaySound::global(Sound::UiBack));
         }
         if awaiting.0.is_some() {
             awaiting.0 = None;
@@ -895,42 +844,35 @@ fn capture_key(
         }
         return;
     }
-    if awaiting.is_changed() {
+    if *armed != awaiting.0 {
+        *armed = awaiting.0;
         return;
     }
     let Some(action) = awaiting.0 else {
         return;
     };
-    let name = if let Some(key) = keys.get_just_pressed().copied().next() {
-        format!("{key:?}")
-    } else if buttons.just_pressed(MouseButton::Left) {
-        "MouseLeft".to_owned()
-    } else if buttons.just_pressed(MouseButton::Right) {
-        "MouseRight".to_owned()
-    } else if buttons.just_pressed(MouseButton::Middle) {
-        "MouseMiddle".to_owned()
+    let binding = if let Some(key) = keys.get_just_pressed().copied().next() {
+        if matches!(key, KeyCode::Unidentified(_)) {
+            return;
+        }
+        InputBinding::Key(key)
+    } else if let Some(button) = [MouseButton::Left, MouseButton::Right, MouseButton::Middle]
+        .into_iter()
+        .find(|button| buttons.just_pressed(*button))
+    {
+        InputBinding::Mouse(button)
     } else {
         return;
     };
-    if parse_binding(&name).is_none() {
-        return;
-    }
-    if !matches!(
-        action,
-        SettingsAction::Flashlight | SettingsAction::Flashbang
-    ) && parse_key(&name).is_none()
-    {
-        return;
-    }
-    let mut updated = settings.keys.clone();
-    match action {
-        SettingsAction::Forward => updated.forward = name,
-        SettingsAction::Left => updated.left = name,
-        SettingsAction::Backward => updated.backward = name,
-        SettingsAction::Right => updated.right = name,
-        SettingsAction::Interact => updated.interact = name,
-        SettingsAction::Flashlight => updated.flashlight = name,
-        SettingsAction::Flashbang => updated.flashbang = name,
+    let mut updated = settings.keys;
+    match (action, binding) {
+        (SettingsAction::Forward, InputBinding::Key(key)) => updated.forward = key,
+        (SettingsAction::Left, InputBinding::Key(key)) => updated.left = key,
+        (SettingsAction::Backward, InputBinding::Key(key)) => updated.backward = key,
+        (SettingsAction::Right, InputBinding::Key(key)) => updated.right = key,
+        (SettingsAction::Interact, InputBinding::Key(key)) => updated.interact = key,
+        (SettingsAction::Flashlight, binding) => updated.flashlight = binding,
+        (SettingsAction::Flashbang, binding) => updated.flashbang = binding,
         _ => return,
     }
     if !updated.unique() {
@@ -939,10 +881,7 @@ fn capture_key(
     settings.keys = updated;
     awaiting.0 = None;
     dirty.0 = true;
-    sounds.write(PlaySound {
-        sound: Sound::UiConfirm,
-        position: None,
-    });
+    sounds.write(PlaySound::global(Sound::UiConfirm));
 }
 
 fn show_tab(
@@ -974,7 +913,7 @@ fn show_tab(
 fn refresh(
     settings: Res<GameSettings>,
     awaiting: Res<AwaitingKey>,
-    assets: Option<Res<UiAssets>>,
+    assets: Res<UiAssets>,
     mut labels: Query<(&ChoiceLabel, &mut Text), Without<SliderReadout>>,
     mut readouts: Query<(&SliderReadout, &mut Text), Without<ChoiceLabel>>,
     mut chips: Query<(Entity, &mut KeyChip)>,
@@ -989,9 +928,6 @@ fn refresh(
     for (readout, mut text) in &mut readouts {
         **text = readout.0.readout(readout.0.get(&settings));
     }
-    let Some(assets) = assets else {
-        return;
-    };
     for (entity, mut chip) in &mut chips {
         let shown = chip_state(chip.action, &settings, awaiting.0);
         if chip.shown == shown {
@@ -1004,7 +940,3 @@ fn refresh(
         chip.shown = shown;
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/unit/settings_menu.rs"]
-mod tests;

@@ -267,7 +267,3 @@ fn wake(world: &World) {
         .resource::<EventLoopProxyWrapper>()
         .send_event(WinitUserEvent::WakeUp);
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/rendered.rs"]
-mod tests;

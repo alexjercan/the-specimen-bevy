@@ -13,5 +13,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31
-      - name: Test workspace
-        run: nix develop --command cargo test --workspace --locked
+      - name: Run test suite
+        run: nix develop --command ./tests.sh --full

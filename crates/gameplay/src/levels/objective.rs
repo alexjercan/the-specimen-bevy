@@ -40,7 +40,6 @@ fn escape(
             .any(|door| door.position.distance(position) <= EXIT_REACH)
         {
             commands.entity(entity).insert(Escaped);
-            info!("run complete: player escaped");
         }
     }
 }

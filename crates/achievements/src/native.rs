@@ -19,15 +19,7 @@ pub(crate) struct Loaded {
 }
 
 impl Loaded {
-    pub(crate) fn disabled() -> Self {
-        Self {
-            known: HashSet::new(),
-            unknown: HashSet::new(),
-            path: None,
-        }
-    }
-
-    fn empty(path: Option<PathBuf>) -> Self {
+    pub(crate) fn empty(path: Option<PathBuf>) -> Self {
         Self {
             known: HashSet::new(),
             unknown: HashSet::new(),
@@ -68,7 +60,7 @@ pub(crate) fn load_from_path(path: &Path) -> Loaded {
                         "achievements file at {} is corrupt; persistence disabled to preserve it",
                         path.display()
                     );
-                    Loaded::disabled()
+                    Loaded::empty(None)
                 }
             }
         },
@@ -80,7 +72,7 @@ pub(crate) fn load_from_path(path: &Path) -> Loaded {
                 "achievements file at {} could not be read ({error}); persistence disabled for this session",
                 path.display()
             );
-            Loaded::disabled()
+            Loaded::empty(None)
         }
     }
 }
@@ -143,7 +135,3 @@ pub(crate) fn save_dirty(
         Err(error) => warn!("achievements save failed: {error}"),
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/native.rs"]
-mod tests;

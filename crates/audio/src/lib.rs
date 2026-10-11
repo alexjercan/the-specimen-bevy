@@ -9,7 +9,7 @@ use bevy::{
     },
     prelude::*,
 };
-use game_assets::SoundAssets;
+use game_assets::{GameAssetsState, SoundAssets};
 use game_settings::GameSettings;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,6 +59,15 @@ pub struct PlaySound {
     pub position: Option<Vec3>,
 }
 
+impl PlaySound {
+    pub fn global(sound: Sound) -> Self {
+        Self {
+            sound,
+            position: None,
+        }
+    }
+}
+
 #[derive(Message, Clone, Copy, Debug)]
 pub struct PlaySoundFrom {
     pub sound: Sound,
@@ -74,14 +83,6 @@ pub struct PlaySourceSound {
     pub source: Entity,
     pub sound: Sound,
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/support.rs"]
-mod test_support;
-
-#[cfg(test)]
-#[path = "../tests/unit/playback.rs"]
-mod tests;
 
 impl Sound {
     pub fn requires_power(self) -> bool {
@@ -137,8 +138,8 @@ struct WorldAudio;
 #[derive(Component, Clone, Copy)]
 struct AudioGain(f32);
 
-fn volume(settings: Option<&GameSettings>, base: f32) -> Volume {
-    Volume::Linear(base * settings.map_or(1.0, |settings| settings.master * settings.sfx))
+fn volume(settings: &GameSettings, base: f32) -> Volume {
+    Volume::Linear(base * settings.master * settings.sfx)
 }
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -154,15 +155,18 @@ impl Plugin for GameAudioPlugin {
             .init_resource::<AudioPaused>()
             .init_resource::<AmbienceActive>()
             .init_resource::<ConduitAmbience>()
+            .init_resource::<AmbientEmitters>()
             .add_systems(
                 Update,
                 (
                     update_pause,
                     update_volume,
-                    play_sounds,
+                    play_sounds.run_if(in_state(GameAssetsState::Ready)),
                     play_authored_sounds,
-                    play_source_sounds,
-                    ambience::update_ambience.in_set(AmbientUpdate),
+                    play_source_sounds.run_if(in_state(GameAssetsState::Ready)),
+                    ambience::update_ambience
+                        .in_set(AmbientUpdate)
+                        .run_if(in_state(GameAssetsState::Ready)),
                 )
                     .chain(),
             );
@@ -170,21 +174,18 @@ impl Plugin for GameAudioPlugin {
 }
 
 fn update_volume(
-    settings: Option<Res<GameSettings>>,
+    settings: Res<GameSettings>,
     mut regular: Query<(&AudioGain, &mut AudioSink)>,
     mut spatial: Query<(&AudioGain, &mut SpatialAudioSink)>,
 ) {
-    if !settings
-        .as_ref()
-        .is_some_and(|settings| settings.is_changed())
-    {
+    if !settings.is_changed() {
         return;
     }
     for (gain, mut sink) in &mut regular {
-        sink.set_volume(volume(settings.as_deref(), gain.0));
+        sink.set_volume(volume(&settings, gain.0));
     }
     for (gain, mut sink) in &mut spatial {
-        sink.set_volume(volume(settings.as_deref(), gain.0));
+        sink.set_volume(volume(&settings, gain.0));
     }
 }
 
@@ -270,8 +271,8 @@ fn sound_handle(sound: Sound, assets: &SoundAssets) -> Option<&Handle<AudioSourc
 
 fn play_source_sounds(
     mut sounds: MessageReader<PlaySoundFrom>,
-    assets: Option<Res<SoundAssets>>,
-    settings: Option<Res<GameSettings>>,
+    assets: Res<SoundAssets>,
+    settings: Res<GameSettings>,
     paused: Res<AudioPaused>,
     sources: Query<&GlobalTransform>,
     listeners: Query<&GlobalTransform, With<SpatialListener>>,
@@ -281,7 +282,7 @@ fn play_source_sounds(
         if paused.0 {
             continue;
         }
-        let (Some(assets), Ok(listener)) = (assets.as_deref(), listeners.single()) else {
+        let Ok(listener) = listeners.single() else {
             continue;
         };
         let (Ok(source), Some(handle)) =
@@ -302,7 +303,7 @@ fn play_source_sounds(
                     AudioGain(gain),
                     AudioPlayer::new(handle.clone()),
                     PlaybackSettings::DESPAWN
-                        .with_volume(volume(settings.as_deref(), gain))
+                        .with_volume(volume(&settings, gain))
                         .with_spatial(true)
                         .with_spatial_scale(cue.sound.spatial_scale()),
                     Transform::from_translation(cue.offset),
@@ -334,13 +335,12 @@ fn play_authored_sounds(
 
 fn play_sounds(
     mut sounds: MessageReader<PlaySound>,
-    assets: Option<Res<SoundAssets>>,
-    settings: Option<Res<GameSettings>>,
+    assets: Res<SoundAssets>,
+    settings: Res<GameSettings>,
     paused: Res<AudioPaused>,
     listeners: Query<&GlobalTransform, With<SpatialListener>>,
     mut commands: Commands,
 ) {
-    let Some(assets) = assets else { return };
     for cue in sounds.read() {
         let world_sound = matches!(
             cue.sound,
@@ -391,7 +391,7 @@ fn play_sounds(
                 AudioGain(gain),
                 AudioPlayer::new(handle.clone()),
                 PlaybackSettings::DESPAWN
-                    .with_volume(volume(settings.as_deref(), gain))
+                    .with_volume(volume(&settings, gain))
                     .with_spatial(true)
                     .with_spatial_scale(cue.sound.spatial_scale()),
                 Transform::from_translation(position),
@@ -401,13 +401,13 @@ fn play_sounds(
                 WorldAudio,
                 AudioGain(0.6),
                 AudioPlayer::new(handle.clone()),
-                PlaybackSettings::DESPAWN.with_volume(volume(settings.as_deref(), 0.6)),
+                PlaybackSettings::DESPAWN.with_volume(volume(&settings, 0.6)),
             ));
         } else {
             commands.spawn((
                 AudioGain(0.6),
                 AudioPlayer::new(handle.clone()),
-                PlaybackSettings::DESPAWN.with_volume(volume(settings.as_deref(), 0.6)),
+                PlaybackSettings::DESPAWN.with_volume(volume(&settings, 0.6)),
             ));
         }
     }

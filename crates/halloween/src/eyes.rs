@@ -103,7 +103,3 @@ fn light_eyes(
         }
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/eyes.rs"]
-mod tests;

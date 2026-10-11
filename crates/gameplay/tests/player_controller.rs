@@ -2,28 +2,21 @@ use std::time::Duration;
 
 use bevy::{
     audio::SpatialListener,
-    input::{mouse::MouseMotion, InputPlugin},
+    input::mouse::MouseMotion,
     prelude::*,
-    time::TimeUpdateStrategy,
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
-use bevy_enhanced_input::EnhancedInputPlugin;
-use game_settings::GameSettings;
 use gameplay::controller::{
-    Flashlight, PlayerController, PlayerControllerPlugin, PlayerControllerSettings,
-    PlayerControlsEnabled, PlayerInput, RUN_SPEED, WALK_SPEED,
+    ControllerSettings, Flashlight, PlayerController, PlayerControlsEnabled, PlayerInput,
+    PlayerPresentationPlugin, RUN_SPEED, WALK_SPEED,
 };
 
+mod common;
+
 fn app(camera: bool) -> (App, Entity) {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin));
-    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-        100,
-    )));
+    let mut app = common::player_app(Duration::from_millis(100));
     if camera {
-        app.add_plugins(PlayerControllerPlugin::default());
-    } else {
-        app.add_plugins(PlayerControllerPlugin::default().without_camera());
+        app.add_plugins(PlayerPresentationPlugin);
     }
     app.finish();
     app.cleanup();
@@ -115,8 +108,8 @@ fn wasd_shift_and_release_move_at_fixed_height() {
 #[test]
 fn changed_movement_binding_replaces_wasd_action() {
     let (mut app, player) = app(false);
-    let mut settings = GameSettings::default();
-    settings.keys.forward = "ArrowUp".into();
+    let mut settings = common::controller_settings();
+    settings.keys.forward = KeyCode::ArrowUp;
     app.insert_resource(settings);
     app.update();
     app.world_mut()
@@ -137,8 +130,8 @@ fn changed_movement_binding_replaces_wasd_action() {
 #[test]
 fn changing_flashlight_binding_replaces_mouse_action() {
     let (mut app, player) = app(false);
-    let mut settings = GameSettings::default();
-    settings.keys.flashlight = "KeyQ".into();
+    let mut settings = common::controller_settings();
+    settings.keys.flashlight = KeyCode::KeyQ.into();
     app.insert_resource(settings);
     app.update();
     app.world_mut()
@@ -154,11 +147,11 @@ fn changing_flashlight_binding_replaces_mouse_action() {
 }
 
 #[test]
-fn mouse_look_uses_controller_settings() {
+fn mouse_look_uses_controller_sensitivity() {
     let (mut app, player) = app(false);
     app.world_mut()
-        .resource_mut::<PlayerControllerSettings>()
-        .look_sensitivity = 0.004;
+        .resource_mut::<ControllerSettings>()
+        .mouse_sensitivity = 0.004;
     app.world_mut().write_message(MouseMotion {
         delta: Vec2::new(100.0, 0.0),
     });

@@ -5,6 +5,7 @@ use bevy::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 use game_assets::UiAssets;
+use game_audio::AudioPaused;
 use game_ui::{menu_button, panel, text, theme};
 use gameplay::controller::PlayerControlsEnabled;
 #[cfg(target_arch = "wasm32")]
@@ -26,18 +27,17 @@ thread_local! {
 pub(super) fn plugin(app: &mut App) {
     #[cfg(target_arch = "wasm32")]
     watch_pointer_lock(app);
-    app.add_systems(Update, toggle_pause.run_if(in_state(GameState::Playing)))
-        .add_systems(
-            OnEnter(PauseState::Paused),
-            (
-                spawn_pause_menu,
-                freeze_clock,
-                disable_controls,
-                release_cursor,
-            ),
-        )
-        .add_systems(OnExit(PauseState::Paused), (resume_clock, enable_controls))
-        .add_systems(OnExit(GameState::Playing), resume_clock);
+    app.add_systems(
+        Update,
+        (toggle_pause, apply_pause)
+            .chain()
+            .run_if(in_state(GameState::Playing)),
+    )
+    .add_systems(
+        OnEnter(PauseState::Paused),
+        (spawn_pause_menu, release_cursor),
+    )
+    .add_systems(OnExit(GameState::Playing), resume_world);
 }
 
 fn toggle_pause(
@@ -68,57 +68,73 @@ fn watch_pointer_lock(app: &mut App) {
         .add_event_listener_with_callback("pointerlockchange", listener.as_ref().unchecked_ref())
         .unwrap();
     listener.forget();
-    app.add_systems(Update, pause_on_pointer_unlock);
+    app.add_systems(
+        Update,
+        pause_on_pointer_unlock.run_if(in_state(PauseState::Running)),
+    );
 }
 
 #[cfg(target_arch = "wasm32")]
 fn pause_on_pointer_unlock(
-    game: Option<Res<State<GameState>>>,
-    state: Option<Res<State<PauseState>>>,
     cursors: Query<&CursorOptions, With<PrimaryWindow>>,
-    next: Option<ResMut<NextState<PauseState>>>,
-    #[cfg(feature = "debug")] debug: Option<Res<debug::DebugSettings>>,
+    mut next: ResMut<NextState<PauseState>>,
+    #[cfg(feature = "debug")] debug: Res<debug::DebugSettings>,
 ) {
-    if !POINTER_LOCK_LOST.with(|lost| lost.replace(false))
-        || {
-            #[cfg(feature = "debug")]
-            {
-                debug.is_some_and(|settings| settings.inspector)
-            }
-            #[cfg(not(feature = "debug"))]
-            {
-                false
-            }
-        }
-        || !game.is_some_and(|game| *game.get() == GameState::Playing)
-        || !state.is_some_and(|state| *state.get() == PauseState::Running)
-    {
+    if !POINTER_LOCK_LOST.with(|lost| lost.replace(false)) {
+        return;
+    }
+    #[cfg(feature = "debug")]
+    if debug.inspector {
         return;
     }
     if cursors
         .iter()
         .any(|cursor| cursor.grab_mode == CursorGrabMode::Locked)
     {
-        if let Some(mut next) = next {
-            next.set(PauseState::Paused);
-        }
+        next.set(PauseState::Paused);
     }
 }
 
-fn disable_controls(mut enabled: ResMut<PlayerControlsEnabled>) {
-    enabled.0 = false;
+fn apply_pause(
+    pause: Res<State<PauseState>>,
+    #[cfg(feature = "debug")] debug: Res<debug::DebugSettings>,
+    controls: ResMut<PlayerControlsEnabled>,
+    audio: ResMut<AudioPaused>,
+    time: ResMut<Time<Virtual>>,
+) {
+    #[cfg(feature = "debug")]
+    let inspector = debug.inspector;
+    #[cfg(not(feature = "debug"))]
+    let inspector = false;
+    let paused = inspector || *pause.get() == PauseState::Paused;
+    set_world_paused(paused, controls, audio, time);
 }
 
-fn enable_controls(mut enabled: ResMut<PlayerControlsEnabled>) {
-    enabled.0 = true;
+fn resume_world(
+    controls: ResMut<PlayerControlsEnabled>,
+    audio: ResMut<AudioPaused>,
+    time: ResMut<Time<Virtual>>,
+) {
+    set_world_paused(false, controls, audio, time);
 }
 
-fn freeze_clock(mut time: ResMut<Time<Virtual>>) {
-    time.pause();
-}
-
-fn resume_clock(mut time: ResMut<Time<Virtual>>) {
-    time.unpause();
+fn set_world_paused(
+    paused: bool,
+    mut controls: ResMut<PlayerControlsEnabled>,
+    mut audio: ResMut<AudioPaused>,
+    mut time: ResMut<Time<Virtual>>,
+) {
+    if controls.0 == paused {
+        controls.0 = !paused;
+    }
+    if audio.0 != paused {
+        audio.0 = paused;
+    }
+    if paused {
+        time.pause();
+    } else {
+        time.unpause();
+    }
 }
 
 fn spawn_pause_menu(mut commands: Commands, assets: Res<UiAssets>) {

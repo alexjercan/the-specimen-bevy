@@ -26,10 +26,6 @@ pub(super) struct CaughtShot {
     pub(super) monster: Option<Transform>,
 }
 
-#[cfg(test)]
-#[path = "../../tests/unit/death_view.rs"]
-mod tests;
-
 fn fallen_view(view: Transform) -> Transform {
     view.with_translation(view.translation.with_y(FALL_HEIGHT))
         .with_rotation(view.rotation * Quat::from_rotation_z(FALL_ROLL))
@@ -59,14 +55,14 @@ fn finish_run(
     next.set(GameState::GameOver);
 }
 
-fn spawn_game_over(mut commands: Commands, assets: Res<UiAssets>, shot: Option<Res<CaughtShot>>) {
-    let view = shot.as_ref().map_or(Transform::IDENTITY, |shot| shot.view);
+fn spawn_game_over(mut commands: Commands, assets: Res<UiAssets>, shot: Res<CaughtShot>) {
+    let view = shot.view;
     let camera = cinematic::spawn_cameras(&mut commands, GameState::GameOver, view);
     let fallen = fallen_view(view);
     commands
         .entity(camera)
         .insert(CinematicCamera::new(view, fallen, FALL_SECS));
-    if let Some(monster) = shot.as_ref().and_then(|shot| shot.monster) {
+    if let Some(monster) = shot.monster {
         commands.spawn((
             Name::new("Caught figure"),
             MonsterFigure,

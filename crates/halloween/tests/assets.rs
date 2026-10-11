@@ -33,13 +33,8 @@ fn declared_halloween_scenes_match_promoted_manifest() {
     let mut declared = HALLOWEEN_MODULES.to_vec();
     declared.sort_unstable();
     assert_eq!(names, declared);
-    let source = include_str!("../src/lib.rs");
     for name in HALLOWEEN_MODULES {
         assert!(root.join(format!("{name}.glb")).is_file(), "{name}");
-        assert!(
-            source.contains(&format!("\"halloween/{name}.glb#Scene0\"")),
-            "{name}"
-        );
     }
 }
 

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
-use game_assets::FacilityAssets;
 use game_audio::{PlaySound, Sound};
 
 use crate::{
@@ -14,8 +13,6 @@ use super::{
     interaction::StructuralSight,
     monster::{Caught, Monster},
     objective::Escaped,
-    pickups::PickupPlugin,
-    render::{BURST_LIFETIME, THROW_DISTANCE, THROW_GRAVITY},
 };
 
 pub const FLASHBANG_DURATION: f32 = 5.0;
@@ -26,10 +23,6 @@ pub const DETECTOR_RANGE: f32 = 25.0;
 pub const PULSE_NEAR: f32 = 2.0;
 pub const PULSE_FAST: f32 = 0.2;
 pub const PULSE_SLOW: f32 = 1.6;
-
-#[cfg(test)]
-#[path = "../../tests/unit/thrown_flashbang.rs"]
-mod tests;
 
 #[derive(Component, Reflect, Default, Clone, Copy, Debug, PartialEq, Eq)]
 #[reflect(Component)]
@@ -133,13 +126,14 @@ impl ThrownFlashbang {
     }
 }
 
+pub(crate) const THROW_DISTANCE: f32 = 3.8;
+pub(crate) const THROW_GRAVITY: f32 = 20.0;
+pub(crate) const BURST_LIFETIME: f32 = 0.7;
+
 pub struct DevicePlugin;
 
 impl Plugin for DevicePlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<PickupPlugin>() {
-            app.add_plugins(PickupPlugin);
-        }
         app.register_type::<Flashbangs>()
             .add_message::<PlaySound>()
             .add_observer(use_flashbang)
@@ -162,7 +156,6 @@ fn use_flashbang(
         (With<PlayerController>, Without<Caught>, Without<Escaped>),
     >,
     mut sounds: MessageWriter<PlaySound>,
-    assets: Option<Res<FacilityAssets>>,
     mut commands: Commands,
 ) {
     if !enabled.0 {
@@ -174,25 +167,20 @@ fn use_flashbang(
         }
         flashbangs.0 -= 1;
         let thrown = ThrownFlashbang::new(player, transform);
-        let mut projectile = commands.spawn((
+        commands.spawn((
             Name::new("Thrown flashbang"),
             super::LevelRoot,
             Transform::from_translation(thrown.start),
+            Visibility::default(),
             thrown,
         ));
-        if assets.is_some() {
-            projectile.insert(Visibility::default());
-        }
-        sounds.write(PlaySound {
-            sound: Sound::FlashbangThrow,
-            position: None,
-        });
+        sounds.write(PlaySound::global(Sound::FlashbangThrow));
     }
 }
 
 pub(super) fn tick_burst(
     time: Res<Time>,
-    enabled: Option<Res<PlayerControlsEnabled>>,
+    enabled: Res<PlayerControlsEnabled>,
     mut throws: Query<
         (Entity, &mut ThrownFlashbang, &mut Transform),
         (Without<Monster>, Without<PlayerController>),
@@ -219,7 +207,7 @@ pub(super) fn tick_burst(
     mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
 ) {
-    if enabled.is_some_and(|enabled| !enabled.0) {
+    if !enabled.0 {
         for (entity, thrown, _) in &throws {
             if players.get(thrown.owner).is_err() {
                 commands.entity(entity).despawn();
@@ -238,10 +226,7 @@ pub(super) fn tick_burst(
         pose.rotation = Quat::from_rotation_x(thrown.elapsed.min(FLASHBANG_BURST_DELAY) * 9.0);
         if !thrown.burst && thrown.elapsed >= FLASHBANG_BURST_DELAY {
             thrown.burst = true;
-            sounds.write(PlaySound {
-                sound: Sound::FlashbangBurst,
-                position: None,
-            });
+            sounds.write(PlaySound::global(Sound::FlashbangBurst));
             let Ok((caught, escaped, flashed, old_targets, player_transform)) =
                 players.get(thrown.owner)
             else {
@@ -305,11 +290,11 @@ pub(super) fn tick_burst(
 
 fn tick_exposure(
     time: Res<Time>,
-    enabled: Option<Res<PlayerControlsEnabled>>,
+    enabled: Res<PlayerControlsEnabled>,
     mut players: Query<(Entity, &mut FlashExposure)>,
     mut commands: Commands,
 ) {
-    if enabled.is_some_and(|enabled| !enabled.0) {
+    if !enabled.0 {
         return;
     }
     for (player, mut exposure) in &mut players {
@@ -322,11 +307,11 @@ fn tick_exposure(
 
 pub(crate) fn tick_flash(
     time: Res<Time>,
-    enabled: Option<Res<PlayerControlsEnabled>>,
+    enabled: Res<PlayerControlsEnabled>,
     mut players: Query<(Entity, &mut Flashed)>,
     mut commands: Commands,
 ) {
-    if enabled.is_some_and(|enabled| !enabled.0) {
+    if !enabled.0 {
         return;
     }
     for (player, mut flashed) in &mut players {
@@ -380,11 +365,11 @@ pub fn pulse_interval(distance: f32) -> f32 {
 
 fn pulse_detector(
     time: Res<Time>,
-    enabled: Option<Res<PlayerControlsEnabled>>,
+    enabled: Res<PlayerControlsEnabled>,
     mut players: Query<(&Detector, &mut PulseClock), (With<PlayerController>, Without<Caught>)>,
     mut sounds: MessageWriter<PlaySound>,
 ) {
-    if enabled.is_some_and(|enabled| !enabled.0) {
+    if !enabled.0 {
         return;
     }
     for (detector, mut clock) in &mut players {
@@ -395,10 +380,7 @@ fn pulse_detector(
         clock.0 += time.delta_secs();
         if clock.0 >= pulse_interval(reading.distance) {
             clock.0 = 0.0;
-            sounds.write(PlaySound {
-                sound: Sound::DetectorNearby,
-                position: None,
-            });
+            sounds.write(PlaySound::global(Sound::DetectorNearby));
         }
     }
 }

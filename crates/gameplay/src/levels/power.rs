@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use bevy_rand::prelude::ChaCha8Rng;
-use game_audio::{PlaySound, PlaySourceSound, Sound, SourceSounds};
+use game_audio::{PlaySound, PlaySourceSound, Sound};
 use rand_core::{Rng, SeedableRng};
 
 use crate::{
@@ -10,11 +10,12 @@ use crate::{
 };
 
 use super::{
+    builder::Prop,
     fuses::FuseInventory,
     hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
+    module_names::BOILER_UNIT,
     monster::Caught,
-    sounds::IntermittentSound,
 };
 
 pub const MIN_OUTAGE_DELAY_SECS: f32 = 30.0;
@@ -29,7 +30,20 @@ pub struct FacilityPower {
     pub remaining_secs: f32,
     seed: u64,
     cycles: u64,
-    repairable: bool,
+    tripped: bool,
+}
+
+impl Default for FacilityPower {
+    fn default() -> Self {
+        Self {
+            on: true,
+            outage_pending: false,
+            remaining_secs: 0.0,
+            seed: 0,
+            cycles: 0,
+            tripped: false,
+        }
+    }
 }
 
 impl FacilityPower {
@@ -40,7 +54,7 @@ impl FacilityPower {
             remaining_secs: Self::delay(seed, 0),
             seed,
             cycles: 0,
-            repairable: true,
+            tripped: true,
         }
     }
 
@@ -51,12 +65,12 @@ impl FacilityPower {
             remaining_secs: 0.0,
             seed,
             cycles: 0,
-            repairable: false,
+            tripped: false,
         }
     }
 
     pub fn repairable(&self) -> bool {
-        self.repairable && !self.on
+        self.tripped && !self.on
     }
 
     fn delay(seed: u64, cycle: u64) -> f32 {
@@ -99,13 +113,27 @@ impl FacilityPower {
 #[derive(Message)]
 struct RepairBoiler(Entity);
 
+#[derive(Component)]
+pub struct Boiler;
+
+fn tag_boiler(added: On<Add, Prop>, props: Query<&Prop>, mut commands: Commands) {
+    if props
+        .get(added.entity)
+        .is_ok_and(|prop| prop.0 == BOILER_UNIT)
+    {
+        commands.entity(added.entity).insert(Boiler);
+    }
+}
+
 pub struct FacilityPowerPlugin;
 
 impl Plugin for FacilityPowerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<PlaySound>()
+        app.init_resource::<FacilityPower>()
+            .add_message::<PlaySound>()
             .add_message::<PlaySourceSound>()
             .add_message::<RepairBoiler>()
+            .add_observer(tag_boiler)
             .add_observer(repair_boiler)
             .add_systems(Update, (advance_outage, process_repairs).chain());
     }
@@ -115,34 +143,23 @@ fn advance_outage(
     time: Res<Time>,
     enabled: Res<PlayerControlsEnabled>,
     players: Query<(), (With<PlayerController>, Without<Caught>)>,
-    boilers: Query<(Entity, &SourceSounds)>,
-    mut power: Option<ResMut<FacilityPower>>,
+    boilers: Query<Entity, With<Boiler>>,
+    mut power: ResMut<FacilityPower>,
     mut sounds: MessageWriter<PlaySound>,
     mut source_sounds: MessageWriter<PlaySourceSound>,
 ) {
-    let Some(power) = power.as_deref_mut() else {
-        return;
-    };
     if !power.outage_pending || !enabled.0 || players.is_empty() {
         return;
     }
     power.tick(time.delta_secs());
     if !power.on {
-        if let Some((source, _)) = boilers.iter().find(|(_, bindings)| {
-            bindings
-                .0
-                .iter()
-                .any(|(sound, _)| *sound == Sound::BreakerTrip)
-        }) {
+        if let Some(source) = boilers.iter().next() {
             source_sounds.write(PlaySourceSound {
                 source,
                 sound: Sound::BreakerTrip,
             });
         }
-        sounds.write(PlaySound {
-            sound: Sound::PowerDown,
-            position: None,
-        });
+        sounds.write(PlaySound::global(Sound::PowerDown));
     }
 }
 
@@ -154,10 +171,10 @@ fn repair_boiler(
         (&Transform, Option<&FuseInventory>, Option<&Hidden>),
         (With<PlayerController>, Without<Caught>),
     >,
-    power: Option<Res<FacilityPower>>,
+    power: Res<FacilityPower>,
     mut repairs: MessageWriter<RepairBoiler>,
 ) {
-    if !enabled.0 || !power.is_some_and(|power| power.repairable()) {
+    if !enabled.0 || !power.repairable() {
         return;
     }
     if let Some(entity) = players.iter().find_map(|(player, inventory, hidden)| {
@@ -172,35 +189,30 @@ fn repair_boiler(
 
 fn process_repairs(
     mut repairs: MessageReader<RepairBoiler>,
-    mut power: Option<ResMut<FacilityPower>>,
-    boilers: Query<(), With<IntermittentSound>>,
+    mut power: ResMut<FacilityPower>,
+    boilers: Query<(), With<Boiler>>,
     players: Query<Entity, With<PlayerController>>,
     mut sounds: MessageWriter<PlaySourceSound>,
     mut commands: Commands,
 ) {
     for repair in repairs.read() {
-        if let (Some(power), Ok(())) = (power.as_deref_mut(), boilers.get(repair.0)) {
-            if power.repairable() {
-                power.restore();
-                for player in &players {
-                    commands.trigger(AchievementSignal {
-                        player,
-                        kind: AchievementSignalKind::RestoredBoiler,
-                    });
-                }
-                sounds.write(PlaySourceSound {
-                    source: repair.0,
-                    sound: Sound::BoilerReset,
-                });
-                sounds.write(PlaySourceSound {
-                    source: repair.0,
-                    sound: Sound::BoilerRestart,
-                });
-            }
+        if !boilers.contains(repair.0) || !power.repairable() {
+            continue;
         }
+        power.restore();
+        for player in &players {
+            commands.trigger(AchievementSignal {
+                player,
+                kind: AchievementSignalKind::RestoredBoiler,
+            });
+        }
+        sounds.write(PlaySourceSound {
+            source: repair.0,
+            sound: Sound::BoilerReset,
+        });
+        sounds.write(PlaySourceSound {
+            source: repair.0,
+            sound: Sound::BoilerRestart,
+        });
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/unit/facility_power.rs"]
-mod tests;

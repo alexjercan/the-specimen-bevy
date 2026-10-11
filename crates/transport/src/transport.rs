@@ -6,12 +6,12 @@ use std::{
 use bevy::{
     app::{App, AppExit, Plugin, PluginsState},
     input::mouse::MouseMotion,
-    prelude::{ButtonInput, EulerRot, KeyCode, Transform, With, World},
+    prelude::{ButtonInput, EulerRot, Transform, With, World},
     time::TimeUpdateStrategy,
 };
-use game_settings::{parse_binding, GameSettings, InputBinding};
+use bevy_enhanced_input::prelude::Binding;
 use gameplay::{
-    controller::{Flashlight, PlayerController, PlayerInput, Stamina},
+    controller::{ControllerSettings, Flashlight, PlayerController, PlayerInput, Stamina},
     levels::{Caught, Detector, DetectorReading, Escaped, Flashbangs, Flashed},
 };
 use serde::{Deserialize, Serialize};
@@ -51,36 +51,30 @@ impl Controls {
     }
 
     pub(super) fn apply(&self, world: &mut World) {
-        let mut keyboard = world.resource_mut::<ButtonInput<KeyCode>>();
+        let keys = world.resource::<ControllerSettings>().keys;
         for (key, held) in [
-            (KeyCode::KeyW, self.w),
-            (KeyCode::KeyA, self.a),
-            (KeyCode::KeyS, self.s),
-            (KeyCode::KeyD, self.d),
-            (KeyCode::ShiftLeft, self.shift),
-            (KeyCode::KeyF, self.f),
+            (keys.forward, self.w),
+            (keys.left, self.a),
+            (keys.backward, self.s),
+            (keys.right, self.d),
+            (keys.sprint, self.shift),
+            (keys.interact, self.f),
         ] {
-            match held {
-                Some(true) => keyboard.press(key),
-                Some(false) => keyboard.release(key),
-                None => continue,
+            if let Some(held) = held {
+                press(world, key, held);
             }
         }
-        let keys = world
-            .get_resource::<GameSettings>()
-            .map(|settings| settings.keys.clone())
-            .unwrap_or_default();
         for (binding, held) in [
-            (&keys.flashlight, self.flashlight),
-            (&keys.flashbang, self.flashbang),
+            (keys.flashlight, self.flashlight),
+            (keys.flashbang, self.flashbang),
         ] {
             let Some(held) = held else {
                 continue;
             };
-            match parse_binding(binding) {
-                Some(InputBinding::Key(key)) => press(world, key, held),
-                Some(InputBinding::Mouse(button)) => press(world, button, held),
-                None => {}
+            match binding {
+                Binding::Keyboard { key, .. } => press(world, key, held),
+                Binding::MouseButton { button, .. } => press(world, button, held),
+                other => panic!("transport cannot press {other:?}"),
             }
         }
         world.write_message(MouseMotion {
@@ -110,7 +104,7 @@ struct Snapshot {
     game_over: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     map: Option<Map>,
-    power_on: Option<bool>,
+    power_on: bool,
     visible: Vec<Seen>,
     heard: Vec<Heard>,
 }

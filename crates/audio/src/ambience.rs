@@ -23,11 +23,10 @@ pub enum AmbientSound {
 pub struct AmbientEmitter {
     pub source: Entity,
     pub sound: AmbientSound,
-    pub spatial: bool,
     pub volume: f32,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct AmbientEmitters(pub Vec<AmbientEmitter>);
 
 #[derive(Component)]
@@ -59,28 +58,22 @@ impl AmbientSound {
     }
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/ambience.rs"]
-mod tests;
-
 pub(super) fn update_ambience(
     active: Res<AmbienceActive>,
     conduit: Res<ConduitAmbience>,
     paused: Res<AudioPaused>,
-    assets: Option<Res<SoundAssets>>,
-    settings: Option<Res<GameSettings>>,
-    emitters: Option<Res<AmbientEmitters>>,
+    assets: Res<SoundAssets>,
+    settings: Res<GameSettings>,
+    emitters: Res<AmbientEmitters>,
     playing: Query<(Entity, &AmbientVoice)>,
     mut commands: Commands,
 ) {
-    let Some(emitters) = emitters else { return };
     if !active.0 {
         for (entity, _) in &playing {
             commands.entity(entity).despawn();
         }
         return;
     }
-    let Some(assets) = assets else { return };
     for (entity, voice) in &playing {
         if !emitters.0.iter().any(|source| {
             source.source == voice.0 && (source.sound != AmbientSound::Conduit || conduit.0)
@@ -95,9 +88,8 @@ pub(super) fn update_ambience(
         if playing.iter().any(|(_, voice)| voice.0 == source.source) {
             continue;
         }
-        let mut playback =
-            PlaybackSettings::LOOP.with_volume(volume(settings.as_deref(), source.volume));
-        if source.spatial {
+        let mut playback = PlaybackSettings::LOOP.with_volume(volume(&settings, source.volume));
+        if source.sound.spatial() {
             playback = playback
                 .with_spatial(true)
                 .with_spatial_scale(SpatialScale::new(0.3));

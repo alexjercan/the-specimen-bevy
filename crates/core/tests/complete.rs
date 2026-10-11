@@ -1,89 +1,21 @@
 use std::time::Duration;
 
-use bevy::{
-    input::InputPlugin,
-    prelude::*,
-    state::app::StatesPlugin,
-    time::TimeUpdateStrategy,
-    window::{CursorGrabMode, CursorOptions, PrimaryWindow},
-};
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use game_assets::UiAssets;
-use game_core::{CoreState, GameState, MenuPlugin};
+use bevy::{prelude::*, time::TimeUpdateStrategy, window::CursorGrabMode};
+use game_core::GameState;
 use gameplay::{
-    controller::{PlayerController, PlayerControllerPlugin},
+    controller::PlayerController,
     levels::{
-        DoorLock, DoorPlugin, Escaped, ExitDoor, FacilityPower, FacilityPowerPlugin, FuseInventory,
-        FusePanel, FusePlugin, HidingPlugin, InstallFuses, LevelRoot, ObjectivePlugin, Room,
-        FUSE_COUNT,
+        DoorLock, Escaped, ExitDoor, FacilityPower, FuseInventory, FusePanel, InstallFuses,
+        LevelRoot, Room, FUSE_COUNT,
     },
 };
 
-fn app() -> App {
-    let mut app = App::new();
-    app.add_plugins((
-        MinimalPlugins,
-        InputPlugin,
-        StatesPlugin,
-        EnhancedInputPlugin,
-    ))
-    .init_state::<CoreState>()
-    .insert_resource(UiAssets::default())
-    .add_plugins(PlayerControllerPlugin::default().without_camera())
-    .add_plugins((
-        DoorPlugin,
-        FusePlugin,
-        HidingPlugin,
-        ObjectivePlugin,
-        FacilityPowerPlugin,
-        MenuPlugin,
-    ));
-    app.world_mut()
-        .spawn((Window::default(), CursorOptions::default(), PrimaryWindow));
-    app.finish();
-    app.cleanup();
-    app.update();
-    app.world_mut()
-        .resource_mut::<NextState<CoreState>>()
-        .set(CoreState::Ready);
-    app.update();
-    app
-}
+mod common;
 
-fn press(app: &mut App, name: &str) {
-    let button = app
-        .world_mut()
-        .query::<(Entity, &Name)>()
-        .iter(app.world())
-        .find_map(|(entity, candidate)| (candidate.as_str() == name).then_some(entity))
-        .unwrap_or_else(|| panic!("missing {name}"));
-    app.world_mut()
-        .entity_mut(button)
-        .insert(Interaction::Pressed);
-    app.update();
-    app.update();
-}
+use common::*;
 
-fn count<F: bevy::ecs::query::QueryFilter>(app: &mut App) -> usize {
-    app.world_mut()
-        .query_filtered::<(), F>()
-        .iter(app.world())
-        .count()
-}
-
-fn single<F: bevy::ecs::query::QueryFilter>(app: &mut App) -> Entity {
-    app.world_mut()
-        .query_filtered::<Entity, F>()
-        .single(app.world())
-        .unwrap()
-}
-
-fn game_state(app: &App) -> GameState {
-    *app.world().resource::<State<GameState>>().get()
-}
-
-fn escape(app: &mut App) {
-    let player = single::<With<PlayerController>>(app);
+fn escape_facility(app: &mut App) {
+    let player = player(app);
     let panel = single::<With<FusePanel>>(app);
     app.world_mut()
         .entity_mut(player)
@@ -111,13 +43,7 @@ fn escape(app: &mut App) {
 }
 
 fn settle(app: &mut App) {
-    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-        100,
-    )));
-    for _ in 0..45 {
-        app.update();
-    }
-    app.insert_resource(TimeUpdateStrategy::Automatic);
+    run_for(app, REVEAL_AT + 0.5);
 }
 
 fn buttons(app: &mut App) -> usize {
@@ -141,7 +67,7 @@ fn assert_fresh_run(app: &mut App) {
     let power = app.world().resource::<FacilityPower>();
     assert!(power.on && power.outage_pending);
     assert_eq!(count::<With<Room>>(app), 26);
-    let player = single::<With<PlayerController>>(app);
+    let player = player(app);
     assert_eq!(app.world().get::<FuseInventory>(player).unwrap().0, 0);
     assert!(app.world().get::<Escaped>(player).is_none());
     let exit = single::<With<ExitDoor>>(app);
@@ -152,28 +78,14 @@ fn assert_fresh_run(app: &mut App) {
 
 #[test]
 fn escaping_shows_the_completion_cinematic_then_credits_and_retry_starts_a_fresh_run() {
-    let mut app = app();
+    let mut app = ready_menu_app();
     press(&mut app, "Play button");
     assert_fresh_run(&mut app);
 
-    escape(&mut app);
+    escape_facility(&mut app);
     assert_completion_scene(&mut app);
-    let screen = app
-        .world_mut()
-        .query::<&Name>()
-        .iter(app.world())
-        .filter(|name| name.as_str() == "Complete screen")
-        .count();
-    assert_eq!(screen, 1);
-    let cursor = app
-        .world_mut()
-        .query_filtered::<&CursorOptions, With<PrimaryWindow>>()
-        .single(app.world())
-        .unwrap();
-    assert_eq!(
-        (cursor.grab_mode, cursor.visible),
-        (CursorGrabMode::None, true)
-    );
+    assert_eq!(named_count(&mut app, "Complete screen"), 1);
+    assert_eq!(cursor(&mut app), (CursorGrabMode::None, true));
 
     settle(&mut app);
     assert_eq!(game_state(&app), GameState::Credits);
@@ -181,11 +93,12 @@ fn escaping_shows_the_completion_cinematic_then_credits_and_retry_starts_a_fresh
     press(&mut app, "Main menu button");
     assert_eq!(game_state(&app), GameState::MainMenu);
     assert_eq!(count::<With<Camera2d>>(&mut app), 1);
-    assert_eq!(count::<With<Room>>(&mut app), 0);
+    assert_eq!(count::<With<PlayerController>>(&mut app), 0);
+    assert_eq!(count::<With<LevelRoot>>(&mut app), 1);
 
     press(&mut app, "Play button");
     assert_fresh_run(&mut app);
-    escape(&mut app);
+    escape_facility(&mut app);
     assert_completion_scene(&mut app);
     settle(&mut app);
     assert_eq!(game_state(&app), GameState::Credits);
@@ -195,7 +108,7 @@ fn escaping_shows_the_completion_cinematic_then_credits_and_retry_starts_a_fresh
     assert_eq!(count::<With<Camera2d>>(&mut app), 0);
     assert_eq!(buttons(&mut app), 0);
 
-    escape(&mut app);
+    escape_facility(&mut app);
     assert_completion_scene(&mut app);
     settle(&mut app);
     press(&mut app, "Main menu button");
@@ -207,9 +120,9 @@ fn escaping_shows_the_completion_cinematic_then_credits_and_retry_starts_a_fresh
 
 #[test]
 fn quit_from_the_ending_credits_requests_app_exit() {
-    let mut app = app();
+    let mut app = ready_menu_app();
     press(&mut app, "Play button");
-    escape(&mut app);
+    escape_facility(&mut app);
     assert_eq!(game_state(&app), GameState::Complete);
     settle(&mut app);
     press(&mut app, "Quit button");

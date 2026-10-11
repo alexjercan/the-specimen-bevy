@@ -1,3 +1,5 @@
+mod common;
+
 use std::io::Cursor;
 
 use bevy::{app::PluginsState, input::InputPlugin, math::Rect, prelude::*};
@@ -10,6 +12,7 @@ use gameplay::{
         FacilityPower, FacilityPowerPlugin, FuseSeed, HidingPlugin, Monster, MonsterPlugin, Prop,
         Room, ToggleDoor, FUSE_TABLES,
     },
+    presets::GamePreset,
 };
 use serde_json::Value;
 use transport::{run, snapshot, TransportPlugin, TransportTimeline};
@@ -35,11 +38,13 @@ fn spawn_test_monster(mut commands: Commands) {
 
 fn player_only_app() -> App {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         TransportPlugin,
     ));
     app
@@ -47,14 +52,17 @@ fn player_only_app() -> App {
 
 fn first_floor_app(seed: u64, position: Vec3) -> App {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         TransportPlugin,
     ))
     .insert_resource(FuseSeed(seed))
+    .insert_resource(GamePreset::default())
     .add_systems(Startup, (build_first_floor, spawn_player(position)).chain());
     app
 }
@@ -70,15 +78,18 @@ fn sees_module(response: &Value, module: &str) -> bool {
 #[test]
 fn map_appears_once_and_describes_the_first_floor() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         HidingPlugin,
         TransportPlugin,
     ))
     .insert_resource(FuseSeed(11))
+    .insert_resource(GamePreset::default())
     .add_systems(
         Startup,
         (build_first_floor, spawn_player(Vec3::new(0.0, 1.6, 0.0))).chain(),
@@ -123,10 +134,12 @@ fn map_appears_once_and_describes_the_first_floor() {
 #[test]
 fn monster_is_dynamic_and_only_seen_in_the_view_cone() {
     let mut app = player_only_app();
-    app.add_plugins(MonsterPlugin).add_systems(
-        Startup,
-        (spawn_test_monster, spawn_player(Vec3::new(0.0, 1.6, 5.0))).chain(),
-    );
+    app.insert_resource(GamePreset::default())
+        .add_plugins(MonsterPlugin)
+        .add_systems(
+            Startup,
+            (spawn_test_monster, spawn_player(Vec3::new(0.0, 1.6, 5.0))).chain(),
+        );
     let mut output = Vec::new();
     assert_eq!(
         run(app, Cursor::new("{\"tick\":1}\n"), &mut output),
@@ -147,19 +160,21 @@ fn monster_is_dynamic_and_only_seen_in_the_view_cone() {
         .any(|seen| seen["kind"] == "monster"));
 
     let mut away = player_only_app();
-    away.add_plugins(MonsterPlugin).add_systems(
-        Startup,
-        (
-            spawn_test_monster,
-            spawn_player(Vec3::new(0.0, 1.6, 5.0)),
-            |mut players: Query<&mut Transform, With<PlayerController>>| {
-                for mut transform in &mut players {
-                    transform.rotation = Quat::from_rotation_y(std::f32::consts::PI);
-                }
-            },
-        )
-            .chain(),
-    );
+    away.insert_resource(GamePreset::default())
+        .add_plugins(MonsterPlugin)
+        .add_systems(
+            Startup,
+            (
+                spawn_test_monster,
+                spawn_player(Vec3::new(0.0, 1.6, 5.0)),
+                |mut players: Query<&mut Transform, With<PlayerController>>| {
+                    for mut transform in &mut players {
+                        transform.rotation = Quat::from_rotation_y(std::f32::consts::PI);
+                    }
+                },
+            )
+                .chain(),
+        );
     let mut output = Vec::new();
     assert_eq!(
         run(away, Cursor::new("{\"tick\":1}\n"), &mut output),
@@ -274,11 +289,13 @@ fn cone_and_range_gate_visibility_and_pitch_can_hide_a_front_object() {
 #[test]
 fn closed_door_hides_a_prop_until_it_swings_open_and_reports_open() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         DoorPlugin,
         TransportPlugin,
     ));
@@ -334,11 +351,13 @@ fn closed_door_hides_a_prop_until_it_swings_open_and_reports_open() {
 #[test]
 fn power_loss_hides_a_prop_until_the_flashlight_reveals_it() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         FacilityPowerPlugin,
         TransportPlugin,
     ));
@@ -391,11 +410,13 @@ fn power_loss_hides_a_prop_until_the_flashlight_reveals_it() {
 #[test]
 fn nearby_door_sounds_are_heard_with_source_and_drained_after_reporting() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         DoorPlugin,
         TransportPlugin,
     ));
@@ -445,11 +466,13 @@ struct FarDoor(Entity);
 #[test]
 fn door_sounds_beyond_hearing_range_are_not_heard() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         DoorPlugin,
         TransportPlugin,
     ));
@@ -560,11 +583,13 @@ fn ui_sounds_are_dropped_from_heard() {
 #[test]
 fn audio_paused_suppresses_heard_sounds() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         DoorPlugin,
         TransportPlugin,
     ));
@@ -619,11 +644,13 @@ fn audio_paused_suppresses_heard_sounds() {
 fn snapshot_matches_between_run_and_manual_stepping() {
     fn build() -> App {
         let mut app = App::new();
+        app.insert_resource(common::controller_settings())
+            .init_resource::<FacilityPower>();
         app.add_plugins((
             MinimalPlugins,
             InputPlugin,
             EnhancedInputPlugin,
-            PlayerControllerPlugin::default().without_camera(),
+            PlayerControllerPlugin,
             TransportPlugin,
         ))
         .add_systems(

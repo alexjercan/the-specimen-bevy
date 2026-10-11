@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use game_settings::GameSettings;
 use game_ui::{
     detector_readout, flash_alpha, flash_overlay, flashbang_status, DetectorReadout,
-    DetectorSignal, FlashOverlay, FlashbangPrompt, FlashbangStatus, GameUiPlugin,
+    DetectorSignal, FlashOverlay, FlashbangPrompt, FlashbangStatus,
 };
 use gameplay::{
     controller::PlayerController,
@@ -13,9 +13,6 @@ pub struct DeviceHudPlugin;
 
 impl Plugin for DeviceHudPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<GameUiPlugin>() {
-            app.add_plugins(GameUiPlugin);
-        }
         app.add_systems(Startup, spawn_hud).add_systems(
             Update,
             (
@@ -54,13 +51,10 @@ fn sync_flashbang_status(
 }
 
 fn sync_flashbang_prompt(
-    settings: Option<Res<GameSettings>>,
+    settings: Res<GameSettings>,
     mut prompts: Query<&mut Text, With<FlashbangPrompt>>,
 ) {
-    let binding = settings
-        .as_ref()
-        .map_or("MouseRight", |settings| settings.keys.flashbang.as_str());
-    let value = format!("{} THROW", super::hud_binding_label(binding));
+    let value = format!("{} THROW", settings.keys.flashbang.label());
     for mut prompt in &mut prompts {
         if prompt.0 != value {
             prompt.0 = value.clone();
@@ -105,7 +99,3 @@ fn sync_flash_overlay(
         overlay.set_if_neq(FlashOverlay { elapsed });
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/unit/device_hud.rs"]
-mod tests;

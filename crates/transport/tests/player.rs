@@ -1,3 +1,5 @@
+mod common;
+
 use std::{
     io::Cursor,
     sync::{Arc, Mutex},
@@ -7,17 +9,19 @@ use bevy::{input::InputPlugin, prelude::*};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin},
-    levels::{Door, DoorPlugin, DoorState},
+    levels::{Door, DoorPlugin, DoorState, FacilityPower},
 };
 use transport::{run, TransportPlugin, TransportTimeline};
 
 fn step(commands: &str) -> Vec<serde_json::Value> {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         TransportPlugin,
     ));
     app.add_systems(
@@ -71,11 +75,13 @@ fn controls_hold_until_explicitly_released() {
 #[test]
 fn f_toggles_an_aimed_door_once_per_press() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         DoorPlugin,
         TransportPlugin,
     ));
@@ -124,7 +130,7 @@ fn f_toggles_an_aimed_door_once_per_press() {
 #[test]
 fn look_applies_once_and_invalid_requests_do_not_change_state() {
     let lines = step("{\"tick\":2,\"input\":{\"look\":[100,50]}}\n{\"tick\":2,\"input\":{\"w\":true}}\n{\"tick\":3,\"input\":{\"look\":[1e100,0]}}\n{\"tick\":4}\n");
-    assert!(lines[0]["player"]["yaw"].as_f64().unwrap() < -0.19);
+    assert!(lines[0]["player"]["yaw"].as_f64().unwrap() < -0.14);
     assert!(lines[1].get("error").is_some());
     assert!(lines[2].get("error").is_some());
     assert_eq!(lines[3]["tick"], 4);

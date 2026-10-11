@@ -4,7 +4,7 @@ use std::{
 };
 
 use bevy::prelude::*;
-use game_achievements::{install_native_for_test, AchievementStorePlugin};
+use game_achievements::{AchievementStore, AchievementStorePlugin};
 use gameplay::achievements::{Achievement, AchievementProgress, AchievementUnlocked};
 
 fn unique_path(label: &str) -> std::path::PathBuf {
@@ -39,8 +39,12 @@ fn persisted_store_merges_saves_and_reloads_across_a_simulated_restart() {
     .unwrap();
 
     let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    install_native_for_test(&mut app, path.clone());
+    app.add_plugins((
+        MinimalPlugins,
+        AchievementStorePlugin {
+            store: AchievementStore::File(path.clone()),
+        },
+    ));
 
     assert!(app
         .world()
@@ -57,8 +61,12 @@ fn persisted_store_merges_saves_and_reloads_across_a_simulated_restart() {
     assert!(saved.contains("ESCAPE_UNDETECTED"));
 
     let mut restarted = App::new();
-    restarted.add_plugins(MinimalPlugins);
-    install_native_for_test(&mut restarted, path.clone());
+    restarted.add_plugins((
+        MinimalPlugins,
+        AchievementStorePlugin {
+            store: AchievementStore::File(path.clone()),
+        },
+    ));
     let progress = restarted.world().resource::<AchievementProgress>();
     assert!(progress.unlocked.contains(&Achievement::RestoreBoiler));
     assert!(progress.unlocked.contains(&Achievement::EscapeUndetected));
@@ -80,7 +88,12 @@ fn persist_false_adds_nothing_and_never_touches_the_default_path() {
     env::set_var("XDG_DATA_HOME", &dir);
 
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, AchievementStorePlugin { persist: false }));
+    app.add_plugins((
+        MinimalPlugins,
+        AchievementStorePlugin {
+            store: AchievementStore::Disabled,
+        },
+    ));
     unlock(&mut app, Achievement::RestoreBoiler);
     app.update();
 

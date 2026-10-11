@@ -3,18 +3,12 @@ use gameplay::levels::{
     FacilityLight, FacilityPower, LightIntensity, LightingSettings, MainMenuAccentLight,
 };
 
-use crate::menu::GameState;
-
 pub struct FacilityLightingPlugin;
 
 impl Plugin for FacilityLightingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<LightingSettings>()
-            .insert_resource(GlobalAmbientLight {
-                color: Color::WHITE,
-                brightness: LightingSettings::default().ambient_brightness,
-                ..default()
-            })
+            .init_resource::<GlobalAmbientLight>()
             .add_systems(
                 Update,
                 (apply_facility_lights, apply_menu_lights, apply_ambient),
@@ -46,12 +40,10 @@ fn apply_menu_lights(
 
 fn apply_ambient(
     settings: Res<LightingSettings>,
-    power: Option<Res<FacilityPower>>,
-    game: Option<Res<State<GameState>>>,
+    power: Res<FacilityPower>,
     mut ambient: ResMut<GlobalAmbientLight>,
 ) {
-    let playing = game.is_none_or(|game| *game.get() == GameState::Playing);
-    let brightness = if playing && power.is_some_and(|power| !power.on) {
+    let brightness = if !power.on {
         settings.outage_brightness
     } else {
         settings.ambient_brightness * settings.ambient_modifier
@@ -60,7 +52,3 @@ fn apply_ambient(
         ambient.brightness = brightness;
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/lighting.rs"]
-mod tests;

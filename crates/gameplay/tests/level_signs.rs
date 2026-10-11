@@ -3,6 +3,8 @@ use std::collections::{HashMap, VecDeque};
 use bevy::prelude::*;
 use gameplay::levels::{build_first_floor, Door, DoorRef, Doors, Passage, Prop, Room};
 
+mod common;
+
 const READER_DISTANCE: f32 = 1.0;
 const LABEL_TO_ARROW: f32 = 0.79;
 const ALTERNATE_ROUTE_SLACK: usize = 1;
@@ -82,9 +84,8 @@ fn face_rotation(arrow: &Transform) -> Quat {
 }
 
 fn floor() -> Floor {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
     let world = app.world_mut();
 

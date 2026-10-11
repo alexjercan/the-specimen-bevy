@@ -130,12 +130,11 @@ pub fn world_instances_ready(world: &World) -> bool {
     let Some(mut roots) = world.try_query_filtered::<Entity, With<WorldAssetRoot>>() else {
         return true;
     };
-    let spawner = world.get_resource::<WorldInstanceSpawner>();
+    let spawner = world.resource::<WorldInstanceSpawner>();
     roots.iter(world).all(|root| {
         world
             .get::<WorldInstance>(root)
-            .zip(spawner)
-            .is_some_and(|(instance, spawner)| spawner.instance_is_ready(**instance))
+            .is_some_and(|instance| spawner.instance_is_ready(**instance))
     })
 }
 
@@ -298,15 +297,15 @@ fn measure(
     time: Res<Time<Real>>,
     config: Res<ProbeConfig>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    winit: Option<Res<WinitSettings>>,
-    adapter: Option<Res<RenderAdapterInfo>>,
+    winit: Res<WinitSettings>,
+    adapter: Res<RenderAdapterInfo>,
     mut state: ResMut<ProbeState>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if !matches!(state.phase, Phase::Warmup | Phase::Capture) {
         return;
     }
-    let window = match check_environment(&config, windows.single(), winit.as_deref()) {
+    let window = match check_environment(&config, windows.single(), &winit) {
         Ok(window) => window,
         Err(reason) => {
             exit.write(state.fail(reason));
@@ -342,12 +341,8 @@ fn measure(
         physical_height: window.resolution.physical_height(),
         scale_factor: window.resolution.scale_factor(),
         present_mode: present_mode_name(config.present_mode).to_string(),
-        adapter: adapter
-            .as_ref()
-            .map_or_else(|| "unknown".to_string(), |info| info.0.name.clone()),
-        backend: adapter
-            .as_ref()
-            .map_or_else(|| "unknown".to_string(), |info| info.0.backend.to_string()),
+        adapter: adapter.0.name.clone(),
+        backend: adapter.0.backend.to_string(),
         profile: if cfg!(debug_assertions) {
             "debug"
         } else {
@@ -371,18 +366,14 @@ fn measure(
 fn check_environment<'w>(
     config: &ProbeConfig,
     window: Result<&'w Window, QuerySingleError>,
-    winit: Option<&WinitSettings>,
+    winit: &WinitSettings,
 ) -> Result<&'w Window, String> {
-    if let Some(winit) = winit {
-        let focused = winit.update_mode(true);
-        let unfocused = winit.update_mode(false);
-        if !matches!(focused, UpdateMode::Continuous)
-            || !matches!(unfocused, UpdateMode::Continuous)
-        {
-            return Err(format!(
-                "WinitSettings paces the app at focused={focused:?} unfocused={unfocused:?}; the probe needs Continuous for both"
-            ));
-        }
+    let focused = winit.update_mode(true);
+    let unfocused = winit.update_mode(false);
+    if !matches!(focused, UpdateMode::Continuous) || !matches!(unfocused, UpdateMode::Continuous) {
+        return Err(format!(
+            "WinitSettings paces the app at focused={focused:?} unfocused={unfocused:?}; the probe needs Continuous for both"
+        ));
     }
     let window = match window {
         Ok(window) => window,

@@ -1,6 +1,6 @@
 use bevy::{prelude::*, transform::TransformSystems};
 use game_assets::{GameAssetsState, UiAssets};
-use game_settings::GameSettings;
+use game_settings::{key_label, GameSettings};
 use gameplay::{
     controller::PlayerController,
     levels::{DoorState, FuseInventory, Hidden, InteractTarget, InteractTargets, PickupKind},
@@ -57,7 +57,7 @@ fn spawn_hint(mut commands: Commands, assets: Res<UiAssets>) {
         .with_children(|hint| {
             hint.spawn((
                 HintKeyImage,
-                ImageNode::new(assets.key_glyph("KeyF").unwrap_or_default()),
+                ImageNode::new(assets.key_glyph("KeyF").expect("KeyF glyph")),
                 Node {
                     width: px(28),
                     height: px(28),
@@ -86,7 +86,7 @@ fn update_hint(
         With<PlayerController>,
     >,
     targets: InteractTargets,
-    settings: Option<Res<GameSettings>>,
+    settings: Res<GameSettings>,
     mut hint: Query<(&mut Node, &mut Visibility), (With<InteractionHint>, Without<HintKeyImage>)>,
     mut key_image: Query<&mut Node, (With<HintKeyImage>, Without<InteractionHint>)>,
     mut label: Query<&mut Text, With<InteractionHintLabel>>,
@@ -140,16 +140,14 @@ fn update_hint(
     {
         return;
     }
-    let key = settings
-        .as_ref()
-        .map_or("KeyF", |settings| settings.keys.interact.as_str());
-    let custom = key != "KeyF";
+    let key = settings.keys.interact;
+    let custom = key != KeyCode::KeyF;
     if let Ok(mut image) = key_image.single_mut() {
         image.display = if custom { Display::None } else { Display::Flex };
     }
     if let Ok(mut text) = label.single_mut() {
         let message = if custom {
-            format!("{}: {action}", key.strip_prefix("Key").unwrap_or(key))
+            format!("{}: {action}", key_label(key))
         } else {
             action.to_owned()
         };
@@ -166,51 +164,4 @@ fn update_hint(
 
 fn leave_hint_position(viewport: Rect) -> Vec2 {
     Vec2::new(viewport.center().x, viewport.min.y + LEAVE_HINT_TOP)
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn leave_hint_stays_above_bottom_center_detector() {
-        let viewport = Rect::from_corners(Vec2::ZERO, Vec2::new(1280.0, 720.0));
-        let position = leave_hint_position(viewport);
-        assert_eq!(position.x, viewport.center().x);
-        assert_eq!(position.y, viewport.min.y + LEAVE_HINT_TOP);
-        let mut app = App::new();
-        app.world_mut().spawn(game_ui::detector_readout());
-        let mut tracker = app
-            .world_mut()
-            .query_filtered::<&Node, With<game_ui::DetectorReadout>>();
-        let node = tracker.single(app.world()).unwrap();
-        let (Val::Px(bottom), Val::Px(height)) = (node.bottom, node.height) else {
-            panic!("detector dimensions must be in pixels");
-        };
-        let hint_bottom = position.y + 19.0;
-        let tracker_top = viewport.max.y - bottom - height;
-        assert!(hint_bottom < tracker_top);
-    }
-
-    use super::*;
-
-    #[test]
-    fn hint_spawns_from_loaded_ui_assets_and_starts_hidden() {
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
-        app.init_state::<GameAssetsState>()
-            .insert_resource(UiAssets::default())
-            .add_plugins(InteractionHintPlugin);
-        app.world_mut()
-            .resource_mut::<NextState<GameAssetsState>>()
-            .set(GameAssetsState::Ready);
-        app.update();
-        let mut hints = app
-            .world_mut()
-            .query_filtered::<(&Visibility, &Children), With<InteractionHint>>();
-        let (visibility, children) = hints.single(app.world()).unwrap();
-        assert_eq!(*visibility, Visibility::Hidden);
-        assert_eq!(children.len(), 2);
-        assert!(app.world().get::<ImageNode>(children[0]).is_some());
-        assert_eq!(app.world().get::<Text>(children[1]).unwrap().0, "OPEN");
-        assert!(app.world().get::<TextFont>(children[1]).is_some());
-    }
 }

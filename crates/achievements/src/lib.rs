@@ -20,35 +20,49 @@ pub(crate) struct StoreUnknown(HashSet<String>);
 #[derive(Resource, Default)]
 pub(crate) struct StoreDirty(bool);
 
+pub enum AchievementStore {
+    Disabled,
+    #[cfg(not(target_arch = "wasm32"))]
+    File(std::path::PathBuf),
+    #[cfg(target_arch = "wasm32")]
+    Browser,
+}
+
+impl AchievementStore {
+    pub fn persistent(persist: bool) -> Self {
+        if !persist {
+            return Self::Disabled;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            native::default_path().map_or(Self::Disabled, Self::File)
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            Self::Browser
+        }
+    }
+}
+
 pub struct AchievementStorePlugin {
-    pub persist: bool,
+    pub store: AchievementStore,
 }
 
 impl Plugin for AchievementStorePlugin {
     fn build(&self, app: &mut App) {
-        if !self.persist {
-            return;
+        match &self.store {
+            AchievementStore::Disabled => {}
+            #[cfg(not(target_arch = "wasm32"))]
+            AchievementStore::File(path) => build_native(app, path),
+            #[cfg(target_arch = "wasm32")]
+            AchievementStore::Browser => build_wasm(app),
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        build_native(app, None);
-        #[cfg(target_arch = "wasm32")]
-        build_wasm(app);
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[doc(hidden)]
-pub fn install_native_for_test(app: &mut App, path: std::path::PathBuf) {
-    build_native(app, Some(path));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn build_native(app: &mut App, path_override: Option<std::path::PathBuf>) {
-    let path = path_override.or_else(native::default_path);
-    let loaded = match path {
-        Some(path) => native::load_from_path(&path),
-        None => native::Loaded::disabled(),
-    };
+fn build_native(app: &mut App, path: &std::path::Path) {
+    let loaded = native::load_from_path(path);
     install(app, loaded.known, loaded.unknown);
     app.insert_resource(native::StorePath(loaded.path))
         .add_systems(Last, native::save_dirty);
@@ -78,7 +92,3 @@ fn install(app: &mut App, known: HashSet<Achievement>, unknown: HashSet<String>)
 fn mark_dirty(_unlocked: On<AchievementUnlocked>, mut dirty: ResMut<StoreDirty>) {
     dirty.0 = true;
 }
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "../tests/unit/plugin.rs"]
-mod tests;

@@ -2,6 +2,8 @@ use bevy::{math::Rect, prelude::*};
 
 use super::animation::DoorSwing;
 
+pub const TILE: f32 = 2.5;
+
 #[derive(Component)]
 pub struct LevelRoot;
 

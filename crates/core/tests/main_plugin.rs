@@ -86,7 +86,14 @@ fn headless_ignores_menu_and_builds_first_floor() {
     app.finish();
     app.cleanup();
     app.update();
-    assert!(!app.world().contains_resource::<State<GameState>>());
+    assert_eq!(
+        *app.world().resource::<State<GameState>>().get(),
+        GameState::Playing
+    );
+    let mut menus = app.world_mut().query::<&Name>();
+    assert!(menus
+        .iter(app.world())
+        .all(|name| name.as_str() != "Main menu" && name.as_str() != "Loading screen"));
     let mut rooms = app.world_mut().query::<&Room>();
     assert_eq!(rooms.iter(app.world()).count(), 26);
 }
@@ -153,9 +160,9 @@ fn builder_seed_places_fuses_at_the_seeded_tables() {
 }
 
 #[test]
-fn builder_without_seed_leaves_fuse_seed_unset() {
+fn builder_without_seed_still_seeds_the_run() {
     let mut app = AppBuilder::headless().build();
-    assert!(!app.world().contains_resource::<FuseSeed>());
+    assert!(app.world().contains_resource::<FuseSeed>());
     app.finish();
     app.cleanup();
     app.update();

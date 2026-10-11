@@ -81,7 +81,10 @@ pub(crate) fn paint_stamina(
     mut fills: Query<&mut Node, With<StaminaFill>>,
 ) {
     for (meter, roots) in &meters {
-        for descendant in roots.iter().flat_map(|root| children.iter_descendants(root)) {
+        for descendant in roots
+            .iter()
+            .flat_map(|root| children.iter_descendants(root))
+        {
             if let Ok(mut fill) = fills.get_mut(descendant) {
                 fill.width = percent(meter.charge.clamp(0.0, 1.0) * 100.0);
             }

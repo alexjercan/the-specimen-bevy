@@ -1,3 +1,5 @@
+mod common;
+
 use std::{
     io::{self, BufReader, Cursor, Read, Write},
     sync::{
@@ -7,6 +9,7 @@ use std::{
 };
 
 use bevy::{input::InputPlugin, prelude::*};
+use gameplay::levels::FacilityPower;
 use serde_json::Value;
 use transport::{run, TransportPlugin, TransportTimeline};
 
@@ -70,6 +73,8 @@ impl Read for Watched {
 #[test]
 fn steps_to_absolute_ticks_without_free_running() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     let updates = Arc::new(AtomicU64::new(0));
     app.add_plugins((MinimalPlugins, InputPlugin, TransportPlugin))
         .insert_resource(Updates(updates.clone()))
@@ -117,6 +122,8 @@ fn capture_is_reported_as_game_over_at_contact_without_exiting_transport() {
     }
 
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((MinimalPlugins, InputPlugin, TransportPlugin))
         .insert_resource(Updates(Arc::new(AtomicU64::new(0))))
         .add_systems(Startup, ready)
@@ -142,6 +149,8 @@ fn capture_is_reported_as_game_over_at_contact_without_exiting_transport() {
 #[test]
 fn readiness_offsets_loading_updates_and_defers_input() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     let updates = Arc::new(AtomicU64::new(0));
     app.add_plugins((MinimalPlugins, InputPlugin, TransportPlugin))
         .insert_resource(Updates(updates.clone()))
@@ -177,6 +186,8 @@ fn readiness_offsets_loading_updates_and_defers_input() {
 #[test]
 fn initial_snapshot_is_flushed_at_readiness_before_reading_input() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     let updates = Arc::new(AtomicU64::new(0));
     app.add_plugins((MinimalPlugins, InputPlugin, TransportPlugin))
         .insert_resource(Updates(updates.clone()))
@@ -218,6 +229,8 @@ fn initial_snapshot_is_flushed_at_readiness_before_reading_input() {
 #[test]
 fn rejects_invalid_and_past_ticks_without_advancing() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((MinimalPlugins, InputPlugin, TransportPlugin))
         .add_systems(Startup, ready);
 
@@ -243,6 +256,8 @@ fn rejects_invalid_and_past_ticks_without_advancing() {
 #[test]
 fn empty_input_exits_after_the_initial_snapshot() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     let updates = Arc::new(AtomicU64::new(0));
     app.add_plugins((MinimalPlugins, InputPlugin, TransportPlugin))
         .insert_resource(Updates(updates.clone()))

@@ -44,6 +44,7 @@ struct Noise {
 
 pub(crate) fn build(app: &mut App) {
     app.init_resource::<Perception>()
+        .init_resource::<AudioPaused>()
         .add_message::<PlaySound>()
         .add_message::<PlaySourceSound>()
         .add_systems(Last, listen);
@@ -146,7 +147,7 @@ pub(crate) struct Heard {
 
 pub(crate) struct View {
     pub(crate) map: Option<Map>,
-    pub(crate) power_on: Option<bool>,
+    pub(crate) power_on: bool,
     pub(crate) visible: Vec<Seen>,
     pub(crate) heard: Vec<Heard>,
 }
@@ -167,9 +168,9 @@ pub(crate) fn view(world: &mut World) -> View {
         .iter(world)
         .next()
         .map(|(pose, flashlight)| (*pose, flashlight.is_some_and(|light| light.on)));
-    let power_on = world.get_resource::<FacilityPower>().map(|power| power.on);
+    let power_on = world.resource::<FacilityPower>().on;
     let visible = eye
-        .map(|(pose, flashlight)| visible(world, &pose, flashlight, power_on.unwrap_or(true)))
+        .map(|(pose, flashlight)| visible(world, &pose, flashlight, power_on))
         .unwrap_or_default();
     let heard = std::mem::take(&mut perception.heard)
         .into_iter()
@@ -541,7 +542,7 @@ fn label(name: Option<&Name>) -> String {
 
 fn listen(
     timeline: Res<TransportTimeline>,
-    paused: Option<Res<AudioPaused>>,
+    paused: Res<AudioPaused>,
     players: Query<&Transform, With<PlayerController>>,
     sources: Query<&Transform>,
     mut global: MessageReader<PlaySound>,
@@ -564,7 +565,7 @@ fn listen(
     let (Some(tick), Ok(listener)) = (timeline.updating(), players.single()) else {
         return;
     };
-    if paused.is_some_and(|paused| paused.0) {
+    if paused.0 {
         return;
     }
     for (sound, source, position, ranged) in noises {

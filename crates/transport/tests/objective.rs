@@ -1,3 +1,5 @@
+mod common;
+
 use std::{f32::consts::PI, io::Cursor};
 
 use bevy::{input::InputPlugin, prelude::*};
@@ -5,8 +7,8 @@ use bevy_enhanced_input::EnhancedInputPlugin;
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin},
     levels::{
-        Door, DoorLock, DoorOf, DoorPlugin, DoorRef, DoorState, ExitDoor, FuseInventory,
-        FusePanel, FusePlugin, ObjectivePlugin, Room, FUSE_COUNT,
+        Door, DoorLock, DoorOf, DoorPlugin, DoorRef, DoorState, ExitDoor, FacilityPower,
+        FuseInventory, FusePanel, FusePlugin, ObjectivePlugin, Room, FUSE_COUNT,
     },
 };
 use transport::{run, TransportPlugin, TransportTimeline};
@@ -28,10 +30,7 @@ fn setup(mut commands: Commands, mut timeline: ResMut<TransportTimeline>) {
     commands
         .spawn(Room(Rect::new(-1.25, -31.25, 8.75, -21.25)))
         .with_related::<DoorOf>(DoorRef(exit));
-    commands.spawn((
-        FusePanel::default(),
-        Transform::from_xyz(0.0, 1.6, -30.6),
-    ));
+    commands.spawn((FusePanel::default(), Transform::from_xyz(0.0, 1.6, -30.6)));
     commands.spawn((
         PlayerController,
         FuseInventory(FUSE_COUNT),
@@ -43,11 +42,13 @@ fn setup(mut commands: Commands, mut timeline: ResMut<TransportTimeline>) {
 #[test]
 fn headless_snapshot_reports_the_win_after_install_and_exit_without_exiting_early() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         DoorPlugin,
         FusePlugin,
         ObjectivePlugin,

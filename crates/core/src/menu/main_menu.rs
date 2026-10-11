@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use game_assets::{FacilityAssets, UiAssets};
-use game_settings::{CustomDifficulty, GameSettings, PreferredMode};
+use game_assets::UiAssets;
+use game_settings::{cycle, CustomDifficulty, GameSettings, PreferredMode};
 use game_ui::{menu_button, text, theme};
 use gameplay::achievements::AchievementProgress;
 use gameplay::controller::PlayerController;
@@ -13,7 +13,7 @@ use gameplay::presets::{
     MonsterWalkSpeed,
 };
 
-use super::{background, release_cursor, screen_camera, GameState, MenuAction, TITLE};
+use super::{background, release_cursor, GameState, MenuAction, TITLE};
 
 const MODES: [GameMode; 3] = [GameMode::Normal, GameMode::Custom, GameMode::Insane];
 
@@ -92,9 +92,33 @@ fn on_off(enabled: bool) -> &'static str {
     }
 }
 
-fn cycle_value<T: Copy + PartialEq>(value: &mut T, choices: &[T], step: isize) {
-    let index = choices.iter().position(|item| item == value).unwrap_or(0) as isize;
-    *value = choices[(index + step).rem_euclid(choices.len() as isize) as usize];
+const WALK_SPEEDS: [MonsterWalkSpeed; 3] = [
+    MonsterWalkSpeed::Slow,
+    MonsterWalkSpeed::Medium,
+    MonsterWalkSpeed::Fast,
+];
+const CHASE_SPEEDS: [MonsterChaseSpeed; 3] = [
+    MonsterChaseSpeed::Normal,
+    MonsterChaseSpeed::Medium,
+    MonsterChaseSpeed::Fast,
+];
+const WALK_HEARINGS: [MonsterWalkHearing; 3] = [
+    MonsterWalkHearing::Short,
+    MonsterWalkHearing::Medium,
+    MonsterWalkHearing::Long,
+];
+const RUN_HEARINGS: [MonsterRunHearing; 3] = [
+    MonsterRunHearing::Short,
+    MonsterRunHearing::Medium,
+    MonsterRunHearing::Long,
+];
+
+fn choice<T: Copy>(choices: &[T], index: u8) -> T {
+    choices.get(index as usize).copied().unwrap_or(choices[0])
+}
+
+fn choice_index<T: Copy + PartialEq>(choices: &[T], value: T) -> u8 {
+    choices.iter().position(|item| *item == value).unwrap_or(0) as u8
 }
 
 #[derive(Component)]
@@ -122,52 +146,17 @@ impl ModeSelection {
     pub(super) fn from_settings(settings: &GameSettings, progress: &AchievementProgress) -> Self {
         let custom = settings.custom_difficulty;
         let mut preset = GamePreset::of(GameMode::Custom);
-        preset.monster.walk_speed = [
-            MonsterWalkSpeed::Slow,
-            MonsterWalkSpeed::Medium,
-            MonsterWalkSpeed::Fast,
-        ]
-        .get(custom.walk_speed as usize)
-        .copied()
-        .unwrap_or(MonsterWalkSpeed::Slow);
-        preset.monster.chase_speed = [
-            MonsterChaseSpeed::Normal,
-            MonsterChaseSpeed::Medium,
-            MonsterChaseSpeed::Fast,
-        ]
-        .get(custom.chase_speed as usize)
-        .copied()
-        .unwrap_or(MonsterChaseSpeed::Normal);
-        preset.monster.walk_hearing = [
-            MonsterWalkHearing::Short,
-            MonsterWalkHearing::Medium,
-            MonsterWalkHearing::Long,
-        ]
-        .get(custom.walk_hearing as usize)
-        .copied()
-        .unwrap_or(MonsterWalkHearing::Short);
-        preset.monster.run_hearing = [
-            MonsterRunHearing::Short,
-            MonsterRunHearing::Medium,
-            MonsterRunHearing::Long,
-        ]
-        .get(custom.run_hearing as usize)
-        .copied()
-        .unwrap_or(MonsterRunHearing::Short);
+        preset.monster.walk_speed = choice(&WALK_SPEEDS, custom.walk_speed);
+        preset.monster.chase_speed = choice(&CHASE_SPEEDS, custom.chase_speed);
+        preset.monster.walk_hearing = choice(&WALK_HEARINGS, custom.walk_hearing);
+        preset.monster.run_hearing = choice(&RUN_HEARINGS, custom.run_hearing);
         preset.sprint = custom.sprint;
         preset.flashbangs = custom.flashbangs;
         preset.detector = custom.detector;
         preset.blackout = custom.blackout;
         let mode = match settings.preferred_mode {
             PreferredMode::Normal => GameMode::Normal,
-            PreferredMode::Custom
-                if progress
-                    .unlocked
-                    .contains(&gameplay::achievements::Achievement::Escaped)
-                    || progress.insane_unlocked() =>
-            {
-                GameMode::Custom
-            }
+            PreferredMode::Custom if progress.custom_unlocked() => GameMode::Custom,
             PreferredMode::Insane if progress.insane_unlocked() => GameMode::Insane,
             _ => GameMode::Normal,
         };
@@ -181,10 +170,10 @@ impl ModeSelection {
             GameMode::Insane => PreferredMode::Insane,
         };
         settings.custom_difficulty = CustomDifficulty {
-            walk_speed: self.1.monster.walk_speed as u8,
-            chase_speed: self.1.monster.chase_speed as u8,
-            walk_hearing: self.1.monster.walk_hearing as u8,
-            run_hearing: self.1.monster.run_hearing as u8,
+            walk_speed: choice_index(&WALK_SPEEDS, self.1.monster.walk_speed),
+            chase_speed: choice_index(&CHASE_SPEEDS, self.1.monster.chase_speed),
+            walk_hearing: choice_index(&WALK_HEARINGS, self.1.monster.walk_hearing),
+            run_hearing: choice_index(&RUN_HEARINGS, self.1.monster.run_hearing),
             sprint: self.1.sprint,
             flashbangs: self.1.flashbangs,
             detector: self.1.detector,
@@ -198,58 +187,29 @@ impl ModeSelection {
             .copied()
             .filter(|mode| match mode {
                 GameMode::Normal => true,
-                GameMode::Custom => {
-                    progress
-                        .unlocked
-                        .contains(&gameplay::achievements::Achievement::Escaped)
-                        || progress.insane_unlocked()
-                }
+                GameMode::Custom => progress.custom_unlocked(),
                 GameMode::Insane => progress.insane_unlocked(),
             })
             .collect();
-        let index = modes.iter().position(|mode| *mode == self.0).unwrap_or(0) as isize;
-        self.0 = modes[(index + step).rem_euclid(modes.len() as isize) as usize];
+        self.0 = cycle(&modes, self.0, step);
     }
 
     pub(super) fn adjust(&mut self, field: CustomField, step: isize) {
         let preset = &mut self.1;
         match field {
-            CustomField::WalkSpeed => cycle_value(
-                &mut preset.monster.walk_speed,
-                &[
-                    MonsterWalkSpeed::Slow,
-                    MonsterWalkSpeed::Medium,
-                    MonsterWalkSpeed::Fast,
-                ],
-                step,
-            ),
-            CustomField::ChaseSpeed => cycle_value(
-                &mut preset.monster.chase_speed,
-                &[
-                    MonsterChaseSpeed::Normal,
-                    MonsterChaseSpeed::Medium,
-                    MonsterChaseSpeed::Fast,
-                ],
-                step,
-            ),
-            CustomField::WalkHearing => cycle_value(
-                &mut preset.monster.walk_hearing,
-                &[
-                    MonsterWalkHearing::Short,
-                    MonsterWalkHearing::Medium,
-                    MonsterWalkHearing::Long,
-                ],
-                step,
-            ),
-            CustomField::RunHearing => cycle_value(
-                &mut preset.monster.run_hearing,
-                &[
-                    MonsterRunHearing::Short,
-                    MonsterRunHearing::Medium,
-                    MonsterRunHearing::Long,
-                ],
-                step,
-            ),
+            CustomField::WalkSpeed => {
+                preset.monster.walk_speed = cycle(&WALK_SPEEDS, preset.monster.walk_speed, step)
+            }
+            CustomField::ChaseSpeed => {
+                preset.monster.chase_speed = cycle(&CHASE_SPEEDS, preset.monster.chase_speed, step)
+            }
+            CustomField::WalkHearing => {
+                preset.monster.walk_hearing =
+                    cycle(&WALK_HEARINGS, preset.monster.walk_hearing, step)
+            }
+            CustomField::RunHearing => {
+                preset.monster.run_hearing = cycle(&RUN_HEARINGS, preset.monster.run_hearing, step)
+            }
             CustomField::Sprint => preset.sprint = !preset.sprint,
             CustomField::Flashbangs => preset.flashbangs = !preset.flashbangs,
             CustomField::Detector => preset.detector = !preset.detector,
@@ -314,15 +274,10 @@ fn sync_mode_label(
 fn spawn_main_menu(
     mut commands: Commands,
     assets: Res<UiAssets>,
-    facility: Option<Res<FacilityAssets>>,
     progress: Res<AchievementProgress>,
 ) {
     let font = assets.font.clone();
-    if facility.is_some() {
-        background::spawn(&mut commands, GameState::MainMenu);
-    } else {
-        commands.spawn(screen_camera(GameState::MainMenu));
-    }
+    background::spawn(&mut commands, GameState::MainMenu);
     let menu = commands
         .spawn((
             MainMenu,
@@ -337,11 +292,7 @@ fn spawn_main_menu(
                 row_gap: px(12),
                 ..default()
             },
-            BackgroundColor(if facility.is_some() {
-                Color::srgba(0.002, 0.004, 0.008, 0.10)
-            } else {
-                theme::BACKGROUND
-            }),
+            BackgroundColor(Color::srgba(0.002, 0.004, 0.008, 0.10)),
             children![(
                 text(TITLE, 56.0, theme::TEXT, font.clone()),
                 Node {
@@ -368,11 +319,7 @@ fn spawn_main_menu(
         })
         .id();
     commands.entity(buttons).with_children(|parent| {
-        if progress
-            .unlocked
-            .contains(&gameplay::achievements::Achievement::Escaped)
-            || progress.insane_unlocked()
-        {
+        if progress.custom_unlocked() {
             parent
                 .spawn((
                     Name::new("Play row"),
@@ -423,11 +370,7 @@ fn spawn_main_menu(
     });
     commands.entity(menu_content).add_child(buttons);
     commands.entity(menu).add_child(menu_content);
-    if progress
-        .unlocked
-        .contains(&gameplay::achievements::Achievement::Escaped)
-        || progress.insane_unlocked()
-    {
+    if progress.custom_unlocked() {
         spawn_custom_panel(&mut commands, menu_content, font.clone());
     }
     #[cfg(not(target_arch = "wasm32"))]

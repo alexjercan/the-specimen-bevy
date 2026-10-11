@@ -1,16 +1,23 @@
+mod common;
+
 use std::io::Cursor;
 
 use bevy::{input::InputPlugin, prelude::*};
 use bevy_enhanced_input::EnhancedInputPlugin;
-use gameplay::controller::{PlayerController, PlayerControllerPlugin};
+use gameplay::{
+    controller::{PlayerController, PlayerControllerPlugin},
+    levels::FacilityPower,
+};
 use serde_json::Value;
 use transport::{run, TransportPlugin, TransportTimeline};
 
 #[test]
 fn headless_sprint_depletes_then_recovers_without_autorestarting_while_shift_is_held() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin));
-    app.add_plugins(PlayerControllerPlugin::default().without_camera());
+    app.add_plugins(PlayerControllerPlugin);
     app.add_plugins(TransportPlugin);
     app.add_systems(
         Startup,

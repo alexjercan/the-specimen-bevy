@@ -1,14 +1,11 @@
 use bevy::prelude::*;
-use game_ui::{stamina_meter, GameUiPlugin, StaminaMeter};
+use game_ui::{stamina_meter, StaminaMeter};
 use gameplay::controller::{PlayerController, Stamina};
 
 pub struct StaminaHudPlugin;
 
 impl Plugin for StaminaHudPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<GameUiPlugin>() {
-            app.add_plugins(GameUiPlugin);
-        }
         app.add_systems(Startup, spawn_hud)
             .add_systems(Update, sync_hud);
     }

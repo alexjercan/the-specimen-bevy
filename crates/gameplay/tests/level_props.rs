@@ -9,11 +9,12 @@ use gameplay::levels::{
     PropLightsPlugin, Room,
 };
 
+mod common;
+
 #[test]
 fn room_props_face_inward_and_tabletop_dressing_rests_on_surfaces() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -84,9 +85,8 @@ fn room_props_face_inward_and_tabletop_dressing_rests_on_surfaces() {
 
 #[test]
 fn moved_shelves_clear_walls_furniture_and_the_workshop_door() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -131,9 +131,8 @@ fn moved_shelves_clear_walls_furniture_and_the_workshop_door() {
 
 #[test]
 fn rear_hall_shelves_clear_the_back_wall() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -153,9 +152,8 @@ fn rear_hall_shelves_clear_the_back_wall() {
 
 #[test]
 fn utility_shelves_clear_the_floor_grille_and_doorway() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -209,9 +207,8 @@ fn utility_shelves_clear_the_floor_grille_and_doorway() {
 
 #[test]
 fn lab_shelf_and_rear_hall_crate_clear_wall_faces() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -253,9 +250,8 @@ fn lab_shelf_and_rear_hall_crate_clear_wall_faces() {
 
 #[test]
 fn claw_marks_face_away_from_their_wall_lines() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -300,9 +296,8 @@ fn claw_marks_face_away_from_their_wall_lines() {
 
 #[test]
 fn device_pickups_rest_on_their_supports() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -342,8 +337,8 @@ fn device_pickups_rest_on_their_supports() {
 
 #[test]
 fn first_floor_props_and_lights_are_linked() {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, PropLightsPlugin))
+    let mut app = common::level_app();
+    app.add_plugins(PropLightsPlugin)
         .add_systems(Startup, build_first_floor);
     app.update();
 
@@ -488,9 +483,8 @@ fn first_floor_props_and_lights_are_linked() {
 
 #[test]
 fn wall_plate_and_tall_storage_face_into_their_rooms() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -630,9 +624,8 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
 
 #[test]
 fn prep_and_new_crawl_vents_preserve_room_routes() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -686,9 +679,8 @@ fn prep_and_new_crawl_vents_preserve_room_routes() {
 
 #[test]
 fn first_floor_workbenches_face_open_space_from_walls() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -856,9 +848,8 @@ fn first_floor_workbenches_face_open_space_from_walls() {
 
 #[test]
 fn reception_and_lab_links_have_furniture_away_from_openings() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -894,9 +885,8 @@ fn reception_and_lab_links_have_furniture_away_from_openings() {
 
 #[test]
 fn rendered_props_have_visible_parents() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();
@@ -918,9 +908,8 @@ fn rendered_props_have_visible_parents() {
 
 #[test]
 fn signs_group_labels_and_arrows_under_their_mounts() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_systems(Startup, build_first_floor);
+    let mut app = common::level_app();
+    app.add_systems(Startup, build_first_floor);
     app.update();
 
     let world = app.world_mut();

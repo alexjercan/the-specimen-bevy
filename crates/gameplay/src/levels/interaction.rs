@@ -2,16 +2,14 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 
 use super::{
     animation::DoorSwing,
-    builder::{Door, DoorRef, Doors, Passage, Prop, Room},
+    builder::TILE,
+    builder::{Door, DoorRef, Doors, Passage, Room},
     doors::{aimed_door, panel_center, panel_hinge, panel_rotation, DoorLock, PANEL_WIDTH},
     fuses::{fuse_panel_hit, FuseInventory, FusePanel, FUSE_COUNT},
     hiding::{Hidden, HidingSpot},
-    module_names::BOILER_UNIT,
     pickups::PickupKind,
-    power::FacilityPower,
+    power::{Boiler, FacilityPower},
 };
-
-const TILE: f32 = 2.5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InteractTarget {
@@ -29,8 +27,8 @@ pub struct InteractTargets<'w, 's> {
     locks: Query<'w, 's, (), With<DoorLock>>,
     pickups: Query<'w, 's, (Entity, &'static Transform, &'static PickupKind)>,
     panels: Query<'w, 's, (Entity, &'static Transform, &'static FusePanel)>,
-    boilers: Query<'w, 's, (Entity, &'static Prop, &'static Transform)>,
-    power: Option<Res<'w, FacilityPower>>,
+    boilers: Query<'w, 's, (Entity, &'static Transform), With<Boiler>>,
+    power: Res<'w, FacilityPower>,
     spots: Query<'w, 's, (Entity, &'static Transform, &'static HidingSpot)>,
     sight: StructuralSight<'w, 's>,
 }
@@ -71,8 +69,9 @@ impl InteractTargets<'_, '_> {
                 fuse_panel_hit(origin, forward, center)
                     .map(|distance| (InteractTarget::Panel(entity), center, distance))
             });
-        let boilers = self.boilers.iter().filter_map(|(entity, prop, transform)| {
-            (prop.0 == BOILER_UNIT && self.power.as_ref().is_some_and(|power| power.repairable()))
+        let boilers = self.boilers.iter().filter_map(|(entity, transform)| {
+            self.power
+                .repairable()
                 .then(|| {
                     let center = transform.translation + Vec3::Y * 1.2;
                     fuse_panel_hit(origin, forward, center)
@@ -129,7 +128,7 @@ impl InteractTargets<'_, '_> {
                 .boilers
                 .get(entity)
                 .ok()
-                .map(|(_, _, transform)| transform.translation + Vec3::Y * 1.2),
+                .map(|(_, transform)| transform.translation + Vec3::Y * 1.2),
             InteractTarget::Hide(entity) | InteractTarget::Leave(entity) => self
                 .spots
                 .get(entity)

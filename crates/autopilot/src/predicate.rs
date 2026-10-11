@@ -11,19 +11,11 @@ pub fn elapsed(seconds: f32) -> Arc<Predicate> {
         seconds.is_finite() && seconds >= 0.0,
         "elapsed seconds must be finite and nonnegative"
     );
-    Arc::new(move |world| {
-        world
-            .get_resource::<AutopilotClock>()
-            .is_some_and(|clock| clock.step_elapsed >= seconds)
-    })
+    Arc::new(move |world| world.resource::<AutopilotClock>().step_elapsed >= seconds)
 }
 
 pub fn frames(count: u64) -> Arc<Predicate> {
-    Arc::new(move |world| {
-        world
-            .get_resource::<AutopilotClock>()
-            .is_some_and(|clock| clock.step_frames >= count)
-    })
+    Arc::new(move |world| world.resource::<AutopilotClock>().step_frames >= count)
 }
 
 pub fn state_is<S: States>(state: S) -> Arc<Predicate> {

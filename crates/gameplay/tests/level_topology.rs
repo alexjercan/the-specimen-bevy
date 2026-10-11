@@ -9,6 +9,8 @@ use gameplay::{
     },
 };
 
+mod common;
+
 type Structure<'w, 's> = (
     Query<'w, 's, (&'static Room, Option<&'static Doors>)>,
     Query<'w, 's, (&'static DoorRef, &'static DoorOf)>,
@@ -21,9 +23,8 @@ const SPAWN: Vec2 = Vec2::new(2.5, -27.5);
 const WALK_STEP: f32 = 0.25;
 
 fn first_floor(seed: u64) -> App {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .insert_resource(FuseSeed(seed))
+    let mut app = common::level_app();
+    app.insert_resource(FuseSeed(seed))
         .add_systems(Startup, build_first_floor);
     app.update();
     app

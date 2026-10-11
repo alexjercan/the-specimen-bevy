@@ -17,6 +17,16 @@ pub(crate) struct Loaded {
     pub enabled: bool,
 }
 
+impl Loaded {
+    fn empty(enabled: bool) -> Self {
+        Self {
+            known: HashSet::new(),
+            unknown: HashSet::new(),
+            enabled,
+        }
+    }
+}
+
 pub(crate) fn storage() -> Option<web_sys::Storage> {
     web_sys::window()?.local_storage().ok()?
 }
@@ -24,11 +34,7 @@ pub(crate) fn storage() -> Option<web_sys::Storage> {
 pub(crate) fn load() -> Loaded {
     let Some(storage) = storage() else {
         warn!("local storage unavailable; achievements will not persist");
-        return Loaded {
-            known: HashSet::new(),
-            unknown: HashSet::new(),
-            enabled: false,
-        };
+        return Loaded::empty(false);
     };
     match storage.get_item(KEY) {
         Ok(Some(value)) => match crate::store::decode(value.as_bytes()) {
@@ -40,25 +46,13 @@ pub(crate) fn load() -> Loaded {
             Err(_) => {
                 let backed_up = backup_corrupt(&storage, &value);
                 warn!("achievements data corrupt; backup succeeded: {backed_up}");
-                Loaded {
-                    known: HashSet::new(),
-                    unknown: HashSet::new(),
-                    enabled: backed_up,
-                }
+                Loaded::empty(backed_up)
             }
         },
-        Ok(None) => Loaded {
-            known: HashSet::new(),
-            unknown: HashSet::new(),
-            enabled: true,
-        },
+        Ok(None) => Loaded::empty(true),
         Err(_) => {
             warn!("local storage read failed; achievements will not persist");
-            Loaded {
-                known: HashSet::new(),
-                unknown: HashSet::new(),
-                enabled: false,
-            }
+            Loaded::empty(false)
         }
     }
 }

@@ -25,9 +25,6 @@ pub(super) struct Cinematic {
 struct CinematicTitle;
 
 #[derive(Component)]
-pub(super) struct CinematicOptions;
-
-#[derive(Component)]
 pub(super) struct CinematicCamera {
     from: Transform,
     to: Transform,
@@ -165,15 +162,12 @@ fn reveal_options(mut screens: Query<(Entity, &mut Cinematic)>, mut commands: Co
         let font = cinematic.font.clone();
         commands.entity(screen).with_children(|parent| {
             parent
-                .spawn((
-                    CinematicOptions,
-                    Node {
-                        width: px(240),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: px(10),
-                        ..default()
-                    },
-                ))
+                .spawn((Node {
+                    width: px(240),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: px(10),
+                    ..default()
+                },))
                 .with_children(|options| {
                     options.spawn((
                         Name::new("Retry button"),

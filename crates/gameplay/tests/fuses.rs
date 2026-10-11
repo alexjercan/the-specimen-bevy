@@ -1,20 +1,21 @@
 use std::{collections::HashSet, time::Duration};
 
-use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
-use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy::prelude::*;
 use game_audio::{PlaySound, Sound};
 use gameplay::{
-    controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
+    controller::{PlayerController, PlayerControlsEnabled},
     levels::{
-        build_first_floor, select_fuse_slots, Door, DoorPlugin, DoorState, FuseInventory,
-        FusePlugin, FuseSeed, FuseZone, PickupKind, Prop, Room, FUSE_COUNT, FUSE_TABLES,
+        build_first_floor, select_fuse_slots, Door, DoorPlugin, DoorState, FacilityPower,
+        FuseInventory, FusePlugin, FuseSeed, FuseZone, PickupKind, PickupPlugin, Prop, Room,
+        FUSE_COUNT, FUSE_TABLES,
     },
 };
 
+mod common;
+
 fn first_floor(seed: u64) -> App {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .insert_resource(FuseSeed(seed))
+    let mut app = common::level_app();
+    app.insert_resource(FuseSeed(seed))
         .add_systems(Startup, build_first_floor);
     app.update();
     app
@@ -35,13 +36,9 @@ fn fuse_placements(app: &mut App) -> Vec<(usize, Vec3)> {
 }
 
 fn app() -> (App, Entity) {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin))
-        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-            100,
-        )))
-        .add_plugins(PlayerControllerPlugin::default().without_camera())
-        .add_plugins((DoorPlugin, FusePlugin));
+    let mut app = common::player_app(Duration::from_millis(100));
+    app.init_resource::<FacilityPower>()
+        .add_plugins((DoorPlugin, FusePlugin, PickupPlugin));
     app.finish();
     app.cleanup();
     app.update();
@@ -84,8 +81,8 @@ fn inventory(app: &App, player: Entity) -> usize {
     app.world().get::<FuseInventory>(player).unwrap().0
 }
 
-fn exists(app: &App, entity: Entity) -> bool {
-    app.world().get_entity(entity).is_ok()
+fn pickable(app: &App, entity: Entity) -> bool {
+    app.world().get::<PickupKind>(entity).is_some()
 }
 
 #[test]
@@ -256,12 +253,17 @@ fn f_picks_up_an_aimed_fuse_once() {
     let other = fuse(&mut app, Vec3::new(3.0, 0.8, -1.0));
     aim(&mut app, player, Vec3::new(0.0, 0.83, -1.0));
     press_f(&mut app);
-    assert!(!exists(&app, target));
-    assert!(exists(&app, other));
+    assert!(!pickable(&app, target));
+    assert!(pickable(&app, other));
     assert_eq!(inventory(&app, player), 1);
     press_f(&mut app);
-    assert!(exists(&app, other));
+    assert!(pickable(&app, other));
     assert_eq!(inventory(&app, player), 1);
+    for _ in 0..6 {
+        app.update();
+    }
+    assert!(app.world().get_entity(target).is_err());
+    assert!(pickable(&app, other));
 }
 
 #[test]
@@ -291,7 +293,7 @@ fn disabled_controls_do_not_pick_up_fuses() {
     aim(&mut app, player, Vec3::new(0.0, 0.83, -1.0));
     app.world_mut().resource_mut::<PlayerControlsEnabled>().0 = false;
     press_f(&mut app);
-    assert!(exists(&app, target));
+    assert!(pickable(&app, target));
     assert_eq!(inventory(&app, player), 0);
 }
 
@@ -304,7 +306,7 @@ fn full_inventory_leaves_the_fuse_in_place() {
     let target = fuse(&mut app, Vec3::new(0.0, 0.8, -1.0));
     aim(&mut app, player, Vec3::new(0.0, 0.83, -1.0));
     press_f(&mut app);
-    assert!(exists(&app, target));
+    assert!(pickable(&app, target));
     assert_eq!(inventory(&app, player), FUSE_COUNT);
 }
 
@@ -328,7 +330,7 @@ fn nearer_door_wins_over_a_fuse_behind_it() {
         app.world().get::<Door>(door).unwrap().state,
         DoorState::Open
     );
-    assert!(exists(&app, target));
+    assert!(pickable(&app, target));
     assert_eq!(inventory(&app, player), 0);
 }
 
@@ -348,7 +350,7 @@ fn nearer_fuse_wins_over_a_door_behind_it() {
     let target = fuse(&mut app, Vec3::new(0.0, 1.2, -0.8));
     aim(&mut app, player, Vec3::new(0.0, 1.23, -0.8));
     press_f(&mut app);
-    assert!(!exists(&app, target));
+    assert!(!pickable(&app, target));
     assert_eq!(inventory(&app, player), 1);
     assert_eq!(
         app.world().get::<Door>(door).unwrap().state,
@@ -367,6 +369,6 @@ fn walls_block_fuse_pickup() {
     let target = fuse(&mut app, Vec3::new(0.0, 0.8, -1.6));
     aim(&mut app, player, Vec3::new(0.0, 0.83, -1.6));
     press_f(&mut app);
-    assert!(exists(&app, target));
+    assert!(pickable(&app, target));
     assert_eq!(inventory(&app, player), 0);
 }

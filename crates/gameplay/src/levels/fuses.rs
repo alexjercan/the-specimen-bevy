@@ -2,9 +2,7 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
-use bevy_rand::prelude::ChaCha8Rng;
 use game_audio::{PlaySound, Sound};
-use rand_core::Rng;
 
 use crate::controller::player::{Interact, PlayerController, PlayerControlsEnabled};
 
@@ -13,7 +11,6 @@ use super::{
     hiding::Hidden,
     interaction::{InteractTarget, InteractTargets},
     monster::Caught,
-    pickups::PickupPlugin,
 };
 
 pub const FUSE_COUNT: usize = 3;
@@ -56,9 +53,6 @@ pub struct FusePlugin;
 
 impl Plugin for FusePlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<PickupPlugin>() {
-            app.add_plugins(PickupPlugin);
-        }
         app.register_type::<FuseInventory>()
             .add_message::<InstallFuses>()
             .add_message::<PlaySound>()
@@ -80,7 +74,11 @@ fn use_panel(
     targets: InteractTargets,
     players: Query<
         (Entity, &Transform, &FuseInventory, Option<&Hidden>),
-        (With<PlayerController>, Without<Caught>, Without<InstallingFuses>),
+        (
+            With<PlayerController>,
+            Without<Caught>,
+            Without<InstallingFuses>,
+        ),
     >,
     mut installs: MessageWriter<InstallFuses>,
 ) {
@@ -107,10 +105,9 @@ fn install_fuses(
         if !started.insert(install.panel) {
             continue;
         }
-        let (Ok(mut inventory), Ok((panel_entity, panel))) = (
-            players.get_mut(install.player),
-            panels.get(install.panel),
-        ) else {
+        let (Ok(mut inventory), Ok((panel_entity, panel))) =
+            (players.get_mut(install.player), panels.get(install.panel))
+        else {
             continue;
         };
         if panel.installed != 0 || inventory.0 < FUSE_COUNT {
@@ -139,21 +136,14 @@ fn advance_installation(
         }
         panel.installed = FUSE_COUNT;
         commands.entity(entity).remove::<FuseInstallation>();
-        commands.entity(installation.player).remove::<InstallingFuses>();
-        sounds.write(PlaySound {
-            sound: Sound::FuseComplete,
-            position: None,
-        });
+        commands
+            .entity(installation.player)
+            .remove::<InstallingFuses>();
+        sounds.write(PlaySound::global(Sound::FuseComplete));
         for door in &exits {
             commands.entity(door).remove::<DoorLock>();
         }
-        info!("fuses installed; exit unlocked");
     }
-}
-
-pub(crate) fn run_seed(seed: Option<&FuseSeed>) -> u64 {
-    seed.map(|seed| seed.0)
-        .unwrap_or_else(|| ChaCha8Rng::default().next_u64())
 }
 
 pub(crate) fn fuse_panel_hit(origin: Vec3, forward: Vec3, center: Vec3) -> Option<f32> {

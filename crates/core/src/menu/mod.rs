@@ -4,17 +4,13 @@ mod cinematic;
 mod complete;
 mod credits;
 mod game_over;
-#[cfg(test)]
-#[path = "../../tests/unit/menu_hover.rs"]
-mod hover_tests;
 mod loading;
 mod main_menu;
 mod pause;
 mod settings;
-#[cfg(test)]
-mod tests;
 
 use bevy::{
+    input::mouse::{MouseScrollUnit, MouseWheel},
     prelude::*,
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
@@ -63,16 +59,7 @@ pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<game_ui::GameUiPlugin>() {
-            app.add_plugins(game_ui::GameUiPlugin);
-        }
-        app.init_resource::<game_settings::GameSettings>()
-            .init_resource::<game_settings::SettingsDirty>()
-            .init_resource::<gameplay::achievements::AchievementProgress>()
-            .init_resource::<gameplay::presets::GamePreset>()
-            .add_message::<PlaySound>()
-            .add_sub_state::<GameState>()
-            .add_sub_state::<PauseState>()
+        app.add_message::<PlaySound>()
             .add_plugins((
                 loading::plugin,
                 main_menu::plugin,
@@ -180,10 +167,7 @@ fn hover_buttons(
 ) {
     for interaction in &buttons {
         if *interaction == Interaction::Hovered {
-            sounds.write(PlaySound {
-                sound: Sound::UiHover,
-                position: None,
-            });
+            sounds.write(PlaySound::global(Sound::UiHover));
         }
     }
 }
@@ -204,5 +188,22 @@ fn release_cursor(mut cursors: Query<&mut CursorOptions, With<PrimaryWindow>>) {
     for mut cursor in &mut cursors {
         cursor.grab_mode = CursorGrabMode::None;
         cursor.visible = true;
+    }
+}
+
+fn scroll_list<M: Component>(
+    mut wheel: MessageReader<MouseWheel>,
+    mut lists: Query<&mut ScrollPosition, With<M>>,
+) {
+    let mut delta = 0.0;
+    for event in wheel.read() {
+        delta -= event.y
+            * match event.unit {
+                MouseScrollUnit::Line => 38.0,
+                MouseScrollUnit::Pixel => 1.0,
+            };
+    }
+    for mut position in &mut lists {
+        position.0.y = (position.0.y + delta).max(0.0);
     }
 }

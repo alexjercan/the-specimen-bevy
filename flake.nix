@@ -18,10 +18,7 @@
 
       perSystem = { config, lib, pkgs, ... }:
         let
-          rustToolchain = pkgs.rust-bin.nightly."2026-07-03".default.override {
-            extensions = [ "rust-src" "clippy" "rustfmt" ];
-            targets = [ "wasm32-unknown-unknown" ];
-          };
+          rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
           gameLibs = lib.optionals pkgs.stdenv.hostPlatform.isLinux (with pkgs; [
             udev

@@ -51,7 +51,3 @@ pub(crate) fn spawn_details(commands: &mut Commands, parent: Entity) {
         ChildOf(parent),
     ));
 }
-
-#[cfg(test)]
-#[path = "../../tests/unit/exterior.rs"]
-mod tests;

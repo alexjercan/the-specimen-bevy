@@ -1,6 +1,6 @@
 # Halloween cosmetic update on a separate PR branch
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 0
 - TAGS: backlog
 

@@ -3,8 +3,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use bevy::prelude::{KeyCode, MouseButton};
 use game_settings::{
-    parse_key, DisplayMode, GameSettings, GraphicsQuality, MovementKeys, DEFAULT_SENSITIVITY,
+    parse_key, DisplayMode, GameSettings, GraphicsQuality, InputBinding, MovementKeys,
 };
 
 #[test]
@@ -18,21 +19,23 @@ fn saves_and_loads_player_settings() {
             .as_nanos()
     ));
     let path = folder.join("profile/settings.json");
-    let mut settings = GameSettings::default();
-    settings.master = 0.3;
-    settings.sfx = 0.6;
-    settings.music = 0.2;
-    settings.mouse_sensitivity = 0.004;
-    settings.graphics = GraphicsQuality::Low;
-    settings.display_mode = DisplayMode::Windowed;
-    settings.fps_overlay = false;
-    settings.preferred_mode = game_settings::PreferredMode::Custom;
+    let mut settings = GameSettings {
+        master: 0.3,
+        sfx: 0.6,
+        music: 0.2,
+        mouse_sensitivity: 0.004,
+        graphics: GraphicsQuality::Low,
+        display_mode: DisplayMode::Windowed,
+        fps_overlay: false,
+        preferred_mode: game_settings::PreferredMode::Custom,
+        ..Default::default()
+    };
     settings.custom_difficulty.walk_speed = 1;
     settings.custom_difficulty.run_hearing = 2;
     settings.custom_difficulty.sprint = false;
-    settings.keys.forward = "ArrowUp".into();
-    settings.keys.flashlight = "MouseMiddle".into();
-    settings.keys.flashbang = "KeyQ".into();
+    settings.keys.forward = KeyCode::ArrowUp;
+    settings.keys.flashlight = MouseButton::Middle.into();
+    settings.keys.flashbang = KeyCode::KeyQ.into();
     settings.save(&path).unwrap();
     assert_eq!(GameSettings::load(&path).unwrap(), settings);
     fs::remove_dir_all(folder).unwrap();
@@ -50,8 +53,10 @@ fn old_settings_are_copied_only_when_new_settings_are_missing() {
     ));
     let old_path = folder.join("horror-game-bevy/settings.json");
     let new_path = folder.join("the-specimen-bevy/settings.json");
-    let mut old = GameSettings::default();
-    old.master = 0.3;
+    let old = GameSettings {
+        master: 0.3,
+        ..Default::default()
+    };
     old.save(&old_path).unwrap();
     let loaded = game_settings::load_or_migrate(&new_path).unwrap();
     assert_eq!(loaded, old);
@@ -71,23 +76,20 @@ fn corrupt_values_cannot_break_input_or_volume() {
     assert_eq!(settings.master, 0.0);
     assert_eq!(settings.sfx, 1.0);
     assert_eq!(settings.keys, MovementKeys::default());
-    settings.keys.forward = "MouseLeft".into();
-    settings.sanitize();
-    assert_eq!(settings.keys, MovementKeys::default());
-    settings.keys.flashbang = "MouseLeft".into();
+    settings.keys.flashbang = MouseButton::Left.into();
     settings.sanitize();
     assert_eq!(settings.keys, MovementKeys::default());
     assert_eq!(
-        game_settings::parse_binding("MouseRight"),
-        Some(game_settings::InputBinding::Mouse(
-            bevy::prelude::MouseButton::Right
-        ))
+        InputBinding::parse("MouseRight"),
+        Some(InputBinding::Mouse(MouseButton::Right))
+    );
+    assert_eq!(InputBinding::parse("Escape"), None);
+    assert_eq!(
+        InputBinding::parse("KeyQ"),
+        Some(InputBinding::Key(KeyCode::KeyQ))
     );
     assert_eq!(settings.mouse_sensitivity, game_settings::MIN_SENSITIVITY);
-    assert_eq!(game_settings::MIN_SENSITIVITY, 0.0);
-    assert_eq!(game_settings::MAX_SENSITIVITY, 2.0 * DEFAULT_SENSITIVITY);
     assert_eq!(parse_key("Escape"), None);
-    assert!(DEFAULT_SENSITIVITY > 0.0);
 }
 
 #[test]

@@ -2602,8 +2602,6 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_egui",
- "game_settings",
- "game_ui",
  "gameplay",
 ]
 
@@ -3143,7 +3141,6 @@ name = "game_ui"
 version = "0.2.0"
 dependencies = [
  "bevy",
- "game_settings",
 ]
 
 [[package]]
@@ -3156,7 +3153,6 @@ dependencies = [
  "bevy_rand",
  "game_assets",
  "game_audio",
- "game_settings",
  "rand_core",
 ]
 
@@ -4875,6 +4871,7 @@ version = "0.2.0"
 dependencies = [
  "bevy",
  "clap",
+ "wgpu-types",
 ]
 
 [[package]]
@@ -5594,6 +5591,7 @@ dependencies = [
  "game_assets",
  "game_core",
  "game_halloween",
+ "game_settings",
  "gameplay",
  "getrandom 0.4.3",
  "probe",
@@ -5821,7 +5819,6 @@ dependencies = [
  "bevy_enhanced_input",
  "capture",
  "game_audio",
- "game_settings",
  "gameplay",
  "serde",
  "serde_json",

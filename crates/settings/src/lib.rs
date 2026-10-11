@@ -1,10 +1,14 @@
 use std::{
-    fs,
+    collections::HashSet,
+    fmt, fs,
     path::{Path, PathBuf},
 };
 
-use bevy::prelude::*;
-use serde::{Deserialize, Serialize};
+use bevy::{
+    prelude::*,
+    reflect::enums::{DynamicEnum, DynamicVariant},
+};
+use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 
 pub const MIN_SENSITIVITY: f32 = 0.0;
 pub const MAX_SENSITIVITY: f32 = 0.004;
@@ -28,127 +32,192 @@ pub enum DisplayMode {
 }
 
 impl DisplayMode {
+    pub const ALL: [Self; 2] = [Self::Windowed, Self::Fullscreen];
+
     pub fn next(self) -> Self {
-        match self {
-            Self::Windowed => Self::Fullscreen,
-            Self::Fullscreen => Self::Windowed,
-        }
+        cycle(&Self::ALL, self, 1)
     }
 }
 
 impl GraphicsQuality {
+    pub const ALL: [Self; 3] = [Self::Low, Self::Medium, Self::High];
+
     pub fn next(self) -> Self {
-        match self {
-            Self::Low => Self::Medium,
-            Self::Medium => Self::High,
-            Self::High => Self::Low,
-        }
+        cycle(&Self::ALL, self, 1)
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct MovementKeys {
-    pub forward: String,
-    pub left: String,
-    pub backward: String,
-    pub right: String,
-    pub interact: String,
-    pub flashlight: String,
-    pub flashbang: String,
+pub fn cycle<T: Copy + PartialEq>(choices: &[T], current: T, step: isize) -> T {
+    let index = choices
+        .iter()
+        .position(|item| *item == current)
+        .unwrap_or(0) as isize;
+    choices[(index + step).rem_euclid(choices.len() as isize) as usize]
 }
 
-impl Default for MovementKeys {
-    fn default() -> Self {
-        Self {
-            forward: "KeyW".into(),
-            left: "KeyA".into(),
-            backward: "KeyS".into(),
-            right: "KeyD".into(),
-            interact: "KeyF".into(),
-            flashlight: "MouseLeft".into(),
-            flashbang: "MouseRight".into(),
-        }
-    }
-}
-
-impl MovementKeys {
-    pub fn unique(&self) -> bool {
-        let keys = [
-            &self.forward,
-            &self.left,
-            &self.backward,
-            &self.right,
-            &self.interact,
-            &self.flashlight,
-            &self.flashbang,
-        ];
-        keys[..5].iter().all(|key| parse_key(key).is_some())
-            && keys[5..].iter().all(|key| parse_binding(key).is_some())
-            && keys
-                .iter()
-                .enumerate()
-                .all(|(index, key)| keys[index + 1..].iter().all(|other| other != key))
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum InputBinding {
     Key(KeyCode),
     Mouse(MouseButton),
 }
 
-pub fn parse_binding(name: &str) -> Option<InputBinding> {
-    match name {
-        "MouseLeft" => Some(InputBinding::Mouse(MouseButton::Left)),
-        "MouseRight" => Some(InputBinding::Mouse(MouseButton::Right)),
-        "MouseMiddle" => Some(InputBinding::Mouse(MouseButton::Middle)),
-        _ => parse_key(name).map(InputBinding::Key),
+impl InputBinding {
+    pub fn parse(name: &str) -> Option<Self> {
+        match name {
+            "MouseLeft" => Some(Self::Mouse(MouseButton::Left)),
+            "MouseRight" => Some(Self::Mouse(MouseButton::Right)),
+            "MouseMiddle" => Some(Self::Mouse(MouseButton::Middle)),
+            "MouseBack" => Some(Self::Mouse(MouseButton::Back)),
+            "MouseForward" => Some(Self::Mouse(MouseButton::Forward)),
+            _ => parse_key(name).map(Self::Key),
+        }
+    }
+
+    pub fn name(self) -> String {
+        match self {
+            Self::Key(key) => key_name(key),
+            Self::Mouse(MouseButton::Left) => "MouseLeft".to_owned(),
+            Self::Mouse(MouseButton::Right) => "MouseRight".to_owned(),
+            Self::Mouse(MouseButton::Middle) => "MouseMiddle".to_owned(),
+            Self::Mouse(MouseButton::Back) => "MouseBack".to_owned(),
+            Self::Mouse(MouseButton::Forward) => "MouseForward".to_owned(),
+            Self::Mouse(MouseButton::Other(id)) => format!("MouseOther{id}"),
+        }
+    }
+
+    pub fn label(self) -> String {
+        match self {
+            Self::Key(key) => key_label(key),
+            Self::Mouse(MouseButton::Left) => "LMB".to_owned(),
+            Self::Mouse(MouseButton::Right) => "RMB".to_owned(),
+            Self::Mouse(MouseButton::Middle) => "MMB".to_owned(),
+            Self::Mouse(MouseButton::Back) => "MB4".to_owned(),
+            Self::Mouse(MouseButton::Forward) => "MB5".to_owned(),
+            Self::Mouse(MouseButton::Other(id)) => format!("MB{id}"),
+        }
+    }
+
+    pub fn key(self) -> Option<KeyCode> {
+        match self {
+            Self::Key(key) => Some(key),
+            Self::Mouse(_) => None,
+        }
     }
 }
 
-pub fn parse_key(name: &str) -> Option<KeyCode> {
-    Some(match name {
-        "KeyA" => KeyCode::KeyA,
-        "KeyB" => KeyCode::KeyB,
-        "KeyC" => KeyCode::KeyC,
-        "KeyD" => KeyCode::KeyD,
-        "KeyE" => KeyCode::KeyE,
-        "KeyF" => KeyCode::KeyF,
-        "KeyG" => KeyCode::KeyG,
-        "KeyH" => KeyCode::KeyH,
-        "KeyI" => KeyCode::KeyI,
-        "KeyJ" => KeyCode::KeyJ,
-        "KeyK" => KeyCode::KeyK,
-        "KeyL" => KeyCode::KeyL,
-        "KeyM" => KeyCode::KeyM,
-        "KeyN" => KeyCode::KeyN,
-        "KeyO" => KeyCode::KeyO,
-        "KeyP" => KeyCode::KeyP,
-        "KeyQ" => KeyCode::KeyQ,
-        "KeyR" => KeyCode::KeyR,
-        "KeyS" => KeyCode::KeyS,
-        "KeyT" => KeyCode::KeyT,
-        "KeyU" => KeyCode::KeyU,
-        "KeyV" => KeyCode::KeyV,
-        "KeyW" => KeyCode::KeyW,
-        "KeyX" => KeyCode::KeyX,
-        "KeyY" => KeyCode::KeyY,
-        "KeyZ" => KeyCode::KeyZ,
-        "ArrowUp" => KeyCode::ArrowUp,
-        "ArrowDown" => KeyCode::ArrowDown,
-        "ArrowLeft" => KeyCode::ArrowLeft,
-        "ArrowRight" => KeyCode::ArrowRight,
-        "Space" => KeyCode::Space,
-        _ => return None,
-    })
+impl From<KeyCode> for InputBinding {
+    fn from(key: KeyCode) -> Self {
+        Self::Key(key)
+    }
 }
 
-fn default_volume() -> f32 {
-    1.0
+impl From<MouseButton> for InputBinding {
+    fn from(button: MouseButton) -> Self {
+        Self::Mouse(button)
+    }
 }
-fn default_sensitivity() -> f32 {
-    DEFAULT_SENSITIVITY
+
+impl fmt::Display for InputBinding {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.name())
+    }
+}
+
+impl Serialize for InputBinding {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.name())
+    }
+}
+
+impl<'de> Deserialize<'de> for InputBinding {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        Self::parse(&name).ok_or_else(|| D::Error::custom(format!("unknown binding {name}")))
+    }
+}
+
+pub fn key_name(key: KeyCode) -> String {
+    format!("{key:?}")
+}
+
+pub fn key_label(key: KeyCode) -> String {
+    let name = key_name(key);
+    name.strip_prefix("Key")
+        .or_else(|| name.strip_prefix("Digit"))
+        .unwrap_or(&name)
+        .to_owned()
+}
+
+pub fn parse_key(name: &str) -> Option<KeyCode> {
+    KeyCode::from_reflect(&DynamicEnum::new(name.to_owned(), DynamicVariant::Unit))
+        .filter(|key| *key != KeyCode::Escape)
+}
+
+mod key_code {
+    use super::*;
+
+    pub fn serialize<S: Serializer>(key: &KeyCode, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&key_name(*key))
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<KeyCode, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        parse_key(&name).ok_or_else(|| D::Error::custom(format!("unknown key {name}")))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MovementKeys {
+    #[serde(with = "key_code")]
+    pub forward: KeyCode,
+    #[serde(with = "key_code")]
+    pub left: KeyCode,
+    #[serde(with = "key_code")]
+    pub backward: KeyCode,
+    #[serde(with = "key_code")]
+    pub right: KeyCode,
+    #[serde(with = "key_code")]
+    pub interact: KeyCode,
+    #[serde(with = "key_code")]
+    pub sprint: KeyCode,
+    pub flashlight: InputBinding,
+    pub flashbang: InputBinding,
+}
+
+impl Default for MovementKeys {
+    fn default() -> Self {
+        Self {
+            forward: KeyCode::KeyW,
+            left: KeyCode::KeyA,
+            backward: KeyCode::KeyS,
+            right: KeyCode::KeyD,
+            interact: KeyCode::KeyF,
+            sprint: KeyCode::ShiftLeft,
+            flashlight: InputBinding::Mouse(MouseButton::Left),
+            flashbang: InputBinding::Mouse(MouseButton::Right),
+        }
+    }
+}
+
+impl MovementKeys {
+    pub fn all(&self) -> [InputBinding; 8] {
+        [
+            self.forward.into(),
+            self.left.into(),
+            self.backward.into(),
+            self.right.into(),
+            self.interact.into(),
+            self.sprint.into(),
+            self.flashlight,
+            self.flashbang,
+        ]
+    }
+
+    pub fn unique(&self) -> bool {
+        let all = self.all();
+        all.iter().collect::<HashSet<_>>().len() == all.len()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -191,13 +260,9 @@ impl Default for CustomDifficulty {
 #[derive(Resource, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GameSettings {
-    #[serde(default = "default_volume")]
     pub master: f32,
-    #[serde(default = "default_volume")]
     pub sfx: f32,
-    #[serde(default = "default_volume")]
     pub music: f32,
-    #[serde(default = "default_sensitivity")]
     pub mouse_sensitivity: f32,
     pub keys: MovementKeys,
     pub graphics: GraphicsQuality,
@@ -215,10 +280,10 @@ impl Default for GameSettings {
             music: 1.0,
             mouse_sensitivity: DEFAULT_SENSITIVITY,
             keys: MovementKeys::default(),
-            graphics: GraphicsQuality::High,
-            display_mode: DisplayMode::Fullscreen,
+            graphics: GraphicsQuality::default(),
+            display_mode: DisplayMode::default(),
             fps_overlay: false,
-            preferred_mode: PreferredMode::Normal,
+            preferred_mode: PreferredMode::default(),
             custom_difficulty: CustomDifficulty::default(),
         }
     }
@@ -304,8 +369,57 @@ pub fn load_or_migrate(path: &Path) -> std::io::Result<GameSettings> {
     }
 }
 
-#[derive(Resource, Default)]
-pub struct SettingsPath(pub Option<PathBuf>, pub bool);
+#[derive(Resource, Clone, Debug, PartialEq, Eq)]
+pub enum SettingsStore {
+    Disabled,
+    File(PathBuf),
+    #[cfg(target_arch = "wasm32")]
+    Browser,
+}
+
+impl SettingsStore {
+    pub fn persistent(persist: bool) -> Self {
+        if !persist {
+            return Self::Disabled;
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            Self::Browser
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            match default_path() {
+                Some(path) => Self::File(path),
+                None => {
+                    warn!("settings directory unavailable; settings will not persist");
+                    Self::Disabled
+                }
+            }
+        }
+    }
+
+    pub fn load(&self) -> std::io::Result<Option<GameSettings>> {
+        match self {
+            Self::Disabled => Ok(None),
+            Self::File(path) => match load_or_migrate(path) {
+                Ok(settings) => Ok(Some(settings)),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+                Err(error) => Err(error),
+            },
+            #[cfg(target_arch = "wasm32")]
+            Self::Browser => browser::load(),
+        }
+    }
+
+    pub fn save(&self, settings: &GameSettings) -> std::io::Result<()> {
+        match self {
+            Self::Disabled => Ok(()),
+            Self::File(path) => settings.save(path),
+            #[cfg(target_arch = "wasm32")]
+            Self::Browser => browser::save(settings),
+        }
+    }
+}
 
 #[derive(Resource, Default)]
 pub struct SettingsDirty(pub bool);
@@ -316,26 +430,17 @@ pub struct GameSettingsPlugin {
 
 impl Plugin for GameSettingsPlugin {
     fn build(&self, app: &mut App) {
-        let path = if self.persist { default_path() } else { None };
-        #[cfg(not(target_arch = "wasm32"))]
-        let settings = path.as_deref().map(load_or_migrate).transpose();
-        #[cfg(target_arch = "wasm32")]
-        let settings = if self.persist {
-            load_browser()
-        } else {
-            Ok(None)
-        };
-        let settings = match settings {
+        let store = SettingsStore::persistent(self.persist);
+        let settings = match store.load() {
             Ok(Some(settings)) => settings,
             Ok(None) => GameSettings::default(),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => GameSettings::default(),
             Err(error) => {
                 warn!("settings load failed: {error}");
                 GameSettings::default()
             }
         };
         app.insert_resource(settings)
-            .insert_resource(SettingsPath(path, self.persist))
+            .insert_resource(store)
             .init_resource::<SettingsDirty>()
             .add_systems(Last, save_dirty);
     }
@@ -343,56 +448,48 @@ impl Plugin for GameSettingsPlugin {
 
 fn save_dirty(
     settings: Res<GameSettings>,
-    path: Res<SettingsPath>,
+    store: Res<SettingsStore>,
     mut dirty: ResMut<SettingsDirty>,
 ) {
     if !dirty.0 {
         return;
     }
-    if !path.1 {
-        dirty.0 = false;
-        return;
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    let result = path.0.as_deref().map(|path| settings.save(path));
-    #[cfg(target_arch = "wasm32")]
-    let result = Some(save_browser(&settings));
-    match result {
-        Some(Ok(())) => dirty.0 = false,
-        Some(Err(error)) => warn!("settings save failed: {error}"),
-        None => dirty.0 = false,
+    match store.save(&settings) {
+        Ok(()) => dirty.0 = false,
+        Err(error) => warn!("settings save failed: {error}"),
     }
 }
 
 #[cfg(target_arch = "wasm32")]
-const SETTINGS_KEY: &str = "the-specimen-bevy.settings";
+mod browser {
+    use super::GameSettings;
 
-#[cfg(target_arch = "wasm32")]
-fn browser_storage() -> std::io::Result<web_sys::Storage> {
-    web_sys::window()
-        .and_then(|window| window.local_storage().ok().flatten())
-        .ok_or_else(|| std::io::Error::other("local storage unavailable"))
-}
+    const SETTINGS_KEY: &str = "the-specimen-bevy.settings";
 
-#[cfg(target_arch = "wasm32")]
-fn load_browser() -> std::io::Result<Option<GameSettings>> {
-    let value = browser_storage()?
-        .get_item(SETTINGS_KEY)
-        .map_err(|_| std::io::Error::other("local storage read failed"))?;
-    value
-        .map(|value| {
-            let mut settings: GameSettings =
-                serde_json::from_str(&value).map_err(std::io::Error::other)?;
-            settings.sanitize();
-            Ok(settings)
-        })
-        .transpose()
-}
+    fn storage() -> std::io::Result<web_sys::Storage> {
+        web_sys::window()
+            .and_then(|window| window.local_storage().ok().flatten())
+            .ok_or_else(|| std::io::Error::other("local storage unavailable"))
+    }
 
-#[cfg(target_arch = "wasm32")]
-fn save_browser(settings: &GameSettings) -> std::io::Result<()> {
-    let value = serde_json::to_string(settings).map_err(std::io::Error::other)?;
-    browser_storage()?
-        .set_item(SETTINGS_KEY, &value)
-        .map_err(|_| std::io::Error::other("local storage write failed"))
+    pub fn load() -> std::io::Result<Option<GameSettings>> {
+        let value = storage()?
+            .get_item(SETTINGS_KEY)
+            .map_err(|_| std::io::Error::other("local storage read failed"))?;
+        value
+            .map(|value| {
+                let mut settings: GameSettings =
+                    serde_json::from_str(&value).map_err(std::io::Error::other)?;
+                settings.sanitize();
+                Ok(settings)
+            })
+            .transpose()
+    }
+
+    pub fn save(settings: &GameSettings) -> std::io::Result<()> {
+        let value = serde_json::to_string(settings).map_err(std::io::Error::other)?;
+        storage()?
+            .set_item(SETTINGS_KEY, &value)
+            .map_err(|_| std::io::Error::other("local storage write failed"))
+    }
 }

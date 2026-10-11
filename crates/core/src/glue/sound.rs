@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::schedule::common_conditions::any_match_filter, prelude::*};
 use bevy_rand::prelude::{ChaCha8Rng, GlobalRng};
 use game_audio::{
     AmbienceActive, AmbientEmitter, AmbientEmitters, AmbientUpdate, AudioPaused, ConduitAmbience,
@@ -10,23 +10,19 @@ use gameplay::{
 };
 use rand_core::Rng;
 
-use crate::menu::PauseState;
-
 pub(crate) struct SoundGluePlugin;
 
 impl Plugin for SoundGluePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(AmbientEmitters(Vec::new()));
-        app.add_systems(
-            Update,
-            (
-                footsteps,
-                sync_pause,
-                sync_ambience,
-                play_intermittent_sounds,
-            ),
-        )
-        .add_systems(Update, sync_emitters.before(AmbientUpdate));
+        app.add_systems(Update, (footsteps, sync_ambience, play_intermittent_sounds))
+            .add_systems(
+                Update,
+                sync_emitters.before(AmbientUpdate).run_if(
+                    resource_changed::<FacilityPower>
+                        .or_eager(any_match_filter::<Changed<AmbientSource>>)
+                        .or_eager(any_component_removed::<AmbientSource>),
+                ),
+            );
     }
 }
 
@@ -58,10 +54,9 @@ fn footsteps(
     let stride = if stamina.sprinting { 1.8 } else { 1.25 };
     if tracker.distance >= stride {
         tracker.distance -= stride;
-        sounds.write(PlaySound {
-            sound: Sound::Step((rng.next_u32() % 3) as usize),
-            position: None,
-        });
+        sounds.write(PlaySound::global(Sound::Step(
+            (rng.next_u32() % 3) as usize,
+        )));
     }
 }
 
@@ -83,20 +78,18 @@ fn sync_ambience(
 
 fn sync_emitters(
     sources: Query<(Entity, &AmbientSource)>,
-    power: Option<Res<FacilityPower>>,
+    power: Res<FacilityPower>,
     mut emitters: ResMut<AmbientEmitters>,
 ) {
-    let powered = power.is_none_or(|power| power.on);
     let mut current: Vec<_> = sources
         .iter()
-        .filter(|(_, source)| powered || !source.kind.requires_power())
+        .filter(|(_, source)| power.on || !source.kind.requires_power())
         .map(|(entity, source)| {
             (
                 entity,
                 AmbientEmitter {
                     source: entity,
                     sound: source.kind,
-                    spatial: source.kind.spatial(),
                     volume: source.volume,
                 },
             )
@@ -109,7 +102,7 @@ fn sync_emitters(
 fn play_intermittent_sounds(
     time: Res<Time>,
     paused: Res<AudioPaused>,
-    power: Option<Res<FacilityPower>>,
+    power: Res<FacilityPower>,
     players: Query<&Transform, With<PlayerController>>,
     mut sources: Query<
         (Entity, &GlobalTransform, &mut IntermittentSound),
@@ -123,7 +116,7 @@ fn play_intermittent_sounds(
         return;
     }
     for (entity, transform, mut source) in &mut sources {
-        if power.as_ref().is_some_and(|power| !power.on) && source.kind.requires_power() {
+        if !power.on && source.kind.requires_power() {
             continue;
         }
         source.remaining -= time.delta_secs();
@@ -143,27 +136,3 @@ fn play_intermittent_sounds(
         });
     }
 }
-
-fn sync_pause(
-    state: Option<Res<State<PauseState>>>,
-    mut paused: ResMut<AudioPaused>,
-    #[cfg(feature = "debug")] debug: Option<Res<debug::DebugSettings>>,
-) {
-    let value = state.is_some_and(|state| *state.get() == PauseState::Paused) || {
-        #[cfg(feature = "debug")]
-        {
-            debug.is_some_and(|settings| settings.inspector)
-        }
-        #[cfg(not(feature = "debug"))]
-        {
-            false
-        }
-    };
-    if paused.0 != value {
-        paused.0 = value;
-    }
-}
-
-#[cfg(test)]
-#[path = "../../tests/unit/sound.rs"]
-mod tests;

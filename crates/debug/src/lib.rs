@@ -1,16 +1,13 @@
 use bevy::camera::RenderTarget;
-use bevy::gizmos::{prelude::GizmoConfig, AppGizmoBuilder, GizmoPlugin};
+use bevy::gizmos::{prelude::GizmoConfig, AppGizmoBuilder};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::pbr::wireframe::{WireframeConfig, WireframePlugin};
-use bevy::pbr::PbrPlugin;
 use bevy::prelude::*;
-use bevy::winit::WinitPlugin;
 use bevy_egui::{
     egui, EguiContext, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin,
     EguiPrimaryContextPass, PrimaryEguiContext,
 };
 use bevy_inspector_egui::{bevy_inspector, DefaultInspectorConfigPlugin};
-pub use game_ui::{fps_label, FpsText};
 mod monster_tracking;
 
 use gameplay::{
@@ -20,13 +17,6 @@ use gameplay::{
         Prop, Room,
     },
 };
-
-#[cfg(test)]
-#[path = "../tests/unit/context.rs"]
-mod context_tests;
-#[cfg(test)]
-#[path = "../tests/unit/entity_groups.rs"]
-mod entity_group_tests;
 
 pub const INSPECTOR_TOGGLE_KEY: KeyCode = KeyCode::F12;
 
@@ -41,46 +31,36 @@ pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<game_ui::GameUiPlugin>() {
-            app.add_plugins(game_ui::GameUiPlugin);
-        }
-        if app.is_plugin_added::<PbrPlugin>() && !app.is_plugin_added::<WireframePlugin>() {
-            app.add_plugins(WireframePlugin::default());
-        }
-        if app.is_plugin_added::<GizmoPlugin>() {
-            app.insert_gizmo_config(
-                monster_tracking::MonsterRouteGizmos,
-                GizmoConfig {
-                    depth_bias: -1.0,
-                    ..default()
-                },
-            )
-            .add_systems(Update, monster_tracking::draw_monster_routes);
-        }
-        if app.is_plugin_added::<WinitPlugin>() {
-            if !app.is_plugin_added::<EguiPlugin>() {
-                app.add_plugins(EguiPlugin::default());
-            }
-            app.world_mut()
-                .resource_mut::<EguiGlobalSettings>()
-                .auto_create_primary_context = false;
-            app.add_plugins(DefaultInspectorConfigPlugin)
-                .add_systems(Update, keep_inspector_on_window_camera)
-                .add_systems(
-                    EguiPrimaryContextPass,
-                    (
-                        inspector_ui.run_if(|settings: Res<DebugSettings>| settings.inspector),
-                        monster_tracking::monster_tracking_ui,
-                    ),
-                );
-        }
-        app.init_resource::<DebugSettings>().add_systems(
+        app.add_plugins((
+            WireframePlugin::default(),
+            EguiPlugin::default(),
+            DefaultInspectorConfigPlugin,
+        ))
+        .insert_gizmo_config(
+            monster_tracking::MonsterRouteGizmos,
+            GizmoConfig {
+                depth_bias: -1.0,
+                ..default()
+            },
+        )
+        .init_resource::<DebugSettings>();
+        app.world_mut()
+            .resource_mut::<EguiGlobalSettings>()
+            .auto_create_primary_context = false;
+        app.add_systems(
             Update,
             (
+                monster_tracking::draw_monster_routes,
+                keep_inspector_on_window_camera,
                 toggle_inspector.run_if(input_just_pressed(INSPECTOR_TOGGLE_KEY)),
-                sync_wireframe.run_if(
-                    resource_exists::<WireframeConfig>.and_then(resource_changed::<DebugSettings>),
-                ),
+                sync_wireframe.run_if(resource_changed::<DebugSettings>),
+            ),
+        )
+        .add_systems(
+            EguiPrimaryContextPass,
+            (
+                inspector_ui.run_if(|settings: Res<DebugSettings>| settings.inspector),
+                monster_tracking::monster_tracking_ui,
             ),
         );
     }
@@ -167,24 +147,18 @@ fn inspector_ui(world: &mut World) {
         });
     });
     let mut settings = world.resource_mut::<DebugSettings>();
-    if settings.wireframe != wireframe {
-        settings.wireframe = wireframe;
-    }
-    if settings.monster_tracking != monster_tracking {
-        settings.monster_tracking = monster_tracking;
-    }
+    let updated = DebugSettings {
+        wireframe,
+        monster_tracking,
+        ..*settings
+    };
+    settings.set_if_neq(updated);
 }
 
 fn facility_power_ui(world: &mut World, ui: &mut egui::Ui) {
-    if let Some(mut on) = world.get_resource::<FacilityPower>().map(|power| power.on) {
-        if ui.checkbox(&mut on, "Facility power").changed() {
-            set_facility_power(world, on);
-        }
-    }
-}
-
-fn set_facility_power(world: &mut World, on: bool) {
-    if let Some(mut power) = world.get_resource_mut::<FacilityPower>() {
+    let mut on = world.resource::<FacilityPower>().on;
+    if ui.checkbox(&mut on, "Facility power").changed() {
+        let mut power = world.resource_mut::<FacilityPower>();
         if on {
             power.restore();
         } else {

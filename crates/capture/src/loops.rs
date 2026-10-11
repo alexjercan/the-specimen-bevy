@@ -53,10 +53,8 @@ struct Recording {
 
 impl Plugin for LoopCapturePlugin {
     fn build(&self, app: &mut App) {
-        assert!(self.fps > 0, "loop fps must be positive");
         app.insert_resource(Profile(*self))
             .init_resource::<Recorder>()
-            .init_resource::<CaptureState>()
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(
                 1.0 / f64::from(self.fps),
             )))
@@ -65,10 +63,6 @@ impl Plugin for LoopCapturePlugin {
 }
 
 pub fn loop_start(world: &mut World, name: &str) {
-    let Some(profile) = world.get_resource::<Profile>() else {
-        panic!("loop_start requires an armed LoopCapturePlugin");
-    };
-    assert!(profile.0.fps > 0);
     let output = loop_path(name);
     assert!(
         world.resource::<Recorder>().active.is_none(),
@@ -102,16 +96,14 @@ pub fn loop_end(world: &mut World) {
 
 pub fn loop_audio_path(world: &World) -> Option<PathBuf> {
     world
-        .get_resource::<Recorder>()?
+        .resource::<Recorder>()
         .active
         .as_ref()
         .map(|recording| recording.staging.join("audio.f32le"))
 }
 
 pub fn loop_written(world: &World, name: &str) -> bool {
-    world
-        .get_resource::<Recorder>()
-        .is_some_and(|recorder| recorder.written.as_ref() == Some(&loop_path(name)))
+    world.resource::<Recorder>().written.as_ref() == Some(&loop_path(name))
 }
 
 pub fn loop_written_at(name: impl Into<String>) -> Arc<dyn Fn(&World) -> bool + Send + Sync> {
@@ -229,7 +221,15 @@ fn encode(recording: &Recording, fps: u32) -> Result<(), String> {
             return Err("staged stereo f32le audio must contain complete nonempty frames".into());
         }
         command
-            .args(["-f", "f32le", "-ar", "44100", "-ac", "2", "-i"])
+            .args([
+                "-f",
+                "f32le",
+                "-ar",
+                &AUDIO_SAMPLE_RATE.to_string(),
+                "-ac",
+                "2",
+                "-i",
+            ])
             .arg(&audio)
             .args(["-c:a", "libopus", "-shortest"]);
     }
@@ -272,7 +272,3 @@ fn abort(world: &mut World, reason: String) {
     world.write_message(AppExit::error());
     world.resource_mut::<Recorder>().active = None;
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/loops.rs"]
-mod tests;

@@ -6,13 +6,13 @@ use bevy::{
     render::render_resource::Face,
     world_serialization::{WorldAssetRoot, WorldInstanceReady},
 };
-use game_assets::FacilityAssets;
+use game_assets::{FacilityAssets, GameAssetsState};
 
-use crate::controller::{PlayerController, PlayerControlsEnabled};
+use crate::controller::PlayerController;
 
 use super::builder::{
     Ceiling, Door, DoorOf, DoorRef, Doors, Floor, LightEffect, LightIntensity, Passage, Prop, Room,
-    Walls,
+    Walls, TILE,
 };
 use super::{
     animation::DoorSwing,
@@ -25,11 +25,10 @@ use super::{
     },
     menu_background::MenuBackground,
     module_names::{BOILER_UNIT, EXIT_SIGN, WALL_LAMP_RED},
-    pickups::{PickupKind, PickupMotion},
+    pickups::PickupKind,
     power::FacilityPower,
 };
 
-const TILE: f32 = 2.5;
 const GLOWING_MATERIALS: [&str; 5] = [
     "lamp_cool",
     "lamp_amber",
@@ -39,7 +38,6 @@ const GLOWING_MATERIALS: [&str; 5] = [
 ];
 const FUSE_OUTLINE_WIDTH: f32 = 0.008;
 const FUSE_OUTLINE: Color = Color::srgb(1.0, 0.72, 0.22);
-const FUSE_PLACEHOLDER: Color = Color::srgb(0.78, 0.74, 0.64);
 const DEVICE_OUTLINE_WIDTH: f32 = 0.01;
 const DEVICE_OUTLINE: Color = Color::srgb(0.55, 0.85, 1.0);
 const FLASHBANG_RADIUS: f32 = 0.035;
@@ -49,13 +47,8 @@ const DETECTOR_SIZE: Vec3 = Vec3::new(0.16, 0.07, 0.1);
 const DETECTOR_BODY: Color = Color::srgb(0.32, 0.33, 0.34);
 const DETECTOR_FACE: Color = Color::srgb(1.0, 0.62, 0.18);
 const DETECTOR_FACE_SIZE: Vec3 = Vec3::new(0.1, 0.004, 0.06);
-const PICKUP_MOTION_SECS: f32 = 0.55;
-const PICKUP_ARC_HEIGHT: f32 = 0.15;
-pub(crate) const THROW_DISTANCE: f32 = 3.8;
-pub(crate) const THROW_GRAVITY: f32 = 20.0;
 const BURST_INTENSITY: f32 = 9_000_000.0;
 const BURST_DECAY: f32 = 8.0;
-pub(crate) const BURST_LIFETIME: f32 = 0.7;
 
 pub struct LevelRenderPlugin;
 
@@ -104,13 +97,6 @@ fn needs_mains_power(module: &str) -> bool {
     !matches!(module, WALL_LAMP_RED | EXIT_SIGN | BOILER_UNIT)
 }
 
-#[cfg(test)]
-#[path = "../../tests/unit/level_render_power.rs"]
-mod power_tests;
-#[cfg(test)]
-#[path = "../../tests/unit/presentation.rs"]
-mod presentation_tests;
-
 type PendingRooms<'w, 's> = Query<
     'w,
     's,
@@ -144,14 +130,14 @@ impl Plugin for LevelRenderPlugin {
                     render_props,
                     render_fuses,
                     render_devices,
-                ),
+                )
+                    .run_if(in_state(GameAssetsState::Ready)),
             )
             .add_systems(
                 Update,
                 (
                     animate_lights,
                     animate_surfaces,
-                    animate_pickups,
                     animate_throws.after(tick_burst),
                     animate_panel_fuses,
                 ),
@@ -227,9 +213,7 @@ fn attach_panel_fuses(
     added: On<Add, FuseInstallation>,
     panels: Query<(&FusePanel, &FuseInstallation, &Transform)>,
     players: Query<&Transform, With<PlayerController>>,
-    assets: Option<Res<FacilityAssets>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    assets: Res<FacilityAssets>,
     mut commands: Commands,
 ) {
     let Ok((panel, installation, transform)) = panels.get(added.entity) else {
@@ -245,17 +229,8 @@ fn attach_panel_fuses(
     let from = transform.rotation.inverse() * (hand - transform.translation)
         + Vec3::Y * PANEL_FUSE_START_HEIGHT;
     let module = assets
-        .as_ref()
-        .and_then(|assets| assets.module(FUSE_MODULE));
-    let fallback = module.is_none().then(|| {
-        (
-            meshes.add(Cylinder::new(FUSE_RADIUS, FUSE_LENGTH)),
-            materials.add(StandardMaterial {
-                base_color: FUSE_PLACEHOLDER,
-                ..default()
-            }),
-        )
-    });
+        .module(FUSE_MODULE)
+        .unwrap_or_else(|| panic!("missing fuse module: {FUSE_MODULE}"));
     commands.entity(added.entity).with_children(|children| {
         for slot in 0..FUSE_COUNT {
             children
@@ -266,15 +241,7 @@ fn attach_panel_fuses(
                     Visibility::Hidden,
                 ))
                 .with_children(|children| {
-                    if let Some(module) = module {
-                        children.spawn((WorldAssetRoot(module.clone()), Transform::IDENTITY));
-                    } else if let Some((mesh, material)) = &fallback {
-                        children.spawn((
-                            Mesh3d(mesh.clone()),
-                            MeshMaterial3d(material.clone()),
-                            Transform::from_rotation(Quat::from_rotation_z(FRAC_PI_2)),
-                        ));
-                    }
+                    children.spawn((WorldAssetRoot(module.clone()), Transform::IDENTITY));
                 });
         }
     });
@@ -306,33 +273,6 @@ fn animate_panel_fuses(
     }
 }
 
-fn pickup_position(from: Vec3, hand: Vec3, elapsed: f32) -> Vec3 {
-    let u = (elapsed / PICKUP_MOTION_SECS).clamp(0.0, 1.0);
-    from.lerp(hand, u) + Vec3::Y * PICKUP_ARC_HEIGHT * (u * PI).sin()
-}
-
-fn animate_pickups(
-    time: Res<Time>,
-    enabled: Option<Res<PlayerControlsEnabled>>,
-    player: Query<&Transform, (With<PlayerController>, Without<PickupMotion>)>,
-    mut pickups: Query<(Entity, &mut Transform, &mut PickupMotion)>,
-    mut commands: Commands,
-) {
-    if enabled.is_some_and(|enabled| !enabled.0) {
-        return;
-    }
-    let Ok(player) = player.single() else { return };
-    let hand = player.translation + player.forward() * 0.35 - player.up() * 0.22;
-    for (entity, mut transform, mut motion) in &mut pickups {
-        motion.elapsed += time.delta_secs();
-        if motion.elapsed >= PICKUP_MOTION_SECS {
-            commands.entity(entity).despawn();
-            continue;
-        }
-        transform.translation = pickup_position(motion.from, hand, motion.elapsed);
-    }
-}
-
 fn animate_throws(
     throws: Query<(&ThrownFlashbang, &Children)>,
     mut lights: Query<&mut PointLight, With<FlashbangBurstLight>>,
@@ -353,7 +293,6 @@ fn animate_throws(
 
 fn render_devices(
     pickups: Query<(Entity, &PickupKind), With<PendingPickupRender>>,
-    assets: Option<Res<FacilityAssets>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut commands: Commands,
@@ -362,7 +301,7 @@ fn render_devices(
         .iter()
         .filter(|(_, kind)| !matches!(kind, PickupKind::Fuse { .. }))
         .collect();
-    if assets.is_none() || devices.is_empty() {
+    if devices.is_empty() {
         return;
     }
     let outline = materials.add(StandardMaterial {
@@ -438,14 +377,11 @@ fn render_devices(
 
 fn render_fuses(
     pickups: Query<(Entity, &PickupKind), With<PendingPickupRender>>,
-    assets: Option<Res<FacilityAssets>>,
+    assets: Res<FacilityAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut commands: Commands,
 ) {
-    let Some(assets) = assets else {
-        return;
-    };
     let fuses: Vec<Entity> = pickups
         .iter()
         .filter(|(_, kind)| matches!(kind, PickupKind::Fuse { .. }))
@@ -454,23 +390,11 @@ fn render_fuses(
     if fuses.is_empty() {
         return;
     }
-    let module = assets.module(FUSE_MODULE);
+    let module = assets
+        .module(FUSE_MODULE)
+        .unwrap_or_else(|| panic!("missing fuse module: {FUSE_MODULE}"));
     let shape =
         Transform::from_xyz(0.0, FUSE_RADIUS, 0.0).with_rotation(Quat::from_rotation_z(FRAC_PI_2));
-    let placeholder = match module {
-        Some(_) => None,
-        None => {
-            warn!("missing {FUSE_MODULE} module; rendering placeholder fuses");
-            Some((
-                meshes.add(Cylinder::new(FUSE_RADIUS, FUSE_LENGTH)),
-                materials.add(StandardMaterial {
-                    base_color: FUSE_PLACEHOLDER,
-                    perceptual_roughness: 0.55,
-                    ..default()
-                }),
-            ))
-        }
-    };
     let outline_mesh = meshes.add(Cylinder::new(
         FUSE_RADIUS + FUSE_OUTLINE_WIDTH,
         FUSE_LENGTH + 2.0 * FUSE_OUTLINE_WIDTH,
@@ -483,15 +407,7 @@ fn render_fuses(
     });
     for entity in fuses {
         commands.entity(entity).with_children(|children| {
-            if let Some(module) = module {
-                children.spawn((WorldAssetRoot(module.clone()), Transform::IDENTITY));
-            } else if let Some((mesh, material)) = &placeholder {
-                children.spawn((
-                    Mesh3d(mesh.clone()),
-                    MeshMaterial3d(material.clone()),
-                    shape,
-                ));
-            }
+            children.spawn((WorldAssetRoot(module.clone()), Transform::IDENTITY));
             children.spawn((
                 Name::new("fuse outline"),
                 Mesh3d(outline_mesh.clone()),
@@ -505,12 +421,9 @@ fn render_fuses(
 
 fn render_props(
     props: Query<(Entity, &Prop, Option<&LightEffect>), With<PendingPropRender>>,
-    assets: Option<Res<FacilityAssets>>,
+    assets: Res<FacilityAssets>,
     mut commands: Commands,
 ) {
-    let Some(assets) = assets else {
-        return;
-    };
     for (entity, prop, effect) in &props {
         let module = assets
             .module(&prop.0)
@@ -571,7 +484,7 @@ fn attach_prop_glow(
 
 fn animate_lights(
     time: Res<Time>,
-    power: Option<Res<FacilityPower>>,
+    power: Res<FacilityPower>,
     props: Query<(&Prop, Option<&ChildOf>)>,
     menu_roots: Query<(), With<MenuBackground>>,
     mut lights: Query<(
@@ -582,7 +495,7 @@ fn animate_lights(
     )>,
 ) {
     for (effect, base, parent, mut light) in &mut lights {
-        let powered = power.as_ref().is_none_or(|power| power.on)
+        let powered = power.on
             || props.get(parent.parent()).is_ok_and(|(prop, root)| {
                 !needs_mains_power(&prop.0)
                     || root.is_some_and(|root| menu_roots.contains(root.parent()))
@@ -597,14 +510,14 @@ fn animate_lights(
 
 fn animate_surfaces(
     time: Res<Time>,
-    power: Option<Res<FacilityPower>>,
+    power: Res<FacilityPower>,
     surfaces: Query<(&GlowSurface, &MeshMaterial3d<StandardMaterial>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (surface, material) in &surfaces {
         if let Some(mut material) = materials.get_mut(&material.0) {
             material.emissive = surface.base
-                * if surface.needs_power && power.as_ref().is_some_and(|power| !power.on) {
+                * if surface.needs_power && !power.on {
                     0.0
                 } else {
                     surface
@@ -620,13 +533,10 @@ fn render_rooms(
     links: Query<(&DoorRef, &DoorOf)>,
     doors: Query<&Door>,
     passages: Query<&Passage>,
-    assets: Option<Res<FacilityAssets>>,
+    assets: Res<FacilityAssets>,
     render_ceilings: Res<RenderCeilings>,
     mut commands: Commands,
 ) {
-    let Some(assets) = assets else {
-        return;
-    };
     for (entity, room, floor, walls, ceiling, room_doors) in &rooms {
         let openings: Vec<Vec2> = room_doors
             .into_iter()
@@ -730,13 +640,10 @@ fn render_rooms(
 
 fn render_exterior_corridor(
     corridors: Query<Entity, With<PendingExteriorRender>>,
-    assets: Option<Res<FacilityAssets>>,
+    assets: Res<FacilityAssets>,
     render_ceilings: Res<RenderCeilings>,
     mut commands: Commands,
 ) {
-    let Some(assets) = assets else {
-        return;
-    };
     let floor = assets.module("floor_tile").expect("missing exterior floor");
     let wall = assets.module("wall").expect("missing exterior wall");
     let ceiling = render_ceilings.0.then(|| {
@@ -782,12 +689,9 @@ fn render_exterior_corridor(
 
 fn render_doors(
     doors: Query<(Entity, &Door, &DoorSwing), With<PendingDoorRender>>,
-    assets: Option<Res<FacilityAssets>>,
+    assets: Res<FacilityAssets>,
     mut commands: Commands,
 ) {
-    let Some(assets) = assets else {
-        return;
-    };
     for (entity, door, swing) in &doors {
         let frame = assets
             .module(&door.frame)

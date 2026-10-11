@@ -98,10 +98,6 @@ impl Gallery {
     }
 }
 
-pub fn cycle(len: usize, index: usize, step: i32) -> usize {
-    (index as i32 + step).rem_euclid(len as i32) as usize
-}
-
 #[derive(Resource)]
 struct Selection {
     index: usize,
@@ -236,7 +232,11 @@ fn select_exhibit(
         if let Some(root) = selection.root.take() {
             commands.entity(root).despawn();
         }
-        selection.index = cycle(gallery.exhibits.len(), selection.index, step);
+        selection.index = game_settings::cycle(
+            &(0..gallery.exhibits.len()).collect::<Vec<_>>(),
+            selection.index,
+            step as isize,
+        );
         orbit.radius = gallery.exhibits[selection.index].radius;
     }
     for wheel in wheels.read() {

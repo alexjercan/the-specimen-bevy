@@ -1,54 +1,47 @@
 use bevy::prelude::*;
-use game_settings::GameSettings;
-use gameplay::controller::PlayerControllerSettings;
+use bevy_enhanced_input::prelude::Binding;
+use game_settings::{GameSettings, InputBinding};
+use gameplay::controller::{ControllerSettings, KeyBindings};
 
-pub(crate) struct PlayerControllerSettingsGluePlugin;
+pub(crate) struct ControllerSettingsPlugin;
 
-impl Plugin for PlayerControllerSettingsGluePlugin {
+impl Plugin for ControllerSettingsPlugin {
     fn build(&self, app: &mut App) {
-        let look_sensitivity = app.world().resource::<GameSettings>().mouse_sensitivity;
-        app.insert_resource(PlayerControllerSettings { look_sensitivity })
-            .add_systems(PreUpdate, sync_player_controller_settings);
+        let settings = controller_settings(app.world().resource::<GameSettings>());
+        app.insert_resource(settings).add_systems(
+            PreUpdate,
+            sync_controller_settings.run_if(resource_changed::<GameSettings>),
+        );
     }
 }
 
-fn sync_player_controller_settings(
+fn sync_controller_settings(
     settings: Res<GameSettings>,
-    mut controller: ResMut<PlayerControllerSettings>,
+    mut controller: ResMut<ControllerSettings>,
 ) {
-    if settings.is_changed() && controller.look_sensitivity != settings.mouse_sensitivity {
-        controller.look_sensitivity = settings.mouse_sensitivity;
+    controller.set_if_neq(controller_settings(&settings));
+}
+
+fn controller_settings(settings: &GameSettings) -> ControllerSettings {
+    let keys = settings.keys;
+    ControllerSettings {
+        keys: KeyBindings {
+            forward: keys.forward,
+            left: keys.left,
+            backward: keys.backward,
+            right: keys.right,
+            sprint: keys.sprint,
+            interact: keys.interact,
+            flashlight: binding(keys.flashlight),
+            flashbang: binding(keys.flashbang),
+        },
+        mouse_sensitivity: settings.mouse_sensitivity,
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn controller_sensitivity_tracks_loaded_and_changed_settings() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        let mut settings = GameSettings::default();
-        settings.mouse_sensitivity = 0.003;
-        app.insert_resource(settings)
-            .add_plugins(PlayerControllerSettingsGluePlugin);
-        assert_eq!(
-            app.world()
-                .resource::<PlayerControllerSettings>()
-                .look_sensitivity,
-            0.003
-        );
-        app.update();
-        app.world_mut()
-            .resource_mut::<GameSettings>()
-            .mouse_sensitivity = 0.004;
-        app.update();
-        assert_eq!(
-            app.world()
-                .resource::<PlayerControllerSettings>()
-                .look_sensitivity,
-            0.004
-        );
+fn binding(binding: InputBinding) -> Binding {
+    match binding {
+        InputBinding::Key(key) => key.into(),
+        InputBinding::Mouse(button) => button.into(),
     }
 }

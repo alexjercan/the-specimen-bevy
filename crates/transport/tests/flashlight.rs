@@ -1,21 +1,31 @@
+mod common;
+
 use std::io::Cursor;
 
 use bevy::{input::InputPlugin, prelude::*};
 use bevy_enhanced_input::EnhancedInputPlugin;
-use gameplay::controller::{PlayerController, PlayerControllerPlugin};
+use gameplay::{
+    controller::{PlayerController, PlayerControllerPlugin},
+    levels::FacilityPower,
+};
 use serde_json::Value;
 use transport::{run, TransportPlugin, TransportTimeline};
 
 #[test]
 fn headless_transport_click_persists_until_explicit_release_and_reports_charge() {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin));
-    app.add_plugins(PlayerControllerPlugin::default().without_camera());
+    app.add_plugins(PlayerControllerPlugin);
     app.add_plugins(TransportPlugin);
-    app.add_systems(Startup, |mut commands: Commands, mut timeline: ResMut<TransportTimeline>| {
-        commands.spawn((PlayerController, Transform::from_xyz(0.0, 1.6, 0.0)));
-        timeline.ready();
-    });
+    app.add_systems(
+        Startup,
+        |mut commands: Commands, mut timeline: ResMut<TransportTimeline>| {
+            commands.spawn((PlayerController, Transform::from_xyz(0.0, 1.6, 0.0)));
+            timeline.ready();
+        },
+    );
 
     let input = Cursor::new(
         "{\"tick\":1,\"input\":{\"flashlight\":true}}\n\

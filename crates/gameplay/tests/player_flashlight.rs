@@ -1,21 +1,18 @@
 use std::time::Duration;
 
-use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
-use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy::prelude::*;
 use game_audio::{PlaySound, Sound};
 use gameplay::controller::{
-    Flashlight, FlashlightBeam, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled,
+    Flashlight, FlashlightBeam, PlayerController, PlayerControlsEnabled, PlayerPresentationPlugin,
     RESTART_CHARGE,
 };
 
+mod common;
+
 fn blank_app(camera: bool) -> App {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin));
-    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs(1)));
+    let mut app = common::player_app(Duration::from_secs(1));
     if camera {
-        app.add_plugins(PlayerControllerPlugin::default());
-    } else {
-        app.add_plugins(PlayerControllerPlugin::default().without_camera());
+        app.add_plugins(PlayerPresentationPlugin);
     }
     app.finish();
     app.cleanup();

@@ -110,6 +110,10 @@ pub struct AchievementProgress {
 }
 
 impl AchievementProgress {
+    pub fn custom_unlocked(&self) -> bool {
+        self.unlocked.contains(&Achievement::Escaped) || self.insane_unlocked()
+    }
+
     pub fn insane_unlocked(&self) -> bool {
         self.unlocked.contains(&Achievement::EscapeInsane)
             || Achievement::INSANE_GATE
@@ -151,7 +155,6 @@ pub struct AchievementPlugin;
 impl Plugin for AchievementPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AchievementProgress>()
-            .init_resource::<GamePreset>()
             .add_observer(attach_run)
             .add_observer(record_signal)
             .add_observer(record_escape)
@@ -196,7 +199,7 @@ fn record_signal(
 fn record_escape(
     added: On<Add, Escaped>,
     runs: Query<&RunAchievements, With<PlayerController>>,
-    power: Option<Res<FacilityPower>>,
+    power: Res<FacilityPower>,
     preset: Res<GamePreset>,
     mut progress: ResMut<AchievementProgress>,
     mut commands: Commands,
@@ -209,7 +212,7 @@ fn record_escape(
         (!run.picked_flashbang, Achievement::EscapeWithoutFlashbang),
         (!run.picked_detector, Achievement::EscapeWithoutDetector),
         (
-            !run.restored_boiler && power.is_some_and(|power| !power.on),
+            !run.restored_boiler && !power.on,
             Achievement::EscapeWithoutBoiler,
         ),
         (!run.detected, Achievement::EscapeUndetected),
@@ -245,7 +248,3 @@ fn unlock(progress: &mut AchievementProgress, commands: &mut Commands, achieveme
         commands.trigger(AchievementUnlocked(achievement));
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/achievements.rs"]
-mod tests;

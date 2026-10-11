@@ -1,14 +1,15 @@
+mod common;
+
 use std::io::Cursor;
 
 use bevy::{input::InputPlugin, math::Rect, prelude::*};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use game_audio::{PlaySound, Sound};
-use game_settings::GameSettings;
 use gameplay::{
     controller::{PlayerController, PlayerControllerPlugin},
     levels::{
-        Detector, DetectorReading, DevicePlugin, Flashbangs, Monster, PickupKind, PickupPlugin,
-        Room,
+        Detector, DetectorReading, DevicePlugin, FacilityPower, Flashbangs, Monster, PickupKind,
+        PickupPlugin, Room,
     },
 };
 use serde_json::Value;
@@ -16,11 +17,13 @@ use transport::{run, TransportPlugin, TransportTimeline};
 
 fn app() -> App {
     let mut app = App::new();
+    app.insert_resource(common::controller_settings())
+        .init_resource::<FacilityPower>();
     app.add_plugins((
         MinimalPlugins,
         InputPlugin,
         EnhancedInputPlugin,
-        PlayerControllerPlugin::default().without_camera(),
+        PlayerControllerPlugin,
         TransportPlugin,
     ));
     app
@@ -140,9 +143,9 @@ fn snapshot_detector_reaches_twenty_five_metres() {
 
 #[test]
 fn flashbang_and_flashlight_controls_follow_rebound_settings() {
-    let mut settings = GameSettings::default();
-    settings.keys.flashlight = "KeyH".into();
-    settings.keys.flashbang = "KeyG".into();
+    let mut settings = common::controller_settings();
+    settings.keys.flashlight = KeyCode::KeyH.into();
+    settings.keys.flashbang = KeyCode::KeyG.into();
     let mut app = app();
     app.insert_resource(settings).add_plugins(DevicePlugin);
     app.add_systems(

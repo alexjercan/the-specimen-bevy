@@ -9,12 +9,10 @@ use crate::levels::{
     Passage, PropCollider, Room,
 };
 use game_audio::{PlaySound, Sound};
-use game_settings::{
-    parse_binding, parse_key, GameSettings, InputBinding, MovementKeys, DEFAULT_SENSITIVITY,
-};
 
 use super::{
     collision, flashlight,
+    settings::{ControllerSettings, KeyBindings},
     stamina::{SprintExhausted, Stamina},
 };
 
@@ -25,19 +23,6 @@ pub const PITCH_LIMIT: f32 = 1.54;
 #[derive(Component, Default)]
 #[require(Transform, PlayerInput, Stamina, Visibility)]
 pub struct PlayerController;
-
-#[derive(Resource, Clone, Copy, Debug)]
-pub struct PlayerControllerSettings {
-    pub look_sensitivity: f32,
-}
-
-impl Default for PlayerControllerSettings {
-    fn default() -> Self {
-        Self {
-            look_sensitivity: DEFAULT_SENSITIVITY,
-        }
-    }
-}
 
 #[derive(Resource)]
 pub struct PlayerControlsEnabled(pub bool);
@@ -54,9 +39,6 @@ pub struct PlayerInput {
     pub running: bool,
     pub look: Vec2,
 }
-
-#[derive(Resource, Default)]
-struct LastBindings(MovementKeys);
 
 #[derive(InputAction)]
 #[action_output(Vec2)]
@@ -78,34 +60,13 @@ pub struct Interact;
 #[action_output(bool)]
 pub struct UseFlashbang;
 
-pub struct PlayerControllerPlugin {
-    camera: bool,
-}
-
-impl Default for PlayerControllerPlugin {
-    fn default() -> Self {
-        Self { camera: true }
-    }
-}
-
-impl PlayerControllerPlugin {
-    pub fn without_camera(mut self) -> Self {
-        self.camera = false;
-        self
-    }
-}
+pub struct PlayerControllerPlugin;
 
 impl Plugin for PlayerControllerPlugin {
     fn build(&self, app: &mut App) {
-        assert!(
-            app.is_plugin_added::<EnhancedInputPlugin>(),
-            "PlayerControllerPlugin requires EnhancedInputPlugin"
-        );
         app.register_type::<flashlight::Flashlight>()
             .register_type::<Stamina>()
             .init_resource::<PlayerControlsEnabled>()
-            .init_resource::<PlayerControllerSettings>()
-            .init_resource::<LastBindings>()
             .add_message::<PlaySound>()
             .add_message::<SprintExhausted>()
             .add_input_context::<PlayerController>()
@@ -121,76 +82,73 @@ impl Plugin for PlayerControllerPlugin {
             .add_observer(on_look)
             .add_systems(
                 Update,
-                (
-                    apply_input,
-                    flashlight::arm_after_release,
-                    flashlight::advance,
-                    flashlight::sync_beam,
-                )
-                    .chain(),
+                (apply_input, flashlight::advance, flashlight::sync_beam).chain(),
             );
-        if self.camera {
-            app.add_observer(attach_audio)
-                .add_observer(attach_camera)
-                .add_observer(flashlight::attach_beam)
-                .add_systems(Update, update_cursor);
-        }
     }
 }
 
-fn action_binding(name: &str) -> Binding {
-    match parse_binding(name).expect("sanitized player binding") {
-        InputBinding::Key(key) => key.into(),
-        InputBinding::Mouse(button) => button.into(),
+pub struct PlayerPresentationPlugin;
+
+impl Plugin for PlayerPresentationPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_observer(attach_audio)
+            .add_observer(attach_camera)
+            .add_observer(flashlight::attach_beam)
+            .add_systems(Update, update_cursor);
     }
 }
 
-fn input_actions(keys: &MovementKeys) -> impl Bundle {
+fn input_actions(keys: KeyBindings) -> impl Bundle {
     actions!(PlayerController[
         (
             Action::<Move>::new(),
             Bindings::spawn((Cardinal::new(
-                parse_key(&keys.forward).unwrap(),
-                parse_key(&keys.left).unwrap(),
-                parse_key(&keys.backward).unwrap(),
-                parse_key(&keys.right).unwrap(),
+                keys.forward,
+                keys.left,
+                keys.backward,
+                keys.right,
             ),)),
         ),
-        (Action::<Run>::new(), bindings![KeyCode::ShiftLeft]),
+        (Action::<Run>::new(), bindings![keys.sprint]),
         (Action::<Look>::new(), bindings![Binding::mouse_motion()]),
-        (Action::<Interact>::new(), bindings![parse_key(&keys.interact).unwrap()]),
-        (Action::<flashlight::ToggleFlashlight>::new(), bindings![action_binding(&keys.flashlight)]),
-        (Action::<UseFlashbang>::new(), bindings![action_binding(&keys.flashbang)]),
+        (Action::<Interact>::new(), bindings![keys.interact]),
+        (
+            Action::<flashlight::ToggleFlashlight>::new(),
+            ActionSettings {
+                require_reset: true,
+                ..default()
+            },
+            bindings![keys.flashlight],
+        ),
+        (Action::<UseFlashbang>::new(), bindings![keys.flashbang]),
     ])
 }
 
 fn attach_input(
     added: On<Add, PlayerController>,
-    settings: Option<Res<GameSettings>>,
+    settings: Res<ControllerSettings>,
     mut commands: Commands,
 ) {
-    let keys = settings.map_or_else(MovementKeys::default, |settings| settings.keys.clone());
-    commands.entity(added.entity).insert(input_actions(&keys));
+    commands
+        .entity(added.entity)
+        .insert(input_actions(settings.keys));
 }
 
 fn refresh_input_bindings(
-    settings: Option<Res<GameSettings>>,
+    settings: Res<ControllerSettings>,
     players: Query<Entity, With<PlayerController>>,
-    mut previous: ResMut<LastBindings>,
+    mut bound: Local<Option<KeyBindings>>,
     mut commands: Commands,
 ) {
-    let Some(settings) = settings else { return };
-    if previous.0 == settings.keys {
+    let previous = bound.replace(settings.keys);
+    if previous.is_none_or(|previous| previous == settings.keys) {
         return;
     }
-    previous.0 = settings.keys.clone();
     for player in &players {
         commands
             .entity(player)
             .despawn_related::<Actions<PlayerController>>();
-        commands
-            .entity(player)
-            .insert(input_actions(&settings.keys));
+        commands.entity(player).insert(input_actions(settings.keys));
     }
 }
 
@@ -288,7 +246,7 @@ fn update_cursor(
 pub(crate) fn apply_input(
     time: Res<Time>,
     enabled: Res<PlayerControlsEnabled>,
-    settings: Res<PlayerControllerSettings>,
+    settings: Res<ControllerSettings>,
     rooms: Query<(&Room, Option<&Doors>)>,
     links: Query<(&DoorRef, &DoorOf)>,
     doors: Query<(&Door, &DoorSwing)>,
@@ -326,7 +284,7 @@ pub(crate) fn apply_input(
             continue;
         }
         let (yaw, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
-        let sensitivity = settings.look_sensitivity;
+        let sensitivity = settings.mouse_sensitivity;
         let yaw = yaw - input.look.x * sensitivity;
         let pitch = (pitch - input.look.y * sensitivity).clamp(-PITCH_LIMIT, PITCH_LIMIT);
         transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
@@ -343,10 +301,7 @@ pub(crate) fn apply_input(
             exhaustion.write(SprintExhausted {
                 position: transform.translation,
             });
-            sounds.write(PlaySound {
-                sound: Sound::SprintExhausted,
-                position: None,
-            });
+            sounds.write(PlaySound::global(Sound::SprintExhausted));
         }
         let direction = Quat::from_rotation_y(yaw) * Vec3::new(movement.x, 0.0, -movement.y);
         let speed = if stamina.sprinting {

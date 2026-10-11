@@ -9,10 +9,9 @@ use crate::levels::{
         SHELF_UNIT_LOW, STEEL_DRUM, STORAGE_CRATE, STORAGE_CRATE_OPEN, WORKBENCH, WORK_ISLAND,
     },
     Door, DoorOf, DoorRef, DoorSwing, Doors, Passage, Prop, PropCollider, Room,
-    PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH,
+    PANEL_HALF_THICKNESS, PANEL_OFFSET, PANEL_WIDTH, TILE,
 };
 
-const TILE: f32 = 2.5;
 const WALL_DEPTH: f32 = 0.25;
 const FRAME_HALF_WIDTH: f32 = 0.7;
 const FRAME_DEPTH: f32 = 0.135;

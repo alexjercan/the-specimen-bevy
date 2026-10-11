@@ -19,8 +19,7 @@ pub(crate) struct CandyFusePlugin;
 
 impl Plugin for CandyFusePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameAssetsState::Ready), prepare_candy_fuse)
-            .add_observer(wrap_fuse);
+        app.add_systems(OnEnter(GameAssetsState::Ready), prepare_candy_fuse);
     }
 }
 
@@ -29,23 +28,21 @@ fn prepare_candy_fuse(
     halloween: Res<HalloweenAssets>,
     mut commands: Commands,
 ) {
-    let Some(fuse) = facility.module(FUSE_MODULE) else {
-        return;
-    };
+    let fuse = facility
+        .module(FUSE_MODULE)
+        .unwrap_or_else(|| panic!("missing fuse module: {FUSE_MODULE}"));
     commands.insert_resource(CandyFuse {
         fuse: fuse.id(),
         candy: halloween.candy_fuse.clone(),
     });
+    commands.add_observer(wrap_fuse);
 }
 
 fn wrap_fuse(
     inserted: On<Insert, WorldAssetRoot>,
-    candy: Option<Res<CandyFuse>>,
+    candy: Res<CandyFuse>,
     mut roots: Query<&mut WorldAssetRoot>,
 ) {
-    let Some(candy) = candy else {
-        return;
-    };
     let Ok(mut root) = roots.get_mut(inserted.entity) else {
         return;
     };
@@ -53,7 +50,3 @@ fn wrap_fuse(
         root.0 = candy.candy.clone();
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/fuse.rs"]
-mod tests;

@@ -1,6 +1,5 @@
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::prelude::*;
-use game_settings::GameSettings;
 
 #[derive(Component)]
 pub struct FpsText;
@@ -9,11 +8,9 @@ pub struct FpsOverlayPlugin;
 
 impl Plugin for FpsOverlayPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<FrameTimeDiagnosticsPlugin>() {
-            app.add_plugins(FrameTimeDiagnosticsPlugin::default());
-        }
-        app.add_systems(Startup, spawn_fps_text)
-            .add_systems(Update, (update_fps_text, sync_fps_visibility));
+        app.add_plugins(FrameTimeDiagnosticsPlugin::default())
+            .add_systems(Startup, spawn_fps_text)
+            .add_systems(Update, update_fps_text);
     }
 }
 
@@ -39,20 +36,6 @@ fn spawn_fps_text(mut commands: Commands) {
         },
         GlobalZIndex(i32::MAX),
     ));
-}
-
-fn sync_fps_visibility(
-    settings: Option<Res<GameSettings>>,
-    mut texts: Query<&mut Visibility, With<FpsText>>,
-) {
-    let visible = settings.is_some_and(|settings| settings.fps_overlay);
-    for mut visibility in &mut texts {
-        *visibility = if visible {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
-    }
 }
 
 fn update_fps_text(diagnostics: Res<DiagnosticsStore>, mut texts: Query<&mut Text, With<FpsText>>) {

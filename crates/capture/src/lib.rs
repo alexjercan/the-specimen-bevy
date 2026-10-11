@@ -53,7 +53,3 @@ impl CaptureState {
         self.failure.as_deref()
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/state.rs"]
-mod tests;

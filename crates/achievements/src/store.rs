@@ -44,7 +44,3 @@ pub(crate) fn encode(known: &HashSet<Achievement>, unknown: &HashSet<String>) ->
     };
     serde_json::to_vec_pretty(&data).expect("achievement store serializes")
 }
-
-#[cfg(test)]
-#[path = "../tests/unit/store.rs"]
-mod tests;

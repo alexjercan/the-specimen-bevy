@@ -1,22 +1,19 @@
 use std::{f32::consts::FRAC_PI_2, time::Duration};
 
-use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
-use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy::prelude::*;
 use gameplay::{
-    controller::{PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
+    controller::{PlayerController, PlayerControlsEnabled},
     levels::{
-        panel_center, panel_top, Door, DoorPanel, DoorPlugin, DoorState, DoorSwing, ToggleDoor,
+        panel_center, panel_top, Door, DoorPanel, DoorPlugin, DoorState, DoorSwing, FacilityPower,
+        ToggleDoor,
     },
 };
 
+mod common;
+
 fn app() -> (App, Entity) {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin));
-    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-        100,
-    )));
-    app.add_plugins(PlayerControllerPlugin::default().without_camera());
-    app.add_plugins(DoorPlugin);
+    let mut app = common::player_app(Duration::from_millis(100));
+    app.init_resource::<FacilityPower>().add_plugins(DoorPlugin);
     app.finish();
     app.cleanup();
     app.update();

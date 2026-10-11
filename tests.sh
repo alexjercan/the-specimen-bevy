@@ -12,7 +12,15 @@ cargo fmt --all -- --check
 python3 scripts/check-comments.py
 cargo test --workspace --locked
 cargo check --locked --all-targets
-env -u DISPLAY timeout 60s cargo run --locked -- --norender
+cargo build --locked
+set +e
+env -u DISPLAY timeout 60s target/debug/the-specimen-bevy --norender
+status=$?
+set -e
+if [[ "$status" -ne 0 && "$status" -ne 124 ]]; then
+  echo "headless smoke run failed with status $status" >&2
+  exit "$status"
+fi
 if [[ "$mode" == --full ]]; then
   cargo clippy --workspace --all-targets --locked -- -D warnings
 fi

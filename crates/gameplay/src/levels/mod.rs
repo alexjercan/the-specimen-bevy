@@ -21,7 +21,7 @@ mod sounds;
 pub use animation::DoorSwing;
 pub use builder::{
     Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Floor, LevelRoot, LightEffect,
-    LightIntensity, Passage, Prop, PropCollider, Room, Walls,
+    LightIntensity, Passage, Prop, PropCollider, Room, Walls, TILE,
 };
 pub use devices::{
     detector_reading, pulse_interval, Detector, DetectorReading, DevicePlugin, FlashExposure,
@@ -50,11 +50,13 @@ pub use menu_background::build_main_menu_background;
 pub use module_names::BOILER_UNIT;
 pub use monster::{
     Caught, Monster, MonsterFigure, MonsterNavigation, MonsterPlugin, MonsterRenderPlugin,
-    MONSTER_HEAD_JOINT,
+    PatrolRng, MONSTER_HEAD_JOINT,
 };
 pub use objective::{Escaped, ObjectivePlugin};
 pub use pickups::{PickupKind, PickupPlugin};
-pub use power::{FacilityPower, FacilityPowerPlugin, MAX_OUTAGE_DELAY_SECS, MIN_OUTAGE_DELAY_SECS};
+pub use power::{
+    Boiler, FacilityPower, FacilityPowerPlugin, MAX_OUTAGE_DELAY_SECS, MIN_OUTAGE_DELAY_SECS,
+};
 pub use render::{LevelRenderPlugin, RenderCeilings};
 pub use sounds::{
     AmbientSource, AmbientSourceKind, IntermittentSound, IntermittentSoundKind, PropSoundsPlugin,

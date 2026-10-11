@@ -1,18 +1,19 @@
 use std::{f32::consts::PI, time::Duration};
 
-use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
-use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy::prelude::*;
 use game_audio::{PlaySound, Sound};
 use gameplay::{
     achievements::{Achievement, AchievementPlugin, AchievementProgress, RunAchievements},
-    controller::{Flashlight, PlayerController, PlayerControllerPlugin, PlayerControlsEnabled},
+    controller::{Flashlight, PlayerController, PlayerControlsEnabled},
     levels::{
         detector_reading, pulse_interval, Caught, Detector, DevicePlugin, DoorPlugin,
-        FlashExposure, Flashbangs, Flashed, FuseInventory, FusePlugin, Monster, PickupKind, Room,
-        DETECTOR_RANGE, FLASHBANG_BURST_DELAY, FLASHBANG_DURATION, PULSE_FAST, PULSE_NEAR,
-        PULSE_SLOW,
+        FacilityPower, FlashExposure, Flashbangs, Flashed, FuseInventory, FusePlugin, Monster,
+        PickupKind, PickupPlugin, Room, DETECTOR_RANGE, FLASHBANG_BURST_DELAY, FLASHBANG_DURATION,
+        PULSE_FAST, PULSE_NEAR, PULSE_SLOW,
     },
 };
+
+mod common;
 
 #[derive(Resource, Default)]
 struct Heard(Vec<Sound>);
@@ -27,13 +28,15 @@ fn cues(app: &mut App, sound: Sound) -> usize {
 }
 
 fn app() -> (App, Entity) {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin))
-        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-            100,
-        )))
-        .add_plugins(PlayerControllerPlugin::default().without_camera())
-        .add_plugins((DoorPlugin, FusePlugin, DevicePlugin, AchievementPlugin))
+    let mut app = common::player_app(Duration::from_millis(100));
+    app.init_resource::<FacilityPower>()
+        .add_plugins((
+            DoorPlugin,
+            FusePlugin,
+            PickupPlugin,
+            DevicePlugin,
+            AchievementPlugin,
+        ))
         .init_resource::<Heard>()
         .add_systems(PostUpdate, collect);
     app.finish();
@@ -82,8 +85,8 @@ fn click(app: &mut App, button: MouseButton) {
     app.update();
 }
 
-fn exists(app: &App, entity: Entity) -> bool {
-    app.world().get_entity(entity).is_ok()
+fn pickable(app: &App, entity: Entity) -> bool {
+    app.world().get::<PickupKind>(entity).is_some()
 }
 
 fn flashbangs(app: &App, player: Entity) -> Option<usize> {
@@ -107,7 +110,7 @@ fn f_picks_up_the_aimed_flashbang_and_detector_once_each() {
             .unwrap()
             .picked_flashbang
     );
-    assert!(!exists(&app, flashbang));
+    assert!(!pickable(&app, flashbang));
     assert!(app.world().get::<Detector>(player).is_none());
 
     press_key(&mut app, KeyCode::KeyF);
@@ -115,7 +118,7 @@ fn f_picks_up_the_aimed_flashbang_and_detector_once_each() {
 
     aim(&mut app, player, Vec3::new(1.5, 0.96, -1.5));
     press_key(&mut app, KeyCode::KeyF);
-    assert!(!exists(&app, detector));
+    assert!(!pickable(&app, detector));
     assert!(
         app.world()
             .get::<RunAchievements>(player)
@@ -142,12 +145,12 @@ fn walls_block_device_pickup_through_structural_sight() {
     let flashbang = device(&mut app, PickupKind::Flashbang, Vec3::new(0.5, 0.9, -3.0));
     aim(&mut app, player, Vec3::new(0.5, 0.96, -3.0));
     press_key(&mut app, KeyCode::KeyF);
-    assert!(exists(&app, flashbang));
+    assert!(pickable(&app, flashbang));
     assert_eq!(flashbangs(&app, player), None);
 
     app.world_mut().despawn(room);
     press_key(&mut app, KeyCode::KeyF);
-    assert!(!exists(&app, flashbang));
+    assert!(!pickable(&app, flashbang));
     assert_eq!(flashbangs(&app, player), Some(1));
 }
 
@@ -164,13 +167,13 @@ fn nearer_fuse_wins_arbitration_over_a_device_behind_it() {
     let flashbang = device(&mut app, PickupKind::Flashbang, Vec3::new(0.5, 0.9, -2.0));
     aim(&mut app, player, Vec3::new(0.5, 0.93, -1.0));
     press_key(&mut app, KeyCode::KeyF);
-    assert!(!exists(&app, fuse));
-    assert!(exists(&app, flashbang));
+    assert!(!pickable(&app, fuse));
+    assert!(pickable(&app, flashbang));
     assert_eq!(app.world().get::<FuseInventory>(player).unwrap().0, 1);
 
     aim(&mut app, player, Vec3::new(0.5, 0.96, -2.0));
     press_key(&mut app, KeyCode::KeyF);
-    assert!(!exists(&app, flashbang));
+    assert!(!pickable(&app, flashbang));
     assert_eq!(flashbangs(&app, player), Some(1));
 }
 
@@ -313,7 +316,7 @@ fn paused_controls_block_pickup_and_use_and_freeze_the_flash() {
     aim(&mut app, player, Vec3::new(0.5, 0.96, -1.5));
     app.world_mut().resource_mut::<PlayerControlsEnabled>().0 = false;
     press_key(&mut app, KeyCode::KeyF);
-    assert!(exists(&app, flashbang));
+    assert!(pickable(&app, flashbang));
     assert_eq!(flashbangs(&app, player), None);
 
     app.world_mut().entity_mut(player).insert(Flashbangs(1));
@@ -349,7 +352,7 @@ fn caught_player_cannot_pick_up_or_use_a_flashbang() {
         .entity_mut(player)
         .insert((Caught::new(monster), Flashbangs(1)));
     press_key(&mut app, KeyCode::KeyF);
-    assert!(exists(&app, flashbang));
+    assert!(pickable(&app, flashbang));
     assert_eq!(flashbangs(&app, player), Some(1));
     click(&mut app, MouseButton::Right);
     assert_eq!(flashbangs(&app, player), Some(1));
@@ -422,14 +425,15 @@ fn detector_tracks_the_monster_only_after_pickup_and_inside_the_cap() {
 }
 
 #[test]
-fn detector_range_reaches_twenty_five_metres() {
-    assert_eq!(DETECTOR_RANGE, 25.0);
+fn detector_reading_stops_at_the_range_cap() {
     let facing_forward = Transform::from_xyz(0.0, 1.6, 0.0);
-    let twenty = detector_reading(&facing_forward, Vec3::new(0.0, 0.0, -20.0)).unwrap();
-    assert!((twenty.distance - 20.0).abs() < 1e-4);
-    assert!(detector_reading(&facing_forward, Vec3::new(0.0, 0.0, -24.99)).is_some());
-    assert!(detector_reading(&facing_forward, Vec3::new(0.0, 0.0, -25.0)).is_some());
-    assert!(detector_reading(&facing_forward, Vec3::new(0.0, 0.0, -25.01)).is_none());
+    let near = DETECTOR_RANGE - 5.0;
+    let reading = detector_reading(&facing_forward, Vec3::new(0.0, 0.0, -near)).unwrap();
+    assert!((reading.distance - near).abs() < 1e-4);
+    assert!(detector_reading(&facing_forward, Vec3::new(0.0, 0.0, -DETECTOR_RANGE)).is_some());
+    assert!(
+        detector_reading(&facing_forward, Vec3::new(0.0, 0.0, -DETECTOR_RANGE - 0.01)).is_none()
+    );
 }
 
 #[test]

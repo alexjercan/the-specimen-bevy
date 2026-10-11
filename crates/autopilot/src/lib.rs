@@ -180,7 +180,7 @@ fn drive(world: &mut World) {
     if script.index < script.steps.len() {
         let real_delta = world.resource::<Time<Real>>().delta_secs();
         match run_step(world, &mut script.steps[script.index], real_delta) {
-            StepOutcome::Ok => advance_step(&mut script),
+            StepOutcome::Ok => script.index += 1,
             StepOutcome::Err(reason) => fail(world, reason),
             StepOutcome::Pending => {}
         }
@@ -259,10 +259,6 @@ fn step_outcome(world: &World, step: &Step) -> StepOutcome {
         }
     }
     StepOutcome::Ok
-}
-
-fn advance_step(script: &mut Script) {
-    script.index += 1;
 }
 
 fn complete(world: &mut World) {

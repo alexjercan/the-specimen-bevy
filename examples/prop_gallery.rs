@@ -423,7 +423,17 @@ mod tests {
         ] {
             assert!(EXHIBITS.iter().any(|entry| entry.title == title), "{title}");
         }
-        assert_eq!(gallery::cycle(EXHIBITS.len(), 0, -1), EXHIBITS.len() - 1);
-        assert_eq!(gallery::cycle(EXHIBITS.len(), EXHIBITS.len() - 1, 1), 0);
+        assert_eq!(
+            game_settings::cycle(&(0..EXHIBITS.len()).collect::<Vec<_>>(), 0, -1),
+            EXHIBITS.len() - 1
+        );
+        assert_eq!(
+            game_settings::cycle(
+                &(0..EXHIBITS.len()).collect::<Vec<_>>(),
+                EXHIBITS.len() - 1,
+                1
+            ),
+            0
+        );
     }
 }
