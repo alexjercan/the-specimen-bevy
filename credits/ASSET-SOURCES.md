@@ -61,3 +61,12 @@ Five GLBs (`floor_tile`, `floor_tile_marked`, `wall`, `wall_conduit`,
 The Quaternius Modular Sci-Fi MegaKit was a visual reference only. No
 Quaternius geometry, textures or UVs were shipped. See
 `art/visuals/PROVENANCE.md` for the reference history.
+
+## Halloween decoration kit
+
+The 3 GLBs and manifest under `assets/halloween/` are copies of the
+project-authored generator output under `art/visuals/generated/halloween/`.
+`scripts/promote-halloween-modules.sh` checks and copies these files. The
+manifest records each GLB hash. Regenerate source files with
+`scripts/generate-halloween.sh` before promoting a revised kit. All materials
+are plain colored Principled BSDF shaders with no embedded textures.

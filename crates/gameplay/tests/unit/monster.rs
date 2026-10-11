@@ -729,7 +729,7 @@ fn jumpscare_aims_at_the_live_head_joint_when_the_scene_is_loaded() {
         .with_children(|children| {
             children.spawn(Transform::default()).with_children(|bones| {
                 bones.spawn((
-                    Name::new(super::HEAD_JOINT),
+                    Name::new(super::MONSTER_HEAD_JOINT),
                     GlobalTransform::from_translation(joint),
                 ));
             });

@@ -8,6 +8,7 @@ publish = false
 [features]
 debug = ["dep:debug"]
 steam = ["game_achievements/steam"]
+halloween = ["dep:game_halloween"]
 
 [dependencies]
 bevy.workspace = true
@@ -23,6 +24,7 @@ game_ui.workspace = true
 game_settings.workspace = true
 transport.workspace = true
 debug = { workspace = true, optional = true }
+game_halloween = { workspace = true, optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"

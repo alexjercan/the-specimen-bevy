@@ -32,7 +32,7 @@ const SHORT_PATROL_LEGS: u8 = 3;
 pub(super) const ATTACK_REACH: f32 = 1.8;
 const ATTACK_DURATION: f32 = 40.0 / 24.0;
 const JUMPSCARE_TURN_SPEED: f32 = 9.0;
-const HEAD_JOINT: &str = "C_Head_J_023";
+pub const MONSTER_HEAD_JOINT: &str = "C_Head_J_023";
 const HEAD_REST: Vec3 = Vec3::new(0.085, -0.166, 0.591);
 const GRID: f32 = 0.5;
 const ARRIVAL: f32 = 0.16;
@@ -704,7 +704,7 @@ fn head_position(
     let mut stack = vec![monster];
     while let Some(entity) = stack.pop() {
         if let Ok((name, joint)) = joints.get(entity) {
-            if name.as_str() == HEAD_JOINT {
+            if name.as_str() == MONSTER_HEAD_JOINT {
                 return joint.translation();
             }
         }

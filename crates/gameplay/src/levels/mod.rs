@@ -48,6 +48,7 @@ pub use menu_background::build_main_menu_background;
 pub use module_names::BOILER_UNIT;
 pub use monster::{
     Caught, Monster, MonsterFigure, MonsterNavigation, MonsterPlugin, MonsterRenderPlugin,
+    MONSTER_HEAD_JOINT,
 };
 pub use objective::{Escaped, ObjectivePlugin};
 pub use pickups::{PickupKind, PickupPlugin};

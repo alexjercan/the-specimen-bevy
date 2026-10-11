@@ -1533,4 +1533,5 @@ def main():
         export_facility(scene, mats, out, pathlib.Path(args.manifest).resolve())
 
 
-main()
+if __name__ == "__main__":
+    main()

@@ -17,6 +17,11 @@
 - Add an orbiting prop gallery with furniture, pickups, devices, wall and doorway variants, boiler-room pipes and tool panels. Fix the lab console's upright panel and boiler valve face flicker.
 - Replace the old facility gallery, layout, and probe examples with `facility_shots`, which captures top-down, overhead, and room views of the current dressed floor under `target/facility-shots/`.
 
+### Halloween theme (opt-in)
+
+- Add the `halloween` Cargo feature. It adds sparse lit jack-o'-lanterns and small pumpkins on facility and main menu props, a candy-striped fuse model with the same blade terminals, and glowing orange monster eyes. Gameplay, collision, and monster behavior are unchanged, and builds without the feature look the same as before.
+- Add `halloween_gallery`, an orbiting gallery of the Halloween models, placements, and monster eyes. `prop_gallery` now shares its gallery code.
+
 ### Gameplay and debug tools
 
 - Send the monster toward the farthest reachable room at least 24 meters away after several local patrol legs; it sometimes runs there to avoid lingering near a hiding player.

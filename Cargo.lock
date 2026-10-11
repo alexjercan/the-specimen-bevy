@@ -3106,6 +3106,7 @@ dependencies = [
  "game_achievements",
  "game_assets",
  "game_audio",
+ "game_halloween",
  "game_settings",
  "game_ui",
  "gameplay",
@@ -3114,6 +3115,17 @@ dependencies = [
  "transport",
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "game_halloween"
+version = "0.2.0"
+dependencies = [
+ "bevy",
+ "bevy_asset_loader",
+ "game_assets",
+ "gameplay",
+ "serde_json",
 ]
 
 [[package]]
@@ -5581,6 +5593,7 @@ dependencies = [
  "clap",
  "game_assets",
  "game_core",
+ "game_halloween",
  "gameplay",
  "getrandom 0.4.3",
  "probe",

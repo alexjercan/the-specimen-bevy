@@ -20,6 +20,7 @@ members = [
     "crates/core",
     "crates/debug",
     "crates/gameplay",
+    "crates/halloween",
     "crates/probe",
     "crates/settings",
     "crates/transport",
@@ -48,6 +49,7 @@ game_core = { path = "crates/core" }
 game_assets = { path = "crates/assets" }
 game_audio = { path = "crates/audio" }
 game_settings = { path = "crates/settings" }
+game_halloween = { path = "crates/halloween" }
 gameplay = { path = "crates/gameplay" }
 debug = { path = "crates/debug" }
 probe = { path = "crates/probe" }
@@ -69,12 +71,14 @@ debug = 0
 [features]
 debug = ["game_core/debug"]
 steam = ["game_core/steam"]
+halloween = ["game_core/halloween", "dep:game_halloween"]
 
 [dependencies]
 bevy.workspace = true
 clap.workspace = true
 game_core.workspace = true
 game_assets.workspace = true
+game_halloween = { workspace = true, optional = true }
 gameplay.workspace = true
 autopilot.workspace = true
 capture.workspace = true
@@ -86,6 +90,11 @@ getrandom = { version = "0.4.3", features = ["wasm_js"] }
 [[example]]
 name = "facility_shots"
 path = "examples/facility_shots.rs"
+
+[[example]]
+name = "halloween_gallery"
+path = "examples/halloween_gallery.rs"
+required-features = ["halloween"]
 
 [[example]]
 name = "human_deer_viewer"

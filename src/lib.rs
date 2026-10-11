@@ -2,6 +2,8 @@ pub use autopilot;
 pub use capture;
 pub use game_assets;
 pub use game_core;
+#[cfg(feature = "halloween")]
+pub use game_halloween;
 pub use gameplay;
 pub use probe;
 

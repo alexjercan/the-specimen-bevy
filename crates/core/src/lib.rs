@@ -214,6 +214,8 @@ impl AppBuilder {
                     glue::DeviceHudPlugin,
                 ))
                 .add_plugins((game_audio::GameAudioPlugin, glue::SoundGluePlugin));
+            #[cfg(feature = "halloween")]
+            app.add_plugins(game_halloween::HalloweenPlugin);
             if let Some(path) = self.recording {
                 app.insert_resource(transport::RecordTransport(path))
                     .add_plugins(capture::CapturePlugin::new(60));

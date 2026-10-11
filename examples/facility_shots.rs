@@ -28,6 +28,11 @@ const SHOTS: &[Shot] = &[
     Shot::eye("workshop", [-10.0, 1.6, 8.3], [-7.5, 1.1, 9.7]),
     Shot::eye("archive", [-9.0, 1.6, 13.4], [-12.4, 1.1, 15.6]),
     Shot::eye("rear_hall", [-2.0, 1.6, 17.6], [-12.6, 0.8, 17.0]),
+    Shot::eye("maintenance_drum", [-4.0, 1.6, -20.5], [-4.4, 0.9, -23.1]),
+    Shot::eye("boiler_drum", [-10.0, 1.6, -1.5], [-12.5, 0.9, -2.5]),
+    Shot::eye("fabrication_drum", [9.5, 1.6, 9.0], [7.0, 0.9, 10.5]),
+    Shot::eye("rear_hall_drum", [-10.0, 1.6, 17.3], [-12.8, 0.9, 18.2]),
+    Shot::eye("lab_crate", [0.5, 1.6, 0.5], [2.8, 0.7, 2.6]),
 ];
 
 #[derive(Clone, Copy)]
@@ -230,7 +235,7 @@ mod tests {
                     rooms.iter().any(|(name, room)| (name == shot.name
                         || matches!(
                             shot.name.strip_prefix(name.as_str()),
-                            Some("_bins" | "_claw")
+                            Some("_bins" | "_claw" | "_drum" | "_crate")
                         ))
                         && room.contains(position.xz())),
                     "{}",
