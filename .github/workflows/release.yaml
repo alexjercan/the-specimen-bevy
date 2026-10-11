@@ -5,63 +5,115 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing tag to publish from a successful tagged build
+        description: Existing vX.Y.Z tag (Normal) or vX.Y.Z-halloween tag (Halloween)
         required: true
         type: string
+      flavor:
+        description: Release build variant
+        required: true
+        default: normal
+        type: choice
+        options:
+          - normal
+          - halloween
 permissions:
   contents: read
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RELEASE_FLAVOR: ${{ inputs.flavor || 'normal' }}
 jobs:
+  validate:
+    if: ${{ github.event_name == 'workflow_dispatch' || !endsWith(github.ref_name, '-halloween') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Validate release tag and flavor
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE_FLAVOR" == halloween ]]; then
+            [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-halloween$ ]] || { echo "Halloween releases require a vX.Y.Z-halloween tag" >&2; exit 1; }
+          else
+            [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Normal releases require a vX.Y.Z tag" >&2; exit 1; }
+          fi
+          test "$(git rev-parse HEAD)" = "$(git rev-list -n 1 "refs/tags/$RELEASE_TAG")"
   linux:
-    if: github.event_name == 'push'
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - name: Install native dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libwayland-dev libxcursor-dev libxi-dev libxrandr-dev libxkbcommon-dev
       - name: Build release
-        run: cargo build --locked --release -p the-specimen-bevy
+        shell: bash
+        run: |
+          if [[ "$RELEASE_FLAVOR" == halloween ]]; then
+            cargo build --locked --release -p the-specimen-bevy --features halloween
+          else
+            cargo build --locked --release -p the-specimen-bevy
+          fi
       - name: Package game
         run: |
           mkdir -p package
           install -m 755 target/release/the-specimen-bevy package/the-specimen-bevy
           cp -r assets credits LICENSE package/
-          tar -czf "the-specimen-bevy-${GITHUB_REF_NAME}-linux-x86_64.tar.gz" -C package .
+          tar -czf "the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz" -C package .
       - uses: actions/upload-artifact@v4
         with:
           name: the-specimen-bevy-linux-x86_64
           path: the-specimen-bevy-*-linux-x86_64.tar.gz
           if-no-files-found: error
   web:
-    if: github.event_name == 'push'
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: cachix/install-nix-action@v31
       - name: Build HTML5 game
-        run: nix develop --command trunk build --release
+        shell: bash
+        run: |
+          if [[ "$RELEASE_FLAVOR" == halloween ]]; then
+            nix develop --command trunk build --release --features halloween
+          else
+            nix develop --command trunk build --release
+          fi
       - name: Package HTML5 game
         run: |
           test -f dist/index.html
           test -d dist/assets
           find dist -maxdepth 1 -type f -name '*_bg.wasm' -print -quit | grep -q .
-          (cd dist && zip -qr "../the-specimen-bevy-${GITHUB_REF_NAME}-html5.zip" .)
+          (cd dist && zip -qr "../the-specimen-bevy-${RELEASE_TAG}-html5.zip" .)
       - uses: actions/upload-artifact@v4
         with:
           name: the-specimen-bevy-html5
           path: the-specimen-bevy-*-html5.zip
           if-no-files-found: error
   windows:
-    if: github.event_name == 'push'
+    needs: validate
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - name: Build release
-        run: cargo build --locked --release -p the-specimen-bevy
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_FLAVOR -eq 'halloween') {
+            cargo build --locked --release -p the-specimen-bevy --features halloween
+          } else {
+            cargo build --locked --release -p the-specimen-bevy
+          }
       - name: Package game
         shell: pwsh
         run: |
@@ -70,7 +122,7 @@ jobs:
           Copy-Item -Recurse assets package/assets
           Copy-Item -Recurse credits package/credits
           Copy-Item LICENSE package/
-          Compress-Archive -Path package/* -DestinationPath "the-specimen-bevy-${env:GITHUB_REF_NAME}-windows-x86_64.zip"
+          Compress-Archive -Path package/* -DestinationPath "the-specimen-bevy-${env:RELEASE_TAG}-windows-x86_64.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: the-specimen-bevy-windows-x86_64
@@ -78,14 +130,13 @@ jobs:
           if-no-files-found: error
   publish:
     needs: [linux, web, windows]
-    if: ${{ always() && (github.event_name == 'workflow_dispatch' || (needs.linux.result == 'success' && needs.web.result == 'success' && needs.windows.result == 'success')) }}
+    if: ${{ needs.linux.result == 'success' && needs.web.result == 'success' && needs.windows.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
       actions: read
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,18 +145,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must have the form vX.Y.Z" >&2; exit 1; }
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
-            sha="$(git rev-parse HEAD)"
-            run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yaml --commit "$sha" --event push --status success --limit 100 --json databaseId,headBranch | jq -r --arg tag "$RELEASE_TAG" '[.[] | select(.headBranch == $tag) | .databaseId][0] // empty')"
-            test -n "$run_id" || { echo "No successful tagged build for $RELEASE_TAG at $sha" >&2; exit 1; }
-          else
-            run_id="$GITHUB_RUN_ID"
-          fi
           mkdir -p downloads
           for platform in linux-x86_64 windows-x86_64 html5; do
             name="the-specimen-bevy-${platform}"
-            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "downloads/$name"
+            gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "downloads/$name"
           done
           test -f "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz"
           test -f "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip"
@@ -117,7 +160,7 @@ jobs:
           import os
           from pathlib import Path
 
-          version = os.environ['RELEASE_TAG'].removeprefix('v')
+          version = os.environ['RELEASE_TAG'].removeprefix('v').removesuffix('-halloween')
           heading = f'## [{version}]'
           notes = []
           recording = False
@@ -131,6 +174,8 @@ jobs:
           content = '\n'.join(notes).strip()
           if not content:
               raise SystemExit(f'Missing release notes for {version} in CHANGELOG.md')
+          if os.environ['RELEASE_FLAVOR'] == 'halloween':
+              content = 'Halloween feature build (Linux, Windows, and HTML5).\n\n' + content
           Path('release-notes.md').write_text(content + '\n')
           PY
       - name: Create GitHub Release with all three archives
@@ -141,11 +186,15 @@ jobs:
             echo "GitHub Release $RELEASE_TAG already exists; refusing to overwrite it" >&2
             exit 1
           fi
+          release_options=()
+          if [[ "$RELEASE_FLAVOR" == halloween ]]; then
+            release_options+=(--prerelease)
+          fi
           gh release create "$RELEASE_TAG" \
             "downloads/the-specimen-bevy-linux-x86_64/the-specimen-bevy-${RELEASE_TAG}-linux-x86_64.tar.gz" \
             "downloads/the-specimen-bevy-windows-x86_64/the-specimen-bevy-${RELEASE_TAG}-windows-x86_64.zip" \
             "downloads/the-specimen-bevy-html5/the-specimen-bevy-${RELEASE_TAG}-html5.zip" \
-            --repo "$GITHUB_REPOSITORY" --verify-tag --title "$RELEASE_TAG" --notes-file release-notes.md
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "$RELEASE_TAG" --notes-file release-notes.md "${release_options[@]}"
           gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | LC_ALL=C sort > release-assets.txt
           for platform in linux-x86_64 windows-x86_64 html5; do
             grep -qx "the-specimen-bevy-${RELEASE_TAG}-${platform}.$([[ "$platform" == linux-x86_64 ]] && echo tar.gz || echo zip)" release-assets.txt
