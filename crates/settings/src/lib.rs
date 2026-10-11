@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 pub const MIN_SENSITIVITY: f32 = 0.0;
 pub const MAX_SENSITIVITY: f32 = 0.004;
-pub const DEFAULT_SENSITIVITY: f32 = 0.002;
+pub const DEFAULT_SENSITIVITY: f32 = 0.0015;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
