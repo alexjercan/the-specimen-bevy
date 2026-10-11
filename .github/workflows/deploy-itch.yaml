@@ -2,10 +2,6 @@ name: deploy-itch
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: Existing release tag, for example v0.1.0
-        required: true
-        type: string
       flavors:
         description: Which builds to upload
         required: true
@@ -27,7 +23,7 @@ jobs:
     environment: itch-production
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: ${{ inputs.tag }}
+      RELEASE_TAG: ${{ github.ref_name }}
       RELEASE_FLAVORS: ${{ inputs.flavors }}
       ITCH_TARGET: ${{ vars.ITCH_TARGET }}
       BUTLER_VERSION: ${{ vars.BUTLER_VERSION }}
@@ -43,7 +39,7 @@ jobs:
           [[ "$BUTLER_SHA256_LINUX_AMD64" =~ ^[A-Fa-f0-9]{64}$ ]] || { echo "BUTLER_SHA256_LINUX_AMD64 must be a SHA-256 digest" >&2; exit 1; }
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.ref }}
       - name: Download published GitHub Release builds
         shell: bash
         run: |
@@ -122,7 +118,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: itch-deployment-${{ inputs.tag }}
+          name: itch-deployment-${{ github.ref_name }}
           path: |
             release-sha256.txt
             upload-sha256.txt
