@@ -7,9 +7,7 @@ use bevy::{
 };
 use game_assets::UiAssets;
 use game_audio::{PlaySound, Sound};
-use game_settings::{
-    GameSettings, InputBinding, SettingsDirty, MAX_SENSITIVITY, MIN_SENSITIVITY,
-};
+use game_settings::{GameSettings, InputBinding, SettingsDirty, MAX_SENSITIVITY, MIN_SENSITIVITY};
 use game_ui::{menu_button, text, theme, MenuButton};
 
 use super::{main_menu::MainMenu, GameState, PauseState};

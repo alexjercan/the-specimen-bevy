@@ -13,9 +13,7 @@ use bevy_asset_loader::mapped::{AssetFileStem, MapKey};
 use game_assets::{key_glyph_stem, UiAssets};
 use game_audio::Sound;
 use game_core::{GameState, PauseState};
-use game_settings::{
-    parse_key, DisplayMode, GameSettings, InputBinding, MAX_SENSITIVITY,
-};
+use game_settings::{parse_key, DisplayMode, GameSettings, InputBinding, MAX_SENSITIVITY};
 use game_ui::SliderFill;
 
 mod common;
@@ -205,10 +203,7 @@ fn settings_sliders_change_persist_and_sync_in_menu_and_pause() {
     assert!(played_sounds(&mut app).contains(&Sound::UiFocus));
     assert_eq!(app.world().resource::<GameSettings>().music, 0.5);
     assert_eq!(readout(&mut app, "Music (reserved)"), "50%");
-    assert_eq!(
-        readout(&mut app, "Mouse sensitivity"),
-        "1.5"
-    );
+    assert_eq!(readout(&mut app, "Mouse sensitivity"), "1.5");
     slide(&mut app, "Mouse sensitivity", 0.0);
     assert_eq!(
         app.world().resource::<GameSettings>().mouse_sensitivity,
@@ -220,10 +215,7 @@ fn settings_sliders_change_persist_and_sync_in_menu_and_pause() {
         app.world().resource::<GameSettings>().mouse_sensitivity,
         MAX_SENSITIVITY
     );
-    assert_eq!(
-        readout(&mut app, "Mouse sensitivity"),
-        "4.0"
-    );
+    assert_eq!(readout(&mut app, "Mouse sensitivity"), "4.0");
     assert!(played_sounds(&mut app).contains(&Sound::UiFocus));
 
     forget_saved(&file);
