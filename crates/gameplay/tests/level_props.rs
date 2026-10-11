@@ -72,8 +72,13 @@ fn room_props_face_inward_and_tabletop_dressing_rests_on_surfaces() {
     assert!(prep_tools.translation.z + 0.65 * 0.303 < -6.78);
     assert!(prep_tools.translation.x - 0.65 * 0.443 > 6.65);
     assert!(prep_tools.translation.x + 0.65 * 0.443 < 7.35);
-    let other_tools = at("clutter_tools", 13.0, 0.1);
-    assert!((other_tools.translation.y - 0.9).abs() < 0.001);
+    let second_prep_tools = at("clutter_tools", 13.0, -0.37);
+    assert!((second_prep_tools.translation.y - 0.9).abs() < 0.001);
+    assert_eq!(second_prep_tools.scale, Vec3::splat(0.7));
+    assert!(second_prep_tools.translation.z + 0.7 * 0.303 < 0.1 - 0.2);
+    assert!(second_prep_tools.translation.z - 0.7 * 0.303 > -0.8);
+    assert!(second_prep_tools.translation.x - 0.7 * 0.443 > 13.0 - 0.35);
+    assert!(second_prep_tools.translation.x + 0.7 * 0.443 < 13.0 + 0.35);
 }
 
 #[test]

@@ -721,7 +721,7 @@ pub(super) fn spawn_dressing(commands: &mut Commands) {
                 .with_scale(Vec3::splat(0.5)),
         ));
     }
-    for (x, y, z, yaw, scale) in [(7.0, 0.9, -7.12, 0.0, 0.65), (13.0, 0.9, 0.1, -0.2, 1.0)] {
+    for (x, y, z, yaw, scale) in [(7.0, 0.9, -7.12, 0.0, 0.65), (13.0, 0.9, -0.37, 0.0, 0.7)] {
         commands.spawn(prop(
             "clutter_tools",
             "clutter_tools",
