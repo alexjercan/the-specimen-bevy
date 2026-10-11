@@ -14,6 +14,12 @@ const FAULT_RED: Color = Color::linear_rgb(1.0, 0.06, 0.03);
 const FIRE: Color = Color::linear_rgb(1.0, 0.35, 0.08);
 const SPECIMEN: Color = Color::linear_rgb(0.3, 0.95, 0.85);
 
+#[derive(Component)]
+pub struct FacilityLight;
+
+#[derive(Component)]
+pub struct MainMenuAccentLight;
+
 #[derive(Component, Clone, Copy, Default)]
 pub struct LightConfig {
     pub position: Option<Vec3>,
@@ -96,6 +102,7 @@ fn light(transform: Transform, color: Color, intensity: f32, range: f32) -> impl
             ..default()
         },
         LightIntensity(intensity),
+        FacilityLight,
         transform,
     )
 }

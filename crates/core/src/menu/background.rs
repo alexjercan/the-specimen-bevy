@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use gameplay::levels::build_main_menu_background;
+use gameplay::levels::{build_main_menu_background, MainMenuAccentLight};
 
 use super::GameState;
 
@@ -35,6 +35,7 @@ pub(super) fn spawn(commands: &mut Commands, state: GameState) {
     ));
     commands.spawn((
         Name::new("Main menu flashlight accent"),
+        MainMenuAccentLight,
         SpotLight {
             color: Color::srgb(0.72, 0.82, 1.0),
             intensity: 18_000.0,

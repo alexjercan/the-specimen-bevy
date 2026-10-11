@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use gameplay::levels::LightIntensity;
+use gameplay::levels::{FacilityLight, LightIntensity, MainMenuAccentLight};
 
 const FACILITY_LIGHT_SCALE: f32 = 0.45;
 const FACILITY_AMBIENT_BRIGHTNESS: f32 = 6.0;
@@ -17,7 +17,10 @@ impl Plugin for HalloweenLightingPlugin {
 }
 
 fn dim_facility_lights(
-    mut lights: Query<(&mut PointLight, &mut LightIntensity), Added<LightIntensity>>,
+    mut lights: Query<
+        (&mut PointLight, &mut LightIntensity),
+        (With<FacilityLight>, Added<FacilityLight>),
+    >,
 ) {
     for (mut light, mut base) in &mut lights {
         base.0 *= FACILITY_LIGHT_SCALE;
@@ -25,11 +28,11 @@ fn dim_facility_lights(
     }
 }
 
-fn dim_menu_flashlight(mut lights: Query<(&Name, &mut SpotLight), Added<SpotLight>>) {
-    for (name, mut light) in &mut lights {
-        if name.as_str() == "Main menu flashlight accent" {
-            light.intensity *= FACILITY_LIGHT_SCALE;
-        }
+fn dim_menu_flashlight(
+    mut lights: Query<&mut SpotLight, (With<MainMenuAccentLight>, Added<MainMenuAccentLight>)>,
+) {
+    for mut light in &mut lights {
+        light.intensity *= FACILITY_LIGHT_SCALE;
     }
 }
 
@@ -61,12 +64,14 @@ mod tests {
                     ..default()
                 },
                 LightIntensity(100.0),
+                FacilityLight,
             ))
             .id();
         let menu_light = app
             .world_mut()
             .spawn((
-                Name::new("Main menu flashlight accent"),
+                Name::new("renamed menu accent"),
+                MainMenuAccentLight,
                 SpotLight {
                     intensity: 18_000.0,
                     ..default()
@@ -77,9 +82,13 @@ mod tests {
             .world_mut()
             .spawn((Name::new("ordinary spotlight"), SpotLight::default()))
             .id();
-        let unpowered_light = app
+        let other_point = app
             .world_mut()
             .spawn((PointLight::default(), LightIntensity(100.0)))
+            .id();
+        let unpowered_light = app
+            .world_mut()
+            .spawn((PointLight::default(), LightIntensity(100.0), FacilityLight))
             .id();
         app.world_mut()
             .get_mut::<PointLight>(unpowered_light)
@@ -97,6 +106,17 @@ mod tests {
         assert_eq!(
             app.world().get::<SpotLight>(other_light).unwrap().intensity,
             SpotLight::default().intensity
+        );
+        assert_eq!(
+            app.world().get::<LightIntensity>(other_point).unwrap().0,
+            100.0
+        );
+        assert_eq!(
+            app.world()
+                .get::<PointLight>(other_point)
+                .unwrap()
+                .intensity,
+            PointLight::default().intensity
         );
         assert_eq!(
             app.world().get::<PointLight>(light).unwrap().intensity,

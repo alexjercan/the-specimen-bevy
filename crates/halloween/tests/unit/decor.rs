@@ -76,6 +76,32 @@ fn office_security_and_storage_have_anchored_shelf_and_table_decor() {
 }
 
 #[test]
+fn rooms_beyond_prep_have_surface_decor() {
+    let props = level_props();
+    for (name, x, z, module) in [
+        ("shelf_unit_bins", -9.5, -7.0, LANTERN),
+        ("shelf_unit_low", -13.3, -13.2, CANDLE_CLUSTER),
+        ("shelf_unit_alt", -10.0, -5.7, SPECIMEN_JAR),
+        ("shelf_unit_bins", -7.5, 9.7, SPECIMEN_JAR),
+        ("shelf_unit", -12.35, 15.65, LANTERN),
+        ("shelf_unit_bins", 7.1, 13.75, LANTERN),
+        ("shelf_unit_low", 7.5, 18.38, LANTERN),
+        ("shelf_unit", 9.0, 4.25, SPECIMEN_JAR),
+    ] {
+        let prop = props
+            .iter()
+            .find(|(prop, transform)| {
+                prop == name && transform.translation.xz().distance(Vec2::new(x, z)) < 0.01
+            })
+            .expect("authored room prop");
+        assert!(
+            decor_for(&prop.0, &prop.1).any(|decor| decor.module == module),
+            "missing {module} at {x}, {z}"
+        );
+    }
+}
+
+#[test]
 fn decorations_stay_clear_of_pickups() {
     let lit = DECOR
         .iter()
@@ -93,16 +119,20 @@ fn decorations_stay_clear_of_pickups() {
         .map(|transform| transform.translation.xz())
         .chain(FUSE_TABLES.iter().map(|table| table.position.xz()))
         .collect();
-    for decor in &DECOR {
-        for pickup in &pickups {
-            assert!(
-                decor.anchor.distance(*pickup) > 1.0,
-                "{} at {} crowds a pickup at {pickup}",
-                decor.module,
-                decor.anchor
-            );
-        }
-    }
+    let crowded: Vec<_> = DECOR
+        .iter()
+        .flat_map(|decor| {
+            pickups.iter().filter_map(move |pickup| {
+                (decor.anchor.distance(*pickup) <= 1.0).then(|| {
+                    format!(
+                        "{} at {} crowds a pickup at {pickup}",
+                        decor.module, decor.anchor
+                    )
+                })
+            })
+        })
+        .collect();
+    assert!(crowded.is_empty(), "{}", crowded.join("\n"));
 }
 
 #[test]

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use gameplay::levels::{DoorRef, LevelRoot};
+use gameplay::levels::{DoorRef, LevelRoot, MainMenuAccentLight};
 
-use super::{GameState, spawn};
+use super::{spawn, GameState};
 
 #[test]
 fn menu_room_and_cameras_are_state_scoped() {
@@ -28,6 +28,12 @@ fn menu_room_and_cameras_are_state_scoped() {
         .single(world)
         .expect("room camera");
     assert_eq!(room_camera.order, 0);
+    let accent = world
+        .query_filtered::<(&SpotLight, &ChildOf), With<MainMenuAccentLight>>()
+        .single(world)
+        .expect("tagged menu accent");
+    assert_eq!(accent.1.parent(), room);
+    assert_eq!(accent.0.intensity, 18_000.0);
 }
 
 #[test]

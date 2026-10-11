@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use gameplay::levels::{
-    build_main_menu_background, DoorOf, DoorRef, Doors, LevelRoot, LightConfig, LightEffect,
-    Passage, Prop, PropLightsPlugin, Room,
+    build_main_menu_background, DoorOf, DoorRef, Doors, FacilityLight, LevelRoot, LightConfig,
+    LightEffect, Passage, Prop, PropLightsPlugin, Room,
 };
 
 #[test]
@@ -67,6 +67,13 @@ fn menu_room_uses_authored_room_and_prop_light_pipeline() {
         .collect();
     assert!(bounds.contains(&Rect::new(-3.75, -6.25, 3.75, 1.25)));
     assert!(bounds.contains(&Rect::new(-1.25, -41.25, 1.25, -6.25)));
+    assert_eq!(
+        world
+            .query_filtered::<&PointLight, With<FacilityLight>>()
+            .iter(world)
+            .count(),
+        3
+    );
     let mut lights = world.query::<(&Prop, &LightConfig, &LightEffect)>();
     let lamps: Vec<_> = lights
         .iter(world)
