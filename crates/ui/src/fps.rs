@@ -4,12 +4,21 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct FpsText;
 
-pub struct FpsOverlayPlugin;
+pub struct FpsOverlayPlugin {
+    pub visible: bool,
+}
 
 impl Plugin for FpsOverlayPlugin {
     fn build(&self, app: &mut App) {
+        let visibility = if self.visible {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
         app.add_plugins(FrameTimeDiagnosticsPlugin::default())
-            .add_systems(Startup, spawn_fps_text)
+            .add_systems(Startup, move |commands: Commands| {
+                spawn_fps_text(commands, visibility);
+            })
             .add_systems(Update, update_fps_text);
     }
 }
@@ -21,10 +30,10 @@ pub fn fps_label(fps: Option<f64>) -> String {
     }
 }
 
-fn spawn_fps_text(mut commands: Commands) {
+fn spawn_fps_text(mut commands: Commands, visibility: Visibility) {
     commands.spawn((
         FpsText,
-        Visibility::Hidden,
+        visibility,
         Text::new(fps_label(None)),
         TextFont::from_font_size(16.0),
         TextColor(Color::srgb(0.4, 1.0, 0.4)),

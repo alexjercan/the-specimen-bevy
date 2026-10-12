@@ -1,14 +1,15 @@
 use std::{collections::HashSet, time::Duration};
 
 use bevy::prelude::*;
-use game_audio::{PlaySound, Sound};
+use gameplay::facility::Module;
 use gameplay::{
-    controller::{PlayerController, PlayerControlsEnabled},
-    levels::{
-        build_first_floor, select_fuse_slots, Door, DoorPlugin, DoorState, FacilityPower,
-        FuseInventory, FusePlugin, FuseSeed, FuseZone, PickupKind, PickupPlugin, Prop, Room,
-        FUSE_COUNT, FUSE_TABLES,
+    facility::{
+        build_first_floor, select_fuse_slots, Door, DoorPlugin, DoorState, FacilityPowerPlugin,
+        FuseZone, Prop, Room, FUSE_TABLES,
     },
+    fuses::{FuseInventory, FusePlugin, FuseSeed, FUSE_COUNT},
+    interaction::{PickupCue, PickupKind, PickupPlugin},
+    player::{PlayerController, PlayerControlsEnabled},
 };
 
 mod common;
@@ -37,8 +38,7 @@ fn fuse_placements(app: &mut App) -> Vec<(usize, Vec3)> {
 
 fn app() -> (App, Entity) {
     let mut app = common::player_app(Duration::from_millis(100));
-    app.init_resource::<FacilityPower>()
-        .add_plugins((DoorPlugin, FusePlugin, PickupPlugin));
+    app.add_plugins((DoorPlugin, FacilityPowerPlugin, FusePlugin, PickupPlugin));
     app.finish();
     app.cleanup();
     app.update();
@@ -122,16 +122,16 @@ fn eligible_tables_are_distinct_rooms_on_table_tops() {
         .iter(world)
         .map(|(name, room)| (name.as_str().to_owned(), room.0))
         .collect();
-    let tables: Vec<(String, Transform)> = world
+    let tables: Vec<(Module, Transform)> = world
         .query::<(&Prop, &Transform)>()
         .iter(world)
-        .filter(|(prop, _)| prop.0 == "workbench")
-        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .filter(|(prop, _)| prop.0 == Module::Workbench)
+        .map(|(prop, transform)| (prop.0, *transform))
         .collect();
     let hiding_props: Vec<Vec2> = world
         .query::<(&Prop, &Transform)>()
         .iter(world)
-        .filter(|(prop, _)| prop.0 == "concept_table" || prop.0 == "concept_locker")
+        .filter(|(prop, _)| prop.0 == Module::ConceptTable || prop.0 == Module::ConceptLocker)
         .map(|(_, transform)| transform.translation.xz())
         .collect();
     let doors: Vec<Vec2> = world
@@ -161,7 +161,7 @@ fn eligible_tables_are_distinct_rooms_on_table_tops() {
         assert!(rect.contains(table.position.xz()), "{}", table.room);
         let local = tables.iter().find_map(|(module, transform)| {
             let local = transform.rotation.inverse() * (table.position - transform.translation);
-            (module == "workbench"
+            (*module == Module::Workbench
                 && local.x.abs() + 0.1 <= 0.8
                 && local.z.abs() + 0.03 <= 0.35
                 && (table.position.y - 0.9).abs() < 1e-4)
@@ -201,7 +201,7 @@ fn seed_selects_three_distinct_reproducible_slots_covering_every_combination() {
 
 #[test]
 fn furniture_and_dressing_are_identical_across_fuse_seeds() {
-    fn layout(seed: u64) -> Vec<(String, [u32; 3], [u32; 4])> {
+    fn layout(seed: u64) -> Vec<(Module, [u32; 3], [u32; 4])> {
         let mut app = first_floor(seed);
         let world = app.world_mut();
         let mut placements: Vec<_> = world
@@ -209,13 +209,15 @@ fn furniture_and_dressing_are_identical_across_fuse_seeds() {
             .iter(world)
             .map(|(prop, transform)| {
                 (
-                    prop.0.clone(),
+                    prop.0,
                     transform.translation.to_array().map(f32::to_bits),
                     transform.rotation.to_array().map(f32::to_bits),
                 )
             })
             .collect();
-        placements.sort();
+        placements.sort_by_key(|(module, position, rotation)| {
+            (format!("{module:?}"), *position, *rotation)
+        });
         placements
     }
     assert_eq!(layout(42), layout(999));
@@ -276,12 +278,10 @@ fn successive_pickups_emit_distinct_slot_cues() {
         press_f(&mut app);
         let cues: Vec<_> = app
             .world_mut()
-            .resource_mut::<Messages<PlaySound>>()
+            .resource_mut::<Messages<PickupCue>>()
             .drain()
             .collect();
-        assert_eq!(cues.len(), 1);
-        assert_eq!(cues[0].sound, Sound::FuseSlot(slot));
-        assert_eq!(cues[0].position, None);
+        assert_eq!(cues, vec![PickupCue::Fuse { count: slot }]);
         assert_eq!(inventory(&app, player), slot);
     }
 }
@@ -318,8 +318,8 @@ fn nearer_door_wins_over_a_fuse_behind_it() {
         .spawn(Door {
             position: Vec2::new(0.0, -0.8),
             rotation: Quat::IDENTITY,
-            frame: String::new(),
-            panel: String::new(),
+            frame: Module::WallDoorway,
+            panel: Module::DoorPanel,
             state: DoorState::Closed,
         })
         .id();
@@ -342,8 +342,8 @@ fn nearer_fuse_wins_over_a_door_behind_it() {
         .spawn(Door {
             position: Vec2::new(0.0, -1.6),
             rotation: Quat::IDENTITY,
-            frame: String::new(),
-            panel: String::new(),
+            frame: Module::WallDoorway,
+            panel: Module::DoorPanel,
             state: DoorState::Closed,
         })
         .id();

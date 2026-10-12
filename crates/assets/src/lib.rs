@@ -448,7 +448,7 @@ impl Plugin for GameAssetsPlugin {
 }
 
 fn report_loaded_assets(assets: Res<FacilityAssets>, _ui: Res<UiAssets>) {
-    info!("facility assets ready: {} modules", assets.modules.len());
+    debug!("facility assets ready: {} modules", assets.modules.len());
 }
 
 fn report_failed_assets() {

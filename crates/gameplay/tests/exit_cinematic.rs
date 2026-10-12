@@ -1,7 +1,8 @@
 use std::{f32::consts::FRAC_PI_2, time::Duration};
 
 use bevy::{prelude::*, time::TimeUpdateStrategy};
-use gameplay::levels::{
+use gameplay::facility::Module;
+use gameplay::facility::{
     build_closed_exit_cinematic, build_exit_cinematic, Door, DoorLock, DoorOf, DoorPlugin, DoorRef,
     DoorState, DoorSwing, Doors, ExitCinematic, ExitDoor, LevelRoot, LightConfig, LightEffect,
     Prop, PropLightsPlugin, Room, ToggleDoor,
@@ -64,7 +65,7 @@ fn exit_cinematic_mirrors_the_real_exit_with_an_open_door_in_a_corridor() {
     let mut lamps = world.query::<(&Prop, &LightConfig, &LightEffect)>();
     let (_, config, effect) = lamps
         .iter(world)
-        .find(|(prop, _, _)| prop.0 == "wall_lamp_red")
+        .find(|(prop, _, _)| prop.0 == Module::WallLampRed)
         .expect("red lamp prop");
     assert!(matches!(effect, LightEffect::Pulse));
     assert!(config.intensity.unwrap() > 0.0);
@@ -92,7 +93,7 @@ fn closed_exit_cinematic_keeps_the_same_red_lit_scene() {
     assert!(world
         .query::<&Prop>()
         .iter(world)
-        .any(|prop| prop.0 == "wall_lamp_red"));
+        .any(|prop| prop.0 == Module::WallLampRed));
 }
 
 #[test]

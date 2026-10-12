@@ -4,51 +4,62 @@
 )]
 
 use bevy::prelude::AppExit;
-use clap::Parser;
-use game::prelude::AppBuilder;
+use clap::{Parser, ValueEnum};
+use game::prelude::{AppBuilder, Frontend, VideoProfile};
+
+const SMOKE_FRAMES: u32 = 600;
 
 #[derive(Parser)]
 struct Cli {
     #[arg(long)]
-    norender: bool,
+    headless: bool,
     #[arg(long)]
-    transport: bool,
+    stdio: bool,
     #[arg(long)]
     seed: Option<u64>,
     #[arg(long)]
     record: Option<std::path::PathBuf>,
-    #[arg(long)]
-    mute: bool,
+    #[arg(long, value_enum, default_value_t = Profile::Preview, requires = "record")]
+    video_profile: Profile,
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum Profile {
+    Preview,
+    Final,
+}
+
+impl From<Profile> for VideoProfile {
+    fn from(profile: Profile) -> Self {
+        match profile {
+            Profile::Preview => VideoProfile::PREVIEW,
+            Profile::Final => VideoProfile::FINAL,
+        }
+    }
 }
 
 fn main() -> AppExit {
     let cli = Cli::parse();
-    let builder = if cli.norender {
-        AppBuilder::headless()
-    } else {
-        AppBuilder::new().with_menu()
-    };
-    let builder = if cli.transport {
-        builder.with_transport()
-    } else {
-        builder
-    };
-    if cli.record.is_some() && (cli.norender || !cli.transport) {
-        eprintln!("--record requires rendered --transport");
+    if cli.record.is_some() && (cli.headless || !cli.stdio) {
+        eprintln!("--record requires --stdio without --headless");
         return AppExit::error();
     }
-    let builder = match cli.record {
-        Some(path) => builder.with_recording(path),
-        None => builder,
-    };
-    let builder = match cli.seed {
-        Some(seed) => builder.with_seed(seed),
-        None => builder,
-    };
-    let builder = if cli.mute {
-        builder.with_muted_audio()
+    let frontend = if cli.headless {
+        Frontend::Headless
     } else {
-        builder
+        Frontend::Windowed { menu: !cli.stdio }
     };
+    let mut builder = AppBuilder::new(frontend);
+    if cli.stdio {
+        builder = builder.with_stdio();
+    } else if cli.headless {
+        builder = builder.bounded(SMOKE_FRAMES);
+    }
+    if let Some(path) = cli.record {
+        builder = builder.with_recording(path, cli.video_profile.into());
+    }
+    if let Some(seed) = cli.seed {
+        builder = builder.with_seed(seed);
+    }
     builder.build().run()
 }

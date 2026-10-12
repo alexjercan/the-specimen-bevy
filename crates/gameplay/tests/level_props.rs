@@ -4,12 +4,30 @@ use std::{
 };
 
 use bevy::prelude::*;
-use gameplay::levels::{
-    build_first_floor, Door, LightEffect, LightIntensity, Passage, PickupKind, Prop,
-    PropLightsPlugin, Room,
+use gameplay::{
+    facility::{
+        build_first_floor, Door, LightEffect, LightIntensity, Module, Passage, Prop,
+        PropLightsPlugin, Room,
+    },
+    interaction::PickupKind,
 };
 
 mod common;
+
+fn sign_label(module: Module) -> bool {
+    matches!(
+        module,
+        Module::SignLabelBoilerRoom
+            | Module::SignLabelStorage
+            | Module::SignLabelMaintenance
+            | Module::SignLabelUtility
+            | Module::SignLabelOffice
+            | Module::SignLabelLab
+            | Module::SignLabelSecurity
+            | Module::SignLabelPrep
+            | Module::SignLabelExit
+    )
+}
 
 #[test]
 fn room_props_face_inward_and_tabletop_dressing_rests_on_surfaces() {
@@ -21,27 +39,27 @@ fn room_props_face_inward_and_tabletop_dressing_rests_on_surfaces() {
     let placements: Vec<_> = world
         .query::<(&Prop, &Transform)>()
         .iter(world)
-        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .map(|(prop, transform)| (prop.0, *transform))
         .collect();
-    let at = |name: &str, x: f32, z: f32| {
+    let at = |name: Module, x: f32, z: f32| {
         placements
             .iter()
             .find(|(module, transform)| {
-                module == name
+                *module == name
                     && (transform.translation.x - x).abs() < 0.001
                     && (transform.translation.z - z).abs() < 0.001
             })
-            .unwrap_or_else(|| panic!("missing {name} at ({x}, {z})"))
+            .unwrap_or_else(|| panic!("missing {name:?} at ({x}, {z})"))
             .1
     };
 
-    let cabinet = at("file_cabinet_open", 13.4, -26.25);
+    let cabinet = at(Module::FileCabinetOpen, 13.4, -26.25);
     assert!(cabinet.translation.x + 0.24 < 13.75);
     assert!((cabinet.rotation * Vec3::NEG_Z).distance(Vec3::NEG_X) < 0.001);
-    let crate_open = at("storage_crate_open", 10.0, -22.5);
+    let crate_open = at(Module::StorageCrateOpen, 10.0, -22.5);
     assert!((crate_open.rotation * Vec3::NEG_Z).distance(Vec3::Z) < 0.001);
     for x in [-5.7, 5.7] {
-        let plant = at("potted_plant", x, 18.25);
+        let plant = at(Module::PottedPlant, x, 18.25);
         assert!(plant.translation.z + 0.28 < 18.75);
     }
 
@@ -54,27 +72,27 @@ fn room_props_face_inward_and_tabletop_dressing_rests_on_surfaces() {
         (-7.5, 13.6),
         (-1.7, 12.5),
     ] {
-        let paper = at("clutter_papers", x, z);
+        let paper = at(Module::ClutterPapers, x, z);
         assert!((paper.translation.y - 0.802).abs() < 0.001);
         assert_eq!(paper.scale, Vec3::splat(0.5));
     }
-    let office_papers = at("clutter_papers", 4.05, -18.75);
-    let office_table = at("concept_table", 3.75, -18.75);
+    let office_papers = at(Module::ClutterPapers, 4.05, -18.75);
+    let office_table = at(Module::ConceptTable, 3.75, -18.75);
     assert!((office_papers.translation.x - office_table.translation.x).abs() + 0.3 < 0.9);
-    let office_bins = at("shelf_unit_bins", 8.1, -17.5);
+    let office_bins = at(Module::ShelfUnitBins, 8.1, -17.5);
     assert!(office_bins.translation.x + 0.275 < 8.625 - 0.2);
-    let storage_bins = at("shelf_unit_bins", 10.75, -14.8);
+    let storage_bins = at(Module::ShelfUnitBins, 10.75, -14.8);
     assert!(storage_bins.translation.z - 0.925 > -16.125 + 0.25);
-    let prep_papers = at("clutter_papers", 7.0, -7.65);
+    let prep_papers = at(Module::ClutterPapers, 7.0, -7.65);
     assert!((prep_papers.translation.y - 0.902).abs() < 0.001);
-    let prep_tools = at("clutter_tools", 7.0, -7.12);
+    let prep_tools = at(Module::ClutterTools, 7.0, -7.12);
     assert!((prep_tools.translation.y - 0.9).abs() < 0.001);
     assert_eq!(prep_tools.scale, Vec3::splat(0.65));
     assert!(prep_tools.translation.z - 0.65 * 0.303 > prep_papers.translation.z + 0.25);
     assert!(prep_tools.translation.z + 0.65 * 0.303 < -6.78);
     assert!(prep_tools.translation.x - 0.65 * 0.443 > 6.65);
     assert!(prep_tools.translation.x + 0.65 * 0.443 < 7.35);
-    let second_prep_tools = at("clutter_tools", 13.0, -0.37);
+    let second_prep_tools = at(Module::ClutterTools, 13.0, -0.37);
     assert!((second_prep_tools.translation.y - 0.9).abs() < 0.001);
     assert_eq!(second_prep_tools.scale, Vec3::splat(0.7));
     assert!(second_prep_tools.translation.z + 0.7 * 0.303 < 0.1 - 0.2);
@@ -93,22 +111,22 @@ fn moved_shelves_clear_walls_furniture_and_the_workshop_door() {
     let mut props = world.query::<(&Prop, &Transform)>();
     let shelves: Vec<_> = props
         .iter(world)
-        .filter(|(prop, _)| prop.0 == "shelf_unit" || prop.0 == "shelf_unit_bins")
-        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .filter(|(prop, _)| prop.0 == Module::ShelfUnit || prop.0 == Module::ShelfUnitBins)
+        .map(|(prop, transform)| (prop.0, *transform))
         .collect();
-    let find = |module: &str, x: f32| {
+    let find = |module: Module, x: f32| {
         shelves
             .iter()
-            .find(|(name, transform)| name == module && transform.translation.x == x)
-            .unwrap_or_else(|| panic!("missing marked {module} at x={x}"))
+            .find(|(name, transform)| *name == module && transform.translation.x == x)
+            .unwrap_or_else(|| panic!("missing marked {module:?} at x={x}"))
             .1
     };
 
-    let east = find("shelf_unit", 9.0);
+    let east = find(Module::ShelfUnit, 9.0);
     assert!((east.translation.z - 4.25).abs() < 0.001);
     assert!(east.translation.z - 0.275 > 3.75 + 0.1);
 
-    let workshop = find("shelf_unit_bins", -7.5);
+    let workshop = find(Module::ShelfUnitBins, -7.5);
     assert!((workshop.translation.z - 9.7).abs() < 0.001);
     assert!((workshop.rotation * Vec3::Z).distance(Vec3::NEG_X) < 0.001);
     assert!(workshop.translation.z + 0.925 < 11.25 - 0.1);
@@ -120,7 +138,7 @@ fn moved_shelves_clear_walls_furniture_and_the_workshop_door() {
     let archive_workbench = props
         .iter(world)
         .find(|(prop, transform)| {
-            prop.0 == "workbench"
+            prop.0 == Module::Workbench
                 && transform.translation.x == -13.0
                 && transform.translation.z == 13.75
         })
@@ -139,7 +157,9 @@ fn rear_hall_shelves_clear_the_back_wall() {
     let mut props = world.query::<(&Prop, &Transform)>();
     let shelves: Vec<_> = props
         .iter(world)
-        .filter(|(prop, transform)| prop.0 == "shelf_unit_low" && transform.translation.z > 16.25)
+        .filter(|(prop, transform)| {
+            prop.0 == Module::ShelfUnitLow && transform.translation.z > 16.25
+        })
         .map(|(_, transform)| transform.translation)
         .collect();
     assert_eq!(shelves.len(), 2);
@@ -160,13 +180,17 @@ fn utility_shelves_clear_the_floor_grille_and_doorway() {
     let mut props = world.query::<(&Prop, &Transform)>();
     let small = props
         .iter(world)
-        .find(|(prop, transform)| prop.0 == "shelf_unit_low" && transform.translation.x == -13.1)
+        .find(|(prop, transform)| {
+            prop.0 == Module::ShelfUnitLow && transform.translation.x == -13.1
+        })
         .expect("utility small shelf")
         .1
         .to_owned();
     let large = props
         .iter(world)
-        .find(|(prop, transform)| prop.0 == "shelf_unit_bins" && transform.translation.x == -9.5)
+        .find(|(prop, transform)| {
+            prop.0 == Module::ShelfUnitBins && transform.translation.x == -9.5
+        })
         .expect("utility large shelf")
         .1
         .to_owned();
@@ -174,11 +198,11 @@ fn utility_shelves_clear_the_floor_grille_and_doorway() {
     let (grille, parent) = grilles
         .iter(world)
         .find(|(prop, local, parent)| {
-            prop.0 == "vent_grille"
+            prop.0 == Module::VentGrille
                 && local.translation.y == -0.55
                 && world
                     .get::<Prop>(parent.parent())
-                    .is_some_and(|base| base.0 == "concept_crawl_vent")
+                    .is_some_and(|base| base.0 == Module::ConceptCrawlVent)
         })
         .map(|(_, local, parent)| (local, parent.parent()))
         .expect("utility floor grille");
@@ -197,7 +221,7 @@ fn utility_shelves_clear_the_floor_grille_and_doorway() {
     let tools = props
         .iter(world)
         .find(|(prop, transform)| {
-            prop.0 == "clutter_tools" && transform.translation.xz() == Vec2::new(-10.0, -7.65)
+            prop.0 == Module::ClutterTools && transform.translation.xz() == Vec2::new(-10.0, -7.65)
         })
         .expect("utility tool pile")
         .1;
@@ -215,27 +239,27 @@ fn lab_shelf_and_rear_hall_crate_clear_wall_faces() {
     let placements: Vec<_> = world
         .query::<(&Prop, &Transform)>()
         .iter(world)
-        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .map(|(prop, transform)| (prop.0, *transform))
         .collect();
-    let at = |name: &str, x: f32, z: f32| {
+    let at = |name: Module, x: f32, z: f32| {
         placements
             .iter()
             .find(|(module, transform)| {
-                module == name
+                *module == name
                     && (transform.translation.x - x).abs() < 0.001
                     && (transform.translation.z - z).abs() < 0.001
             })
-            .unwrap_or_else(|| panic!("missing {name} at ({x}, {z})"))
+            .unwrap_or_else(|| panic!("missing {name:?} at ({x}, {z})"))
             .1
     };
 
-    let lab_shelf = at("shelf_unit_low", -2.0, 3.35);
+    let lab_shelf = at(Module::ShelfUnitLow, -2.0, 3.35);
     assert!(lab_shelf.translation.z + 0.245 < 3.75 - 0.125);
 
-    let rear_crate = at("storage_crate", 12.8, 18.1);
+    let rear_crate = at(Module::StorageCrate, 12.8, 18.1);
     assert!((rear_crate.rotation * Vec3::X).distance(Vec3::NEG_Z) < 0.001);
     assert!(rear_crate.translation.z + 0.51 < 18.75 - 0.125);
-    let rear_tools = at("clutter_tools", 12.3, 17.0);
+    let rear_tools = at(Module::ClutterTools, 12.3, 17.0);
     let tools_far_z = [
         (-0.423, -0.18),
         (-0.423, 0.303),
@@ -263,7 +287,7 @@ fn claw_marks_face_away_from_their_wall_lines() {
     let marks: Vec<_> = world
         .query::<(&Prop, &Transform)>()
         .iter(world)
-        .filter(|(prop, _)| prop.0 == "trace_claw_marks")
+        .filter(|(prop, _)| prop.0 == Module::TraceClawMarks)
         .map(|(_, transform)| *transform)
         .collect();
     assert_eq!(marks.len(), 7);
@@ -310,24 +334,30 @@ fn device_pickups_rest_on_their_supports() {
     let placements: Vec<_> = world
         .query::<(&Prop, &Transform)>()
         .iter(world)
-        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .map(|(prop, transform)| (prop.0, *transform))
         .collect();
 
     for (kind, module, top, half_width, half_depth) in [
-        (PickupKind::Flashbang, "storage_crate", 0.7, 0.51, 0.41),
-        (PickupKind::Detector, "shelf_unit_low", 1.005, 0.625, 0.245),
+        (PickupKind::Flashbang, Module::StorageCrate, 0.7, 0.51, 0.41),
+        (
+            PickupKind::Detector,
+            Module::ShelfUnitLow,
+            1.005,
+            0.625,
+            0.245,
+        ),
     ] {
         let pickup = pickups[&kind];
         assert!(
             (pickup.y - top).abs() < 0.001,
-            "{kind:?} floats above {module}"
+            "{kind:?} floats above {module:?}"
         );
         let support = placements
             .iter()
             .find(|(name, transform)| {
-                name == module && transform.translation.xz().distance(pickup.xz()) < 0.001
+                *name == module && transform.translation.xz().distance(pickup.xz()) < 0.001
             })
-            .unwrap_or_else(|| panic!("{kind:?} has no {module} under it"))
+            .unwrap_or_else(|| panic!("{kind:?} has no {module:?} under it"))
             .1;
         let local = support.compute_affine().inverse().transform_point3(pickup);
         assert!(local.x.abs() + 0.1 < half_width);
@@ -343,38 +373,38 @@ fn first_floor_props_and_lights_are_linked() {
     app.update();
 
     let world = app.world_mut();
-    let mut actual = HashMap::<String, usize>::new();
+    let mut actual = HashMap::<Module, usize>::new();
     let mut props = world.query::<&Prop>();
     for prop in props.iter(world) {
-        *actual.entry(prop.0.clone()).or_default() += 1;
+        *actual.entry(prop.0).or_default() += 1;
     }
-    assert_eq!(actual.get("sign_hanger"), Some(&9));
-    assert_eq!(actual.get("boiler_unit"), Some(&1));
-    assert_eq!(actual.get("concept_containment_tank"), Some(&1));
-    assert_eq!(actual.get("potted_plant"), Some(&8));
-    assert_eq!(actual.get("file_cabinet_open"), Some(&1));
-    assert_eq!(actual.get("shelf_unit_alt"), Some(&4));
-    assert_eq!(actual.get("storage_crate_open"), Some(&1));
-    assert_eq!(actual.get("shelf_bin_contents"), Some(&6));
-    assert_eq!(actual.get("toolbox"), Some(&3));
+    assert_eq!(actual.get(&Module::SignHanger), Some(&9));
+    assert_eq!(actual.get(&Module::BoilerUnit), Some(&1));
+    assert_eq!(actual.get(&Module::ConceptContainmentTank), Some(&1));
+    assert_eq!(actual.get(&Module::PottedPlant), Some(&8));
+    assert_eq!(actual.get(&Module::FileCabinetOpen), Some(&1));
+    assert_eq!(actual.get(&Module::ShelfUnitAlt), Some(&4));
+    assert_eq!(actual.get(&Module::StorageCrateOpen), Some(&1));
+    assert_eq!(actual.get(&Module::ShelfBinContents), Some(&6));
+    assert_eq!(actual.get(&Module::Toolbox), Some(&3));
     for (x, z) in [(-12.4, -11.5), (12.3, -4.2)] {
         let tools = world
             .query::<(Entity, &Prop, &Transform)>()
             .iter(world)
             .find(|(_, prop, transform)| {
-                prop.0 == "clutter_tools" && transform.translation.xz() == Vec2::new(x, z)
+                prop.0 == Module::ClutterTools && transform.translation.xz() == Vec2::new(x, z)
             })
             .map(|(entity, _, transform)| (entity, *transform))
             .expect("floor tools near a wall");
         assert_eq!(tools.1.scale, Vec3::splat(0.6));
         assert!(world
-            .get::<gameplay::levels::PropCollider>(tools.0)
+            .get::<gameplay::facility::PropCollider>(tools.0)
             .is_none());
     }
     let mut attached = world.query::<(&Prop, &ChildOf)>();
     for (decoration, expected) in [
-        ("toolbox", "concept_table"),
-        ("shelf_bin_contents", "shelf_unit_bins"),
+        (Module::Toolbox, Module::ConceptTable),
+        (Module::ShelfBinContents, Module::ShelfUnitBins),
     ] {
         let count = attached
             .iter(world)
@@ -385,14 +415,14 @@ fn first_floor_props_and_lights_are_linked() {
                         .is_some_and(|base| base.0 == expected)
             })
             .count();
-        assert_eq!(count, if decoration == "toolbox" { 3 } else { 6 });
+        assert_eq!(count, if decoration == Module::Toolbox { 3 } else { 6 });
     }
 
     let toolbox_tables: Vec<Vec2> = world
         .query::<(&Prop, &Transform, &ChildOf)>()
         .iter(world)
         .filter(|(prop, local, _)| {
-            prop.0 == "toolbox" && local.translation == Vec3::new(-0.5, 0.8, 0.0)
+            prop.0 == Module::Toolbox && local.translation == Vec3::new(-0.5, 0.8, 0.0)
         })
         .map(|(_, _, parent)| {
             world
@@ -409,10 +439,10 @@ fn first_floor_props_and_lights_are_linked() {
     let grille_locations: Vec<_> = vent_parts
         .iter(world)
         .filter(|(part, _, parent)| {
-            part.0 == "vent_grille"
+            part.0 == Module::VentGrille
                 && world
                     .get::<Prop>(parent.parent())
-                    .is_some_and(|base| base.0 == "concept_crawl_vent")
+                    .is_some_and(|base| base.0 == Module::ConceptCrawlVent)
         })
         .map(|(_, transform, _)| (transform.translation, transform.rotation * Vec3::Y))
         .collect();
@@ -420,7 +450,7 @@ fn first_floor_props_and_lights_are_linked() {
     let rear_vent = vent_parts
         .iter(world)
         .filter(|(prop, local, parent)| {
-            prop.0 == "vent_grille"
+            prop.0 == Module::VentGrille
                 && local.translation.y == 0.0
                 && world
                     .get::<Transform>(parent.parent())
@@ -432,7 +462,7 @@ fn first_floor_props_and_lights_are_linked() {
         .query::<(&Prop, &Transform, Option<&ChildOf>)>()
         .iter(world)
         .filter(|(prop, transform, parent)| {
-            prop.0 == "vent_grille"
+            prop.0 == Module::VentGrille
                 && parent.is_none()
                 && transform.translation == Vec3::new(-12.6, 0.0, 17.0)
         })
@@ -491,27 +521,35 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
     let mut props = world.query::<(&Prop, &Transform)>();
     let placements: Vec<_> = props
         .iter(world)
-        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .map(|(prop, transform)| (prop.0, *transform))
         .collect();
     for (module, position, facing) in [
         (
-            "sign_label_boiler_room",
+            Module::SignLabelBoilerRoom,
             Vec3::new(-6.10, 2.6, 0.0),
             Vec3::X,
         ),
-        ("sign_label_utility", Vec3::new(-6.15, 2.6, -10.0), Vec3::X),
-        ("sign_label_lab", Vec3::new(3.85, 2.6, 0.0), Vec3::X),
         (
-            "sign_label_security",
+            Module::SignLabelUtility,
+            Vec3::new(-6.15, 2.6, -10.0),
+            Vec3::X,
+        ),
+        (Module::SignLabelLab, Vec3::new(3.85, 2.6, 0.0), Vec3::X),
+        (
+            Module::SignLabelSecurity,
             Vec3::new(8.65, 2.6, -27.5),
             Vec3::NEG_X,
         ),
-        ("sign_label_prep", Vec3::new(6.15, 2.6, -5.0), Vec3::NEG_X),
+        (
+            Module::SignLabelPrep,
+            Vec3::new(6.15, 2.6, -5.0),
+            Vec3::NEG_X,
+        ),
     ] {
         let sign = placements
             .iter()
-            .find(|(name, transform)| name == module && transform.translation == position)
-            .unwrap_or_else(|| panic!("missing {module}"))
+            .find(|(name, transform)| *name == module && transform.translation == position)
+            .unwrap_or_else(|| panic!("missing {module:?}"))
             .1;
         assert!((sign.rotation * Vec3::NEG_Z).distance(facing) < 0.001);
     }
@@ -519,7 +557,7 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
     let pegboard = placements
         .iter()
         .find(|(module, transform)| {
-            module == "tool_pegboard" && transform.translation == Vec3::new(-13.64, 1.6, 2.3)
+            *module == Module::ToolPegboard && transform.translation == Vec3::new(-13.64, 1.6, 2.3)
         })
         .unwrap()
         .1;
@@ -527,27 +565,27 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
     assert!((pegboard.translation.x - -13.65).abs() < 0.02);
 
     for (module, x, z, inward) in [
-        ("concept_locker", 10.5, -24.15, Vec3::NEG_Z),
-        ("concept_locker", 9.5, -9.15, Vec3::NEG_Z),
-        ("concept_locker", 13.35, -2.2, Vec3::NEG_X),
-        ("concept_locker", 13.35, 2.2, Vec3::NEG_X),
-        ("concept_locker", 13.35, -12.5, Vec3::NEG_X),
-        ("concept_locker", -13.35, -18.75, Vec3::X),
-        ("shelf_unit", 13.35, -18.75, Vec3::NEG_X),
-        ("shelf_unit_bins", 8.1, -17.5, Vec3::NEG_X),
-        ("shelf_unit_bins", -9.5, -7.0, Vec3::NEG_Z),
-        ("shelf_unit_bins", 10.75, -14.8, Vec3::NEG_X),
-        ("shelf_unit_bins", -7.5, 9.7, Vec3::NEG_X),
-        ("shelf_unit_bins", 7.1, 13.75, Vec3::X),
+        (Module::ConceptLocker, 10.5, -24.15, Vec3::NEG_Z),
+        (Module::ConceptLocker, 9.5, -9.15, Vec3::NEG_Z),
+        (Module::ConceptLocker, 13.35, -2.2, Vec3::NEG_X),
+        (Module::ConceptLocker, 13.35, 2.2, Vec3::NEG_X),
+        (Module::ConceptLocker, 13.35, -12.5, Vec3::NEG_X),
+        (Module::ConceptLocker, -13.35, -18.75, Vec3::X),
+        (Module::ShelfUnit, 13.35, -18.75, Vec3::NEG_X),
+        (Module::ShelfUnitBins, 8.1, -17.5, Vec3::NEG_X),
+        (Module::ShelfUnitBins, -9.5, -7.0, Vec3::NEG_Z),
+        (Module::ShelfUnitBins, 10.75, -14.8, Vec3::NEG_X),
+        (Module::ShelfUnitBins, -7.5, 9.7, Vec3::NEG_X),
+        (Module::ShelfUnitBins, 7.1, 13.75, Vec3::X),
     ] {
         let transform = placements
             .iter()
             .find(|(name, transform)| {
-                name == module && transform.translation.x == x && transform.translation.z == z
+                *name == module && transform.translation.x == x && transform.translation.z == z
             })
-            .unwrap_or_else(|| panic!("missing {module} at ({x}, {z})"))
+            .unwrap_or_else(|| panic!("missing {module:?} at ({x}, {z})"))
             .1;
-        let front = if module == "shelf_unit_bins" {
+        let front = if module == Module::ShelfUnitBins {
             Vec3::Z
         } else {
             Vec3::NEG_Z
@@ -556,11 +594,11 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
     }
 
     for (module, z, yaw) in [
-        ("shelf_unit_alt", -12.5, FRAC_PI_2),
-        ("shelf_unit_bins", -14.8, -FRAC_PI_2),
+        (Module::ShelfUnitAlt, -12.5, FRAC_PI_2),
+        (Module::ShelfUnitBins, -14.8, -FRAC_PI_2),
     ] {
         assert!(placements.iter().any(|(name, transform)| {
-            name == module
+            *name == module
                 && transform.translation == Vec3::new(10.75, 0.0, z)
                 && transform.rotation == Quat::from_rotation_y(yaw)
         }));
@@ -569,7 +607,7 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
     let archive_bins = placements
         .iter()
         .find(|(module, transform)| {
-            module == "shelf_unit_bins" && transform.translation == Vec3::new(7.1, 0.0, 13.75)
+            *module == Module::ShelfUnitBins && transform.translation == Vec3::new(7.1, 0.0, 13.75)
         })
         .expect("back-right bin shelf")
         .1;
@@ -578,7 +616,7 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
     let west_wing_shelf = placements
         .iter()
         .find(|(module, transform)| {
-            module == "shelf_unit" && transform.translation == Vec3::new(-12.35, 0.0, 15.65)
+            *module == Module::ShelfUnit && transform.translation == Vec3::new(-12.35, 0.0, 15.65)
         })
         .expect("west wing shelf")
         .1;
@@ -588,7 +626,8 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
     let maintenance_shelf = placements
         .iter()
         .find(|(module, transform)| {
-            module == "shelf_unit_alt" && transform.translation == Vec3::new(-10.8, 0.0, -17.55)
+            *module == Module::ShelfUnitAlt
+                && transform.translation == Vec3::new(-10.8, 0.0, -17.55)
         })
         .expect("maintenance shelf")
         .1;
@@ -598,7 +637,7 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
     let prep_bench = placements
         .iter()
         .find(|(module, transform)| {
-            module == "workbench" && transform.translation == Vec3::new(7.0, 0.0, -7.3)
+            *module == Module::Workbench && transform.translation == Vec3::new(7.0, 0.0, -7.3)
         })
         .expect("prep workbench")
         .1;
@@ -612,8 +651,11 @@ fn wall_plate_and_tall_storage_face_into_their_rooms() {
             .unwrap();
         let added = placements.iter().filter(|(module, transform)| {
             matches!(
-                module.as_str(),
-                "storage_crate" | "steel_drum" | "concept_table" | "shelf_unit_low"
+                module,
+                Module::StorageCrate
+                    | Module::SteelDrum
+                    | Module::ConceptTable
+                    | Module::ShelfUnitLow
             ) && room
                 .0
                 .contains(Vec2::new(transform.translation.x, transform.translation.z))
@@ -632,28 +674,28 @@ fn prep_and_new_crawl_vents_preserve_room_routes() {
     let mut props = world.query::<(&Prop, &Transform)>();
     let placements: Vec<_> = props
         .iter(world)
-        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .map(|(prop, transform)| (prop.0, *transform))
         .collect();
     for (module, position) in [
-        ("shelf_unit_low", Vec3::new(13.15, 0.0, -6.25)),
-        ("workbench", Vec3::new(7.0, 0.0, -7.3)),
-        ("storage_crate", Vec3::new(12.0, 0.0, -8.0)),
-        ("concept_locker", Vec3::new(13.35, 0.0, -12.5)),
-        ("concept_crawl_vent", Vec3::new(-13.65, 0.55, -8.0)),
-        ("concept_crawl_vent", Vec3::new(13.65, 0.55, -4.5)),
-        ("concept_crawl_vent", Vec3::new(-13.65, 0.55, 17.0)),
+        (Module::ShelfUnitLow, Vec3::new(13.15, 0.0, -6.25)),
+        (Module::Workbench, Vec3::new(7.0, 0.0, -7.3)),
+        (Module::StorageCrate, Vec3::new(12.0, 0.0, -8.0)),
+        (Module::ConceptLocker, Vec3::new(13.35, 0.0, -12.5)),
+        (Module::ConceptCrawlVent, Vec3::new(-13.65, 0.55, -8.0)),
+        (Module::ConceptCrawlVent, Vec3::new(13.65, 0.55, -4.5)),
+        (Module::ConceptCrawlVent, Vec3::new(-13.65, 0.55, 17.0)),
     ] {
         assert!(
             placements
                 .iter()
-                .any(|(name, transform)| { name == module && transform.translation == position }),
-            "missing {module} at {position}"
+                .any(|(name, transform)| { *name == module && transform.translation == position }),
+            "missing {module:?} at {position}"
         );
     }
     assert_eq!(
         placements
             .iter()
-            .filter(|(name, _)| name == "concept_crawl_vent")
+            .filter(|(name, _)| *name == Module::ConceptCrawlVent)
             .count(),
         4
     );
@@ -692,7 +734,7 @@ fn first_floor_workbenches_face_open_space_from_walls() {
     let props: Vec<_> = world
         .query::<(&Prop, &Transform)>()
         .iter(world)
-        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .map(|(prop, transform)| (prop.0, *transform))
         .collect();
     let mut openings: Vec<_> = world
         .query::<&Door>()
@@ -742,12 +784,12 @@ fn first_floor_workbenches_face_open_space_from_walls() {
             Vec2::new(3.0, -21.25),
             &[
                 (
-                    "concept_table",
+                    Module::ConceptTable,
                     Vec2::new(3.75, -18.75),
                     Vec2::new(0.9, 0.46),
                 ),
                 (
-                    "shelf_unit_bins",
+                    Module::ShelfUnitBins,
                     Vec2::new(8.1, -17.5),
                     Vec2::new(0.25, 0.9),
                 ),
@@ -760,11 +802,15 @@ fn first_floor_workbenches_face_open_space_from_walls() {
             Vec2::new(6.25, -7.3),
             &[
                 (
-                    "shelf_unit_low",
+                    Module::ShelfUnitLow,
                     Vec2::new(13.15, -6.25),
                     Vec2::new(0.225, 0.6),
                 ),
-                ("storage_crate", Vec2::new(12.0, -8.0), Vec2::new(0.5, 0.4)),
+                (
+                    Module::StorageCrate,
+                    Vec2::new(12.0, -8.0),
+                    Vec2::new(0.5, 0.4),
+                ),
             ][..],
         ),
         (
@@ -806,7 +852,7 @@ fn first_floor_workbenches_face_open_space_from_walls() {
         let transform = props
             .iter()
             .find(|(module, transform)| {
-                module == "workbench" && transform.translation.xz() == position
+                *module == Module::Workbench && transform.translation.xz() == position
             })
             .unwrap_or_else(|| panic!("missing {room} workbench"))
             .1;
@@ -835,12 +881,12 @@ fn first_floor_workbenches_face_open_space_from_walls() {
         );
         for &(module, other, other_half) in neighbors {
             assert!(props.iter().any(|(prop, transform)| {
-                prop == module && transform.translation.xz() == other
+                *prop == module && transform.translation.xz() == other
             }));
             let separation = (other - position).abs() - half - other_half;
             assert!(
                 separation.max_element() >= 0.5,
-                "{room} bench crowds {module}"
+                "{room} bench crowds {module:?}"
             );
         }
     }
@@ -860,21 +906,21 @@ fn reception_and_lab_links_have_furniture_away_from_openings() {
         .collect();
     let mut props = world.query::<(&Prop, &Transform)>();
     for (room, module, x, z, half_width, half_depth) in [
-        ("reception", "shelf_unit_low", -2.5, -15.85, 0.6, 0.225),
-        ("reception", "shelf_unit_low", 2.5, -15.85, 0.6, 0.225),
-        ("reception", "chair_tipped", -2.3, -13.5, 0.32, 0.42),
-        ("reception", "chair_tipped", 2.3, -13.5, 0.32, 0.42),
-        ("west_link", "shelf_unit_bins", -2.5, -8.35, 0.9, 0.25),
-        ("east_link", "shelf_unit_alt", 2.5, -8.35, 0.9, 0.25),
+        ("reception", Module::ShelfUnitLow, -2.5, -15.85, 0.6, 0.225),
+        ("reception", Module::ShelfUnitLow, 2.5, -15.85, 0.6, 0.225),
+        ("reception", Module::ChairTipped, -2.3, -13.5, 0.32, 0.42),
+        ("reception", Module::ChairTipped, 2.3, -13.5, 0.32, 0.42),
+        ("west_link", Module::ShelfUnitBins, -2.5, -8.35, 0.9, 0.25),
+        ("east_link", Module::ShelfUnitAlt, 2.5, -8.35, 0.9, 0.25),
     ] {
         let rect = bounds[room];
         let placed = props.iter(world).any(|(prop, transform)| {
             prop.0 == module && transform.translation == Vec3::new(x, 0.0, z)
         });
-        assert!(placed, "missing {module} in {room}");
+        assert!(placed, "missing {module:?} in {room}");
         assert!(rect.contains(Vec2::new(x - half_width, z - half_depth)));
         assert!(rect.contains(Vec2::new(x + half_width, z + half_depth)));
-        if room == "reception" && module == "shelf_unit_low" {
+        if room == "reception" && module == Module::ShelfUnitLow {
             assert!(x.abs() - half_width >= 0.9);
         }
         if room.ends_with("_link") {
@@ -916,24 +962,20 @@ fn signs_group_labels_and_arrows_under_their_mounts() {
     let mut hangers = world.query::<(&Prop, &Children)>();
     let mut count = 0;
     for (prop, children) in hangers.iter(world) {
-        if prop.0 != "sign_hanger" {
+        if prop.0 != Module::SignHanger {
             continue;
         }
         count += 1;
         let labels = children
             .iter()
-            .filter(|&child| {
-                world
-                    .get::<Prop>(child)
-                    .is_some_and(|p| p.0.starts_with("sign_label_"))
-            })
+            .filter(|&child| world.get::<Prop>(child).is_some_and(|p| sign_label(p.0)))
             .count();
         let arrows = children
             .iter()
             .filter(|&child| {
                 world
                     .get::<Prop>(child)
-                    .is_some_and(|p| p.0 == "sign_arrow")
+                    .is_some_and(|p| p.0 == Module::SignArrow)
             })
             .count();
         assert!(labels == 1 || labels == 2);

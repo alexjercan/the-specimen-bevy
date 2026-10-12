@@ -2,8 +2,7 @@ use bevy::{
     prelude::*,
     world_serialization::{WorldAsset, WorldAssetRoot},
 };
-use game_assets::{FacilityAssets, GameAssetsState};
-use gameplay::levels::FUSE_MODULE;
+use gameplay::facility::{FacilityAssets, Module};
 
 use crate::HalloweenAssets;
 
@@ -19,7 +18,10 @@ pub(crate) struct CandyFusePlugin;
 
 impl Plugin for CandyFusePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameAssetsState::Ready), prepare_candy_fuse);
+        app.add_systems(
+            Update,
+            prepare_candy_fuse.run_if(resource_added::<FacilityAssets>),
+        );
     }
 }
 
@@ -29,8 +31,8 @@ fn prepare_candy_fuse(
     mut commands: Commands,
 ) {
     let fuse = facility
-        .module(FUSE_MODULE)
-        .unwrap_or_else(|| panic!("missing fuse module: {FUSE_MODULE}"));
+        .module(Module::FusePickup)
+        .unwrap_or_else(|| panic!("missing fuse module: {:?}", Module::FusePickup));
     commands.insert_resource(CandyFuse {
         fuse: fuse.id(),
         candy: halloween.candy_fuse.clone(),

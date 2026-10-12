@@ -3,7 +3,7 @@ mod normal;
 
 use bevy::prelude::*;
 
-use crate::controller::RUN_SPEED;
+use crate::player::RUN_SPEED;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum MonsterWalkSpeed {
@@ -89,9 +89,8 @@ pub struct MonsterPreset {
     pub run_hearing: MonsterRunHearing,
 }
 
-#[derive(Resource, Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct GamePreset {
-    pub mode: GameMode,
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct PresetRules {
     pub monster: MonsterPreset,
     pub sprint: bool,
     pub flashbangs: bool,
@@ -99,31 +98,49 @@ pub struct GamePreset {
     pub blackout: bool,
 }
 
+// NOTE: only Custom carries its own rules, so Normal and Insane cannot drift from their fixed rules.
+#[derive(Resource, Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum GamePreset {
+    #[default]
+    Normal,
+    Custom(PresetRules),
+    Insane,
+}
+
 impl GamePreset {
     pub const fn of(mode: GameMode) -> Self {
         match mode {
-            GameMode::Normal => normal::PRESET,
-            GameMode::Custom => Self {
-                mode,
-                ..normal::PRESET
-            },
-            GameMode::Insane => insane::PRESET,
+            GameMode::Normal => Self::Normal,
+            GameMode::Custom => Self::Custom(PresetRules::NORMAL),
+            GameMode::Insane => Self::Insane,
         }
     }
-}
 
-impl GamePreset {
+    pub const fn mode(self) -> GameMode {
+        match self {
+            Self::Normal => GameMode::Normal,
+            Self::Custom(_) => GameMode::Custom,
+            Self::Insane => GameMode::Insane,
+        }
+    }
+
+    pub const fn rules(self) -> PresetRules {
+        match self {
+            Self::Normal => PresetRules::NORMAL,
+            Self::Custom(rules) => rules,
+            Self::Insane => PresetRules::INSANE,
+        }
+    }
+
     pub fn insane_equivalent(self) -> bool {
-        self.monster == insane::PRESET.monster
-            && self.sprint == insane::PRESET.sprint
-            && self.flashbangs == insane::PRESET.flashbangs
-            && self.detector == insane::PRESET.detector
-            && self.blackout == insane::PRESET.blackout
+        self.rules() == PresetRules::INSANE
     }
 }
 
-impl Default for GamePreset {
-    fn default() -> Self {
-        Self::of(GameMode::Normal)
+pub struct PresetsPlugin;
+
+impl Plugin for PresetsPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<GamePreset>();
     }
 }

@@ -1,10 +1,12 @@
 use std::{path::PathBuf, sync::Arc};
 
-use bevy::{camera::ScalingMode, world_serialization::WorldAssetRoot};
+use bevy::{
+    camera::ScalingMode,
+    world_serialization::{WorldAssetRoot, WorldInstance, WorldInstanceSpawner},
+};
 use game::{
-    gameplay::levels::{build_first_floor, RenderCeilings, Room},
+    gameplay::facility::{build_first_floor, RenderCeilings, Room},
     prelude::*,
-    probe::world_instances_ready,
 };
 
 const OUTPUT_DIR: &str = "target/facility-shots";
@@ -108,14 +110,19 @@ fn main() {
             .until(screenshot_written_at(path), 20.0)
             .add();
     }
-    let mut app = AppBuilder::new().with_main_plugin(FloorShotsPlugin).build();
+    let mut app = AppBuilder::new(Frontend::Windowed { menu: false })
+        .with_main_plugin(FloorShotsPlugin)
+        .build();
     app.insert_resource(RenderCeilings(false))
         .insert_resource(GlobalAmbientLight {
             color: Color::WHITE,
             brightness: 14.0,
             ..default()
         })
-        .add_plugins((CapturePlugin::default(), script))
+        .add_plugins((
+            CapturePlugin::new(VideoProfile::PREVIEW, FrameStep::SCREENSHOTS.duration()),
+            script,
+        ))
         .run();
 }
 
@@ -139,6 +146,18 @@ fn floor_ready(world: &World) -> bool {
         return false;
     };
     rooms.iter(world).count() > 0 && roots.iter(world).count() > 0 && world_instances_ready(world)
+}
+
+fn world_instances_ready(world: &World) -> bool {
+    let Some(mut roots) = world.try_query_filtered::<Entity, With<WorldAssetRoot>>() else {
+        return true;
+    };
+    let spawner = world.resource::<WorldInstanceSpawner>();
+    roots.iter(world).all(|root| {
+        world
+            .get::<WorldInstance>(root)
+            .is_some_and(|instance| spawner.instance_is_ready(**instance))
+    })
 }
 
 fn spawn_camera(mut commands: Commands) {

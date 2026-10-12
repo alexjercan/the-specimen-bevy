@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Architecture
+
+- Split `crates/core` into `crates/app` (`AppBuilder`, `Frontend`, `FrameStep`, the stdio `Specimen` playable and asset-fill glue) and `crates/frontend` (menus, settings panel, cinematics, credits). Flow states live in `crates/flow` and facility lighting in `gameplay::facility`. Delete `crates/probe` and `crates/transport`.
+- Move every gameplay system into a feature directory under `crates/gameplay` (`facility`, `player`, `monster`, `devices`, `fuses`, `hiding`, `interaction`, `ambience`, `presets`, `achievements`), each with headless logic and a windowed view plugin. Views own their HUD syncs and sounds; glue only fills feature asset resources on load and copies settings once at startup.
+- Replace the game-wide sound enum with per-feature cue messages and a bevy-only audio bus (`PlaySound`, `Bus`, `Volumes`, `Falloff`, ambient emitters). Recordings mix the audio event log offline, so a run without an audio device still records sound.
+- Add `--headless`, `--stdio`, `--seed`, `--record` and `--video-profile`; remove `--mute`, `--norender` and `--transport`. Add the Python stdio host under `playtest/`, headless and rendered asserting e2e scenarios under `tests/e2e`, a rendered CI job and a p99 frame-time scenario.
+- Add Tracy and `trace-chrome` profiling features, `scripts/perf/frametime.py`, architecture grep gates in `scripts/check-architecture.sh` and the comment-marker checker, all run by `tests.sh`. Docs live under `docs/`.
+
 ## [0.3.1] - 2026-10-11
 
 ### Distribution

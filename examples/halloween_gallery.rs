@@ -3,9 +3,8 @@ use game_halloween::{
     candle_light, spawn_decor, Decor, MonsterEyesPlugin, CANDLE_CLUSTER, CANDY_FUSE, DECOR,
     JACK_O_LANTERN, LANTERN, PUMPKIN_SMALL, SIGN_TRIM, SPECIMEN_JAR, SPIDER, SPIDER_WEB,
 };
-use gameplay::levels::FUSE_MODULE;
+use gameplay::facility::Module;
 
-#[path = "gallery/mod.rs"]
 mod gallery;
 
 use gallery::{part, Exhibit, Gallery, GalleryPlugin};
@@ -25,7 +24,7 @@ const EXHIBITS: &[Exhibit] = &[
         group: "Fuses",
         title: "Fuse and candy fuse",
         parts: &[
-            part(FUSE_MODULE, 0.0, 0.5, -0.06, 0.0, 1.0),
+            part("fuse_pickup", 0.0, 0.5, -0.06, 0.0, 1.0),
             part(CANDY_FUSE, 0.0, 0.5, 0.06, 0.0, 1.0).in_dir("halloween"),
         ],
         radius: 0.7,
@@ -196,7 +195,9 @@ fn spawn_extra(
         "Small pumpkin on crate" => {
             let decor = DECOR
                 .iter()
-                .find(|decor| decor.prop == "storage_crate" && decor.module == PUMPKIN_SMALL)
+                .find(|decor| {
+                    decor.prop == Some(Module::StorageCrate) && decor.module == PUMPKIN_SMALL
+                })
                 .expect("storage crate pumpkin decor entry");
             place(commands, root, assets, decor);
         }

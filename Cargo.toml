@@ -20,13 +20,14 @@ members = [
     "crates/audio",
     "crates/autopilot",
     "crates/capture",
-    "crates/core",
+    "crates/app",
+    "crates/frontend",
     "crates/debug",
+    "crates/flow",
     "crates/gameplay",
     "crates/halloween",
-    "crates/probe",
     "crates/settings",
-    "crates/transport",
+    "crates/stdio",
     "crates/ui",
 ]
 resolver = "2"
@@ -54,15 +55,16 @@ bevy-inspector-egui = { version = "0.37.0", default-features = false, features =
 autopilot = { path = "crates/autopilot" }
 capture = { path = "crates/capture" }
 game_achievements = { path = "crates/achievements" }
-game_core = { path = "crates/core" }
+game_app = { path = "crates/app" }
+game_flow = { path = "crates/flow" }
+game_frontend = { path = "crates/frontend" }
 game_assets = { path = "crates/assets" }
 game_audio = { path = "crates/audio" }
 game_settings = { path = "crates/settings" }
 game_halloween = { path = "crates/halloween" }
 gameplay = { path = "crates/gameplay" }
 debug = { path = "crates/debug" }
-probe = { path = "crates/probe" }
-transport = { path = "crates/transport" }
+stdio = { path = "crates/stdio" }
 game_ui = { path = "crates/ui" }
 
 [profile.dev]
@@ -78,24 +80,36 @@ debug = false
 debug = 0
 
 [features]
-debug = ["game_core/debug"]
-steam = ["game_core/steam"]
-halloween = ["game_core/halloween", "dep:game_halloween"]
+debug = ["game_app/debug"]
+steam = ["game_app/steam"]
+halloween = ["game_app/halloween", "dep:game_halloween"]
+tracy = ["bevy/trace_tracy", "dep:tracy-client", "dep:tracy-client-sys"]
+trace-chrome = ["bevy/trace_chrome"]
 
 [dependencies]
 bevy.workspace = true
 clap.workspace = true
-game_core.workspace = true
+game_app.workspace = true
+game_flow.workspace = true
+game_frontend.workspace = true
 game_settings.workspace = true
 game_assets.workspace = true
 game_halloween = { workspace = true, optional = true }
 gameplay.workspace = true
 autopilot.workspace = true
 capture.workspace = true
-probe.workspace = true
+# NOTE: exact pins, the bundled Tracy client matches the dev shell tracy 0.13.1. See docs/tooling.md.
+tracy-client = { version = "=0.18.4", optional = true }
+tracy-client-sys = { version = "=0.28.0", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.4.3", features = ["wasm_js"] }
+
+[[test]]
+name = "e2e"
+path = "tests/e2e/main.rs"
+harness = false
+
 
 [[example]]
 name = "facility_shots"

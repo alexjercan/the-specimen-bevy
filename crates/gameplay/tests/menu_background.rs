@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use gameplay::levels::{
+use gameplay::facility::Module;
+use gameplay::facility::{
     build_main_menu_background, DoorOf, DoorRef, Doors, FacilityLight, LevelRoot, LightConfig,
     LightEffect, Passage, Prop, PropLightsPlugin, Room,
 };
@@ -33,7 +34,7 @@ fn menu_room_uses_authored_room_and_prop_light_pipeline() {
         .iter(world)
         .find(|(name, _, _, _)| name.as_str() == "Main menu shelf contents")
         .expect("stocked menu bins");
-    assert_eq!(module.0, "shelf_bin_contents");
+    assert_eq!(module.0, Module::ShelfBinContents);
     assert_eq!(*transform, Transform::IDENTITY);
     assert_eq!(parent.parent(), shelf);
     let bench = world
@@ -77,7 +78,7 @@ fn menu_room_uses_authored_room_and_prop_light_pipeline() {
     let mut lights = world.query::<(&Prop, &LightConfig, &LightEffect)>();
     let lamps: Vec<_> = lights
         .iter(world)
-        .filter(|(prop, _, _)| prop.0 == "ceiling_light_amber")
+        .filter(|(prop, _, _)| prop.0 == Module::CeilingLightAmber)
         .collect();
     assert_eq!(lamps.len(), 3);
     assert!(lamps.iter().all(|(_, config, effect)| {
@@ -86,7 +87,7 @@ fn menu_room_uses_authored_room_and_prop_light_pipeline() {
     let mut distant_lamps = world.query::<(&Prop, &Transform)>();
     let last_lamp_z = distant_lamps
         .iter(world)
-        .filter(|(prop, _)| prop.0 == "ceiling_light_amber")
+        .filter(|(prop, _)| prop.0 == Module::CeilingLightAmber)
         .map(|(_, transform)| transform.translation.z)
         .reduce(f32::min)
         .expect("menu lamps");

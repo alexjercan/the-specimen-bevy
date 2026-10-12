@@ -1,19 +1,23 @@
 mod common;
 
-use bevy::{audio::PlaybackMode, prelude::*};
-use game_audio::{
-    spatial_listener, AudioPaused, PlaySound, PlaySoundFrom, PlaySourceSound, Sound, SourceSounds,
+use bevy::{
+    audio::{AudioSink, AudioSinkPlayback, PlaybackMode, SpatialAudioSink},
+    prelude::*,
 };
-use game_settings::GameSettings;
+use game_audio::{
+    spatial_listener, AudioPaused, Bus, Curve, Falloff, Placement, PlaySound, Volumes,
+};
 use rodio::source::{SineWave, Spatial};
 
-use common::{audio_app, sound_assets};
+use common::{audio_app, clip};
+
+const EAR_GAP: f32 = 0.18;
 
 fn playback_app(listener: Option<Vec3>) -> App {
     let mut app = audio_app();
     if let Some(position) = listener {
         app.world_mut().spawn((
-            spatial_listener(0.18),
+            spatial_listener(EAR_GAP),
             Transform::from_translation(position),
         ));
     }
@@ -21,23 +25,29 @@ fn playback_app(listener: Option<Vec3>) -> App {
     app
 }
 
-fn play(
-    app: &mut App,
-    cues: &[PlaySound],
-) -> Vec<(Handle<AudioSource>, PlaybackSettings, Option<Vec3>)> {
+type Voice = (Handle<AudioSource>, Bus, PlaybackSettings, Option<Vec3>);
+
+fn play(app: &mut App, cues: &[PlaySound]) -> Vec<Voice> {
     for cue in cues {
-        app.world_mut().write_message(*cue);
+        app.world_mut().write_message(cue.clone());
     }
     app.update();
     let world = app.world_mut();
-    let mut query = world.query::<(Entity, &AudioPlayer, &PlaybackSettings, Option<&Transform>)>();
+    let mut query = world.query::<(
+        Entity,
+        &AudioPlayer,
+        &Bus,
+        &PlaybackSettings,
+        Option<&Transform>,
+    )>();
     let played: Vec<_> = query
         .iter(world)
-        .map(|(entity, player, settings, transform)| {
+        .map(|(entity, player, bus, settings, transform)| {
             (
                 entity,
                 (
                     player.0.clone(),
+                    *bus,
                     *settings,
                     transform.map(|transform| transform.translation),
                 ),
@@ -50,17 +60,19 @@ fn play(
     played.into_iter().map(|(_, voice)| voice).collect()
 }
 
-fn source_voice(app: &mut App, sound: Sound, position: Vec3) -> Option<(Handle<AudioSource>, f32)> {
+fn source_voice(
+    app: &mut App,
+    handle: Handle<AudioSource>,
+    position: Vec3,
+    falloff: Falloff,
+) -> Option<(Handle<AudioSource>, f32)> {
     let source = app
         .world_mut()
         .spawn(Transform::from_translation(position))
         .id();
     app.update();
-    app.world_mut().write_message(PlaySoundFrom {
-        sound,
-        source,
-        offset: Vec3::ZERO,
-    });
+    app.world_mut()
+        .write_message(PlaySound::from(handle, source, Vec3::ZERO, falloff));
     app.update();
     let voice = app.world().get::<Children>(source).map(|children| {
         assert_eq!(children.len(), 1);
@@ -78,95 +90,130 @@ fn source_voice(app: &mut App, sound: Sound, position: Vec3) -> Option<(Handle<A
     voice
 }
 
-fn source_volume(app: &mut App, sound: Sound, distance: f32) -> Option<f32> {
-    source_voice(app, sound, Vec3::new(distance, 0.0, 0.0)).map(|(_, volume)| volume)
+fn source_volume(app: &mut App, distance: f32, falloff: Falloff) -> Option<f32> {
+    source_voice(app, clip(1), Vec3::new(distance, 0.0, 0.0), falloff).map(|(_, volume)| volume)
 }
 
 #[test]
-fn settings_scale_new_ui_and_spatial_cues_without_changing_base_gain() {
+fn volumes_scale_ui_and_world_cues_by_master_and_bus() {
     let cues = [
-        PlaySound {
-            sound: Sound::UiPress,
-            position: None,
-        },
-        PlaySound {
-            sound: Sound::DoorShut,
-            position: Some(Vec3::ZERO),
-        },
+        PlaySound::global(clip(1), Bus::Ui, 0.7),
+        PlaySound::global(clip(2), Bus::World, 0.9),
+        PlaySound::at(clip(3), Vec3::X, Falloff::DEFAULT),
     ];
     let base = play(&mut playback_app(Some(Vec3::ZERO)), &cues);
     let mut scaled_app = playback_app(Some(Vec3::ZERO));
-    scaled_app.insert_resource(GameSettings {
+    scaled_app.insert_resource(Volumes {
         master: 0.5,
-        sfx: 0.4,
-        ..default()
+        world: 0.4,
+        ui: 0.2,
     });
     let scaled = play(&mut scaled_app, &cues);
-    assert_eq!(base.len(), 2);
-    assert_eq!(scaled.len(), 2);
-    for (base, scaled) in base.iter().zip(&scaled) {
-        assert_eq!(base.0, scaled.0);
-        let base = base.1.volume.to_linear();
-        let scaled = scaled.1.volume.to_linear();
+    assert_eq!(base.len(), 3);
+    assert_eq!(scaled.len(), 3);
+    let voice = |voices: &[Voice], id: u128| {
+        voices
+            .iter()
+            .find(|voice| voice.0 == clip(id))
+            .cloned()
+            .unwrap()
+    };
+    for id in 1..=3 {
+        let base = voice(&base, id);
+        let scaled = voice(&scaled, id);
+        assert_eq!(base.1, scaled.1);
+        let factor = match base.1 {
+            Bus::Ui => 0.1,
+            Bus::World => 0.2,
+        };
+        let base = base.2.volume.to_linear();
+        let scaled = scaled.2.volume.to_linear();
         assert!(base > 0.0);
-        assert!((scaled - base * 0.2).abs() < 0.001);
+        assert!((scaled - base * factor).abs() < 0.001);
     }
+    assert_eq!(voice(&base, 1).1, Bus::Ui);
+    assert_eq!(voice(&base, 1).2.volume.to_linear(), 0.7);
+    assert_eq!(voice(&base, 2).1, Bus::World);
+    assert_eq!(voice(&base, 2).2.volume.to_linear(), 0.9);
+    assert_eq!(
+        voice(&base, 3).2.volume.to_linear(),
+        Falloff::DEFAULT.gain(1.0).unwrap()
+    );
 }
 
 #[test]
-fn device_cues_are_non_spatial_and_stop_when_world_audio_is_paused() {
+fn volumes_gain_multiplies_master_with_the_bus() {
+    let volumes = Volumes {
+        master: 0.5,
+        world: 0.4,
+        ui: 0.2,
+    };
+    assert!((volumes.gain(Bus::World) - 0.2).abs() < 0.001);
+    assert!((volumes.gain(Bus::Ui) - 0.1).abs() < 0.001);
+    assert_eq!(Volumes::default().gain(Bus::World), 1.0);
+    assert_eq!(Volumes::default().gain(Bus::Ui), 1.0);
+}
+
+#[test]
+fn global_cues_are_non_spatial_despawn_voices_on_their_bus() {
     let mut app = playback_app(None);
     let voices = play(
         &mut app,
         &[
-            PlaySound {
-                sound: Sound::DetectorPickup,
-                position: None,
-            },
-            PlaySound {
-                sound: Sound::DetectorNearby,
-                position: None,
-            },
-            PlaySound {
-                sound: Sound::FlashbangPickup,
-                position: None,
-            },
-            PlaySound {
-                sound: Sound::FlashbangThrow,
-                position: None,
-            },
-            PlaySound {
-                sound: Sound::FlashbangBurst,
-                position: None,
-            },
+            PlaySound::global(clip(1), Bus::World, 1.0),
+            PlaySound::global(clip(2), Bus::World, 0.5),
+            PlaySound::global(clip(3), Bus::Ui, 0.8),
         ],
     );
-    assert_eq!(voices.len(), 5);
-    let assets = sound_assets();
-    assert_eq!(voices[0].0, assets.detector_pickup);
-    assert_eq!(voices[1].0, assets.detector_nearby);
-    assert_eq!(voices[2].0, assets.flashbang_pickup);
-    assert_eq!(voices[3].0, assets.flashbang_throw);
-    assert_eq!(voices[4].0, assets.flashbang_burst);
-    assert!(voices
-        .iter()
-        .all(|(_, settings, position)| !settings.spatial && position.is_none()));
+    assert_eq!(voices.len(), 3);
+    assert_eq!(voices[0].0, clip(1));
+    assert_eq!(voices[1].0, clip(2));
+    assert_eq!(voices[2].0, clip(3));
+    assert_eq!(voices[0].1, Bus::World);
+    assert_eq!(voices[1].1, Bus::World);
+    assert_eq!(voices[2].1, Bus::Ui);
+    assert_eq!(voices[1].2.volume.to_linear(), 0.5);
+    assert!(voices.iter().all(|(_, _, settings, position)| {
+        !settings.spatial && position.is_none() && matches!(settings.mode, PlaybackMode::Despawn)
+    }));
+}
+
+#[test]
+fn pause_drops_world_cues_but_keeps_ui_cues() {
+    let mut app = playback_app(Some(Vec3::ZERO));
+    let source = app.world_mut().spawn(Transform::IDENTITY).id();
+    app.update();
     app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    assert!(play(
+    let played = play(
         &mut app,
-        &[PlaySound {
-            sound: Sound::FlashbangBurst,
-            position: None
-        }]
-    )
-    .is_empty());
+        &[
+            PlaySound::global(clip(1), Bus::World, 1.0),
+            PlaySound::at(clip(2), Vec3::X, Falloff::DEFAULT),
+            PlaySound::from(clip(3), source, Vec3::ZERO, Falloff::DEFAULT),
+            PlaySound::global(clip(4), Bus::Ui, 1.0),
+        ],
+    );
+    assert_eq!(played.len(), 1);
+    assert_eq!(played[0].0, clip(4));
+    assert_eq!(played[0].1, Bus::Ui);
+    assert!(app.world().get::<Children>(source).is_none());
+
+    app.world_mut().resource_mut::<AudioPaused>().0 = false;
+    let played = play(
+        &mut app,
+        &[
+            PlaySound::global(clip(1), Bus::World, 1.0),
+            PlaySound::at(clip(2), Vec3::X, Falloff::DEFAULT),
+        ],
+    );
+    assert_eq!(played.len(), 2);
 }
 
 #[test]
 fn distant_spatial_cues_pan_toward_the_source_for_both_listener_orientations() {
     for yaw in [0.0, std::f32::consts::FRAC_PI_2] {
         let transform = Transform::from_rotation(Quat::from_rotation_y(yaw));
-        let listener = spatial_listener(0.18);
+        let listener = spatial_listener(EAR_GAP);
         let left_ear = transform
             .transform_point(listener.left_ear_offset)
             .to_array();
@@ -196,29 +243,100 @@ fn distant_spatial_cues_pan_toward_the_source_for_both_listener_orientations() {
 }
 
 #[test]
-fn source_cue_is_a_child_of_the_boiler_and_follows_its_transform() {
+fn spatial_listener_splits_the_ear_gap_across_the_x_axis() {
+    let listener = spatial_listener(EAR_GAP);
+    assert_eq!(listener.left_ear_offset, Vec3::X * 0.09);
+    assert_eq!(listener.right_ear_offset, Vec3::NEG_X * 0.09);
+}
+
+#[test]
+fn positional_cue_plays_once_as_spatial_world_audio_with_falloff_gain() {
+    let mut app = playback_app(Some(Vec3::ZERO));
+    let position = Vec3::new(-13.4, 1.5, 0.0);
+    let cue = PlaySound::at(clip(7), position, Falloff::DEFAULT);
+    assert_eq!(cue.bus, Bus::World);
+    assert_eq!(
+        cue.placement,
+        Placement::At {
+            position,
+            falloff: Falloff::DEFAULT
+        }
+    );
+    let played = play(&mut app, std::slice::from_ref(&cue));
+
+    assert_eq!(played.len(), 1);
+    let (handle, bus, settings, translation) = &played[0];
+    assert_eq!(*handle, clip(7));
+    assert_eq!(*bus, Bus::World);
+    assert!(matches!(settings.mode, PlaybackMode::Despawn));
+    assert!(settings.spatial);
+    assert_eq!(
+        settings.spatial_scale.map(|scale| scale.0),
+        Some(Vec3::splat(Falloff::DEFAULT.scale))
+    );
+    assert_eq!(*translation, Some(position));
+    let distance = position.length();
+    let gain = 0.6 / (1.0 + 0.06 * distance * distance);
+    assert_eq!(settings.volume.to_linear(), gain);
+    assert_eq!(Falloff::DEFAULT.gain(distance), Some(gain));
+
+    app.world_mut().resource_mut::<AudioPaused>().0 = true;
+    assert!(play(&mut app, &[cue]).is_empty());
+}
+
+#[test]
+fn positional_cues_need_a_listener_within_range() {
+    let position = Vec3::new(-13.4, 1.5, 0.0);
+    let cue = PlaySound::at(clip(1), position, Falloff::DEFAULT);
+    assert!(play(&mut playback_app(None), std::slice::from_ref(&cue)).is_empty());
+    assert!(play(
+        &mut playback_app(Some(Vec3::new(20.0, 0.0, 0.0))),
+        std::slice::from_ref(&cue)
+    )
+    .is_empty());
+    assert_eq!(
+        play(&mut playback_app(Some(Vec3::new(-13.4, 1.5, 24.0))), &[cue]).len(),
+        1
+    );
+}
+
+#[test]
+fn source_cue_is_a_child_of_its_source_and_follows_its_transform() {
     let mut app = playback_app(Some(Vec3::ZERO));
     let boiler = app
         .world_mut()
         .spawn(Transform::from_xyz(1.0, 0.0, 0.0))
         .id();
     app.update();
-    app.world_mut().write_message(PlaySoundFrom {
-        sound: Sound::BoilerTick,
-        source: boiler,
-        offset: Vec3::Y * 1.2,
-    });
+    let cue = PlaySound::from(clip(5), boiler, Vec3::Y * 1.2, Falloff::DEFAULT);
+    assert_eq!(cue.bus, Bus::World);
+    assert_eq!(
+        cue.placement,
+        Placement::From {
+            source: boiler,
+            offset: Vec3::Y * 1.2,
+            falloff: Falloff::DEFAULT
+        }
+    );
+    app.world_mut().write_message(cue);
     app.update();
     let children = app.world().get::<Children>(boiler).unwrap();
     assert_eq!(children.len(), 1);
     let voice = children[0];
-    assert_eq!(
-        app.world().get::<AudioPlayer>(voice).unwrap().0,
-        sound_assets().boiler_tick
-    );
+    assert_eq!(app.world().get::<AudioPlayer>(voice).unwrap().0, clip(5));
+    assert_eq!(*app.world().get::<Bus>(voice).unwrap(), Bus::World);
+    assert_eq!(app.world().get::<ChildOf>(voice).unwrap().parent(), boiler);
     assert_eq!(
         app.world().get::<Transform>(voice).unwrap().translation,
         Vec3::Y * 1.2
+    );
+    let settings = app.world().get::<PlaybackSettings>(voice).unwrap();
+    assert!(settings.spatial);
+    assert!(matches!(settings.mode, PlaybackMode::Despawn));
+    let distance = Vec3::new(1.0, 1.2, 0.0).length();
+    assert_eq!(
+        settings.volume.to_linear(),
+        Falloff::DEFAULT.gain(distance).unwrap()
     );
     app.world_mut()
         .entity_mut(boiler)
@@ -239,360 +357,212 @@ fn source_cue_is_a_child_of_the_boiler_and_follows_its_transform() {
 }
 
 #[test]
-fn authored_source_cue_plays_only_its_own_sound() {
+fn source_cue_measures_distance_from_the_offset_point() {
     let mut app = playback_app(Some(Vec3::ZERO));
-    let door = app
+    let source = app
         .world_mut()
-        .spawn((
-            Transform::from_xyz(2.0, 0.0, 0.0),
-            SourceSounds(vec![(Sound::DoorLocked, Vec3::Y)]),
-        ))
+        .spawn(Transform::from_xyz(20.0, 0.0, 0.0))
         .id();
-    let other = app
-        .world_mut()
-        .spawn(Transform::from_xyz(3.0, 0.0, 0.0))
-        .id();
-    app.world_mut().write_message(PlaySourceSound {
-        source: other,
-        sound: Sound::DoorLocked,
-    });
-    app.world_mut().write_message(PlaySourceSound {
-        source: door,
-        sound: Sound::DoorSwing,
-    });
     app.update();
-    assert!(app.world().get::<Children>(door).is_none());
-    app.world_mut().write_message(PlaySourceSound {
-        source: door,
-        sound: Sound::DoorLocked,
-    });
+    app.world_mut().write_message(PlaySound::from(
+        clip(1),
+        source,
+        Vec3::X * 6.0,
+        Falloff::DEFAULT,
+    ));
     app.update();
-    let voice = app.world().get::<Children>(door).unwrap()[0];
+    assert!(app.world().get::<Children>(source).is_none());
+    app.world_mut().write_message(PlaySound::from(
+        clip(1),
+        source,
+        Vec3::NEG_X * 6.0,
+        Falloff::DEFAULT,
+    ));
+    app.update();
+    let voice = app.world().get::<Children>(source).unwrap()[0];
     assert_eq!(
-        app.world().get::<Transform>(voice).unwrap().translation,
-        Vec3::Y
+        app.world()
+            .get::<PlaybackSettings>(voice)
+            .unwrap()
+            .volume
+            .to_linear(),
+        Falloff::DEFAULT.gain(14.0).unwrap()
     );
-    assert_eq!(
-        app.world().get::<AudioPlayer>(voice).unwrap().0,
-        sound_assets().door_locked
-    );
-    assert_eq!(app.world().get::<ChildOf>(voice).unwrap().parent(), door);
 }
 
 #[test]
-fn monster_cues_fade_across_distinct_room_distances() {
-    let step = Sound::MonsterStep(0);
-    let presence = Sound::MonsterPresence;
-    assert_eq!(step.audible_range(), 16.0);
-    assert_eq!(presence.audible_range(), 32.0);
-    assert_eq!(Sound::DoorShut.audible_range(), 25.0);
-
-    let mut app = playback_app(Some(Vec3::ZERO));
-    let step_near = source_volume(&mut app, step, 10.0).unwrap();
-    let step_far = source_volume(&mut app, step, 15.0).unwrap();
-    assert!(step_near > step_far);
-    assert_eq!(source_volume(&mut app, step, 16.0), None);
-    let presence_near = source_volume(&mut app, presence, 20.0).unwrap();
-    let presence_far = source_volume(&mut app, presence, 30.0).unwrap();
-    assert!(presence_near > presence_far);
-    assert!(presence_far > 0.0);
-    assert_eq!(source_volume(&mut app, presence, 32.0), None);
-
-    let fade = 1.0 - 20.0 / presence.audible_range();
-    assert!((presence_near - 0.8 * fade * fade).abs() < 0.001);
-    assert_eq!(source_volume(&mut app, step, 20.0), None);
-    let (handle, _) = source_voice(&mut app, presence, Vec3::new(20.0, 0.0, 0.0)).unwrap();
-    assert_eq!(handle, sound_assets().monster_presence);
-}
-
-#[test]
-fn detection_cue_remains_audible_across_the_sight_range() {
-    let detection = Sound::MonsterDetected;
-    let mut app = playback_app(Some(Vec3::ZERO));
-    let close = source_volume(&mut app, detection, 0.0).unwrap();
-    let far = source_volume(&mut app, detection, 12.0).unwrap();
-    let step = source_volume(&mut app, Sound::MonsterStep(0), 12.0).unwrap();
-    assert!(close > far);
-    assert!(far > 0.25);
-    assert!(far > step);
-
-    let (handle, volume) = source_voice(&mut app, detection, Vec3::new(12.0, 0.0, 0.0)).unwrap();
-    assert_eq!(handle, sound_assets().monster_detected);
-    assert!((volume - far).abs() < 0.001);
-}
-
-#[test]
-fn monster_patrol_steps_and_presence_use_source_attached_clips() {
-    let mut app = playback_app(Some(Vec3::ZERO));
-    let monster = app
-        .world_mut()
-        .spawn((
-            Transform::from_xyz(2.0, 0.0, 0.0),
-            SourceSounds(vec![
-                (Sound::MonsterStep(4), Vec3::Y),
-                (Sound::MonsterPresence, Vec3::Y),
-            ]),
-        ))
-        .id();
-    for sound in [Sound::MonsterStep(4), Sound::MonsterPresence] {
-        app.world_mut().write_message(PlaySourceSound {
-            source: monster,
-            sound,
-        });
-    }
-    app.update();
-    let children = app.world().get::<Children>(monster).unwrap();
-    assert_eq!(children.len(), 2);
-    let actual: Vec<_> = children
-        .iter()
-        .map(|child| app.world().get::<AudioPlayer>(child).unwrap().0.clone())
-        .collect();
-    let assets = sound_assets();
-    assert!(actual.contains(&assets.monster_step_e));
-    assert!(actual.contains(&assets.monster_presence));
-    for child in children.iter() {
-        assert_eq!(
-            app.world().get::<Transform>(child).unwrap().translation,
-            Vec3::Y
-        );
-    }
-}
-
-#[test]
-fn source_cues_require_a_near_listener_and_unpaused_world() {
+fn source_cues_require_a_listener_a_source_and_unpaused_world() {
     let mut app = playback_app(None);
     let boiler = app.world_mut().spawn(Transform::IDENTITY).id();
-    let cue = PlaySoundFrom {
-        sound: Sound::BoilerTick,
-        source: boiler,
-        offset: Vec3::Y,
-    };
-    app.world_mut().write_message(cue);
+    let cue = PlaySound::from(clip(1), boiler, Vec3::Y, Falloff::DEFAULT);
+    app.world_mut().write_message(cue.clone());
     app.update();
     assert!(app.world().get::<Children>(boiler).is_none());
     app.world_mut()
-        .spawn((spatial_listener(0.18), Transform::IDENTITY));
+        .spawn((spatial_listener(EAR_GAP), Transform::IDENTITY));
     app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    app.world_mut().write_message(cue);
+    app.world_mut().write_message(cue.clone());
     app.update();
     assert!(app.world().get::<Children>(boiler).is_none());
     app.world_mut().resource_mut::<AudioPaused>().0 = false;
     app.world_mut().write_message(cue);
     app.update();
     assert_eq!(app.world().get::<Children>(boiler).unwrap().len(), 1);
+
+    let missing = app.world_mut().spawn_empty().id();
+    app.world_mut().write_message(PlaySound::from(
+        clip(2),
+        missing,
+        Vec3::ZERO,
+        Falloff::DEFAULT,
+    ));
+    app.update();
+    assert!(app.world().get::<Children>(missing).is_none());
+    let world = app.world_mut();
+    let mut query = world.query::<&AudioPlayer>();
+    assert_eq!(query.iter(world).count(), 1);
 }
 
 #[test]
-fn faucet_burst_plays_once_as_positional_world_audio() {
-    let mut app = playback_app(Some(Vec3::ZERO));
-    let faucet = Vec3::new(-13.4, 1.5, 0.0);
-    let cue = PlaySound {
-        sound: Sound::FaucetBurst,
-        position: Some(faucet),
+fn falloff_curves_fade_across_distinct_ranges() {
+    let step = Falloff {
+        range: 16.0,
+        scale: 0.3,
+        curve: Curve::SquaredFade { gain: 1.0 },
     };
-    let played = play(&mut app, &[cue]);
-
-    assert_eq!(played.len(), 1);
-    let (handle, settings, translation) = &played[0];
-    assert_eq!(*handle, sound_assets().faucet);
-    assert!(matches!(settings.mode, PlaybackMode::Despawn));
-    assert!(settings.spatial);
-    assert_eq!(*translation, Some(faucet));
-    let distance = faucet.length();
-    let gain = 0.6 / (1.0 + 0.06 * distance * distance);
-    assert_eq!(settings.volume.to_linear(), gain);
-
-    app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    assert!(play(&mut app, &[cue]).is_empty());
-}
-
-#[test]
-fn positional_cues_need_a_near_listener() {
-    let cue = PlaySound {
-        sound: Sound::FaucetBurst,
-        position: Some(Vec3::new(-13.4, 1.5, 0.0)),
+    let presence = Falloff {
+        range: 32.0,
+        scale: 0.3,
+        curve: Curve::SquaredFade { gain: 0.8 },
     };
-    assert!(play(&mut playback_app(None), &[cue]).is_empty());
-    assert!(play(&mut playback_app(Some(Vec3::new(20.0, 0.0, 0.0))), &[cue]).is_empty());
-}
+    assert_eq!(Falloff::DEFAULT.range, 25.0);
 
-#[test]
-fn hiding_and_boiler_cues_use_their_clips() {
-    let assets = sound_assets();
-    let cues = [
-        (Sound::LockerOpen, &assets.locker_open),
-        (Sound::LockerClose, &assets.locker_close),
-        (Sound::TableEnter, &assets.table_enter),
-        (Sound::TableLeave, &assets.table_leave),
-        (Sound::BoilerTick, &assets.boiler_tick),
-    ];
     let mut app = playback_app(Some(Vec3::ZERO));
-    let requests = cues.map(|(sound, _)| PlaySound {
-        sound,
-        position: Some(Vec3::X),
-    });
-    let played = play(&mut app, &requests);
+    let step_near = source_volume(&mut app, 10.0, step).unwrap();
+    let step_far = source_volume(&mut app, 15.0, step).unwrap();
+    assert!(step_near > step_far);
+    assert_eq!(source_volume(&mut app, 16.0, step), None);
+    assert_eq!(source_volume(&mut app, 20.0, step), None);
+    let presence_near = source_volume(&mut app, 20.0, presence).unwrap();
+    let presence_far = source_volume(&mut app, 30.0, presence).unwrap();
+    assert!(presence_near > presence_far);
+    assert!(presence_far > 0.0);
+    assert_eq!(source_volume(&mut app, 32.0, presence), None);
 
-    assert_eq!(played.len(), cues.len());
-    for (_, clip) in cues {
-        assert_eq!(played.iter().filter(|voice| voice.0 == *clip).count(), 1);
-    }
-    assert!(played.iter().all(|(_, settings, _)| settings.spatial));
-
-    app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    assert!(play(&mut app, &requests).is_empty());
+    let fade = 1.0 - 20.0 / presence.range;
+    assert!((presence_near - 0.8 * fade * fade).abs() < 0.001);
+    assert_eq!(presence.gain(20.0), Some(presence_near));
+    let (handle, _) = source_voice(&mut app, clip(9), Vec3::new(20.0, 0.0, 0.0), presence).unwrap();
+    assert_eq!(handle, clip(9));
 }
 
 #[test]
-fn fuse_slots_and_completion_use_only_the_new_ui_cues() {
-    let assets = sound_assets();
+fn inverse_square_falloff_remains_audible_across_its_range() {
+    let detection = Falloff {
+        range: 25.0,
+        scale: 0.3,
+        curve: Curve::InverseSquare {
+            gain: 1.0,
+            coefficient: 0.01,
+        },
+    };
+    let step = Falloff {
+        range: 16.0,
+        scale: 0.3,
+        curve: Curve::SquaredFade { gain: 1.0 },
+    };
+    let mut app = playback_app(Some(Vec3::ZERO));
+    let close = source_volume(&mut app, 0.0, detection).unwrap();
+    let far = source_volume(&mut app, 12.0, detection).unwrap();
+    let step_far = source_volume(&mut app, 12.0, step).unwrap();
+    assert_eq!(close, 1.0);
+    assert!(close > far);
+    assert!(far > 0.25);
+    assert!(far > step_far);
+    assert_eq!(detection.gain(12.0), Some(far));
+    assert_eq!(detection.gain(25.0), None);
+    assert_eq!(detection.gain(40.0), None);
+}
+
+#[test]
+fn falloff_gain_is_none_at_and_beyond_range() {
+    let falloff = Falloff::DEFAULT;
+    assert_eq!(falloff.gain(0.0), Some(0.6));
+    assert!(falloff.gain(24.9).is_some());
+    assert_eq!(falloff.gain(25.0), None);
+    assert_eq!(falloff.gain(100.0), None);
+    let fade = Falloff {
+        range: 10.0,
+        scale: 1.0,
+        curve: Curve::SquaredFade { gain: 0.5 },
+    };
+    assert_eq!(fade.gain(0.0), Some(0.5));
+    assert_eq!(fade.gain(5.0), Some(0.125));
+    assert_eq!(fade.gain(10.0), None);
+}
+
+fn sinks(app: &mut App) -> (Entity, Entity, Entity, rodio::mixer::MixerSource) {
+    let (world_player, _) = rodio::Player::new();
+    let (ui_player, _) = rodio::Player::new();
+    let (mixer, source) = rodio::mixer::mixer(
+        std::num::NonZero::new(2).unwrap(),
+        std::num::NonZero::new(48_000).unwrap(),
+    );
+    let spatial = rodio::SpatialPlayer::connect_new(&mixer, [0.0; 3], [0.0; 3], [0.0; 3]);
+    let world = app
+        .world_mut()
+        .spawn((Bus::World, AudioSink::new(world_player)))
+        .id();
+    let ui = app
+        .world_mut()
+        .spawn((Bus::Ui, AudioSink::new(ui_player)))
+        .id();
+    let spatial = app
+        .world_mut()
+        .spawn((Bus::World, SpatialAudioSink::new(spatial)))
+        .id();
+    (world, ui, spatial, source)
+}
+
+fn paused_sinks(app: &App, world: Entity, ui: Entity, spatial: Entity) -> [bool; 3] {
+    [
+        app.world().get::<AudioSink>(world).unwrap().is_paused(),
+        app.world().get::<AudioSink>(ui).unwrap().is_paused(),
+        app.world()
+            .get::<SpatialAudioSink>(spatial)
+            .unwrap()
+            .is_paused(),
+    ]
+}
+
+#[test]
+fn world_sinks_created_during_a_pause_start_paused() {
     let mut app = playback_app(None);
     app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    let played = play(
-        &mut app,
-        &[
-            PlaySound {
-                sound: Sound::FuseSlot(1),
-                position: None,
-            },
-            PlaySound {
-                sound: Sound::FuseSlot(2),
-                position: None,
-            },
-            PlaySound {
-                sound: Sound::FuseSlot(3),
-                position: None,
-            },
-            PlaySound {
-                sound: Sound::FuseComplete,
-                position: None,
-            },
-        ],
+    app.update();
+    let (world, ui, spatial, _source) = sinks(&mut app);
+    app.update();
+    assert_eq!(paused_sinks(&app, world, ui, spatial), [true, false, true]);
+    app.update();
+    assert_eq!(paused_sinks(&app, world, ui, spatial), [true, false, true]);
+    app.world_mut().resource_mut::<AudioPaused>().0 = false;
+    app.update();
+    assert_eq!(
+        paused_sinks(&app, world, ui, spatial),
+        [false, false, false]
     );
-    assert_eq!(played.len(), 4);
-    for (voice, handle) in played.iter().zip([
-        &assets.fuse_slot_1,
-        &assets.fuse_slot_2,
-        &assets.fuse_slot_3,
-        &assets.fuse_complete,
-    ]) {
-        assert_eq!(&voice.0, handle);
-        assert!(!voice.1.spatial);
-    }
 }
 
 #[test]
-fn flashlight_click_uses_approved_clip_as_non_spatial_audio() {
+fn sinks_created_while_playing_keep_playing() {
     let mut app = playback_app(None);
-    app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    let played = play(
-        &mut app,
-        &[PlaySound {
-            sound: Sound::FlashlightClick,
-            position: None,
-        }],
+    let (world, ui, spatial, _source) = sinks(&mut app);
+    app.update();
+    assert_eq!(
+        paused_sinks(&app, world, ui, spatial),
+        [false, false, false]
     );
-    assert_eq!(played.len(), 1);
-    assert_eq!(played[0].0, sound_assets().flashlight_click);
-    assert!(!played[0].1.spatial);
-}
-
-#[test]
-fn sprint_exhaustion_is_non_spatial_player_audio_and_dropped_while_paused() {
-    let mut app = playback_app(None);
-    let cue = PlaySound {
-        sound: Sound::SprintExhausted,
-        position: None,
-    };
-    let played = play(&mut app, &[cue]);
-    assert_eq!(played.len(), 1);
-    assert_eq!(played[0].0, sound_assets().sprint_exhausted);
-    assert!(!played[0].1.spatial);
-
     app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    assert!(play(&mut app, &[cue]).is_empty());
-}
-
-#[test]
-fn locked_door_rattle_is_spatial_and_dropped_while_paused() {
-    let mut app = playback_app(Some(Vec3::ZERO));
-    let cue = PlaySound {
-        sound: Sound::DoorLocked,
-        position: Some(Vec3::new(0.0, 1.0, -1.5)),
-    };
-    let played = play(&mut app, &[cue]);
-    assert_eq!(played.len(), 1);
-    assert_eq!(played[0].0, sound_assets().door_locked);
-    assert_eq!(played[0].2, cue.position);
-    assert!(played[0].1.spatial);
-
-    app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    assert!(play(&mut app, &[cue]).is_empty());
-}
-
-#[test]
-fn outage_has_global_power_down_and_spatial_breaker_trip_while_repair_is_spatial() {
-    let mut app = playback_app(Some(Vec3::ZERO));
-    let boiler = Vec3::new(-10.0, 1.2, 0.0);
-    let outage = PlaySound {
-        sound: Sound::PowerDown,
-        position: None,
-    };
-    let trip = PlaySound {
-        sound: Sound::BreakerTrip,
-        position: Some(boiler),
-    };
-    let reset = PlaySound {
-        sound: Sound::BoilerReset,
-        position: Some(boiler),
-    };
-    let repair = PlaySound {
-        sound: Sound::BoilerRestart,
-        position: Some(boiler),
-    };
-    let played = play(&mut app, &[outage, trip, reset, repair]);
-    assert_eq!(played.len(), 4);
-    let assets = sound_assets();
-    let voice = |clip: &Handle<AudioSource>| played.iter().find(|voice| voice.0 == *clip).unwrap();
-    let power_down = voice(&assets.power_down);
-    assert!(!power_down.1.spatial);
-    assert_eq!(power_down.2, None);
-    for clip in [
-        &assets.breaker_trip,
-        &assets.boiler_reset,
-        &assets.boiler_restart,
-    ] {
-        let cue = voice(clip);
-        assert!(cue.1.spatial);
-        assert_eq!(cue.2, Some(boiler));
-    }
-
-    app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    assert!(play(&mut app, &[outage, trip, reset, repair]).is_empty());
-}
-
-#[test]
-fn pause_drops_world_cues_but_keeps_menu_cues() {
-    let mut app = playback_app(Some(Vec3::ZERO));
-    app.world_mut().resource_mut::<AudioPaused>().0 = true;
-    let played = play(
-        &mut app,
-        &[
-            PlaySound {
-                sound: Sound::FaucetBurst,
-                position: Some(Vec3::X),
-            },
-            PlaySound {
-                sound: Sound::LockerOpen,
-                position: Some(Vec3::X),
-            },
-            PlaySound {
-                sound: Sound::UiResume,
-                position: None,
-            },
-        ],
-    );
-
-    assert_eq!(played.len(), 1);
-    assert_eq!(played[0].0, sound_assets().ui_resume);
+    app.update();
+    assert_eq!(paused_sinks(&app, world, ui, spatial), [true, false, true]);
 }

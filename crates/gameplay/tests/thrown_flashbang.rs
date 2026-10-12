@@ -2,8 +2,10 @@ use std::{f32::consts::FRAC_PI_2, time::Duration};
 
 use bevy::prelude::*;
 use gameplay::{
-    controller::PlayerController,
-    levels::{DevicePlugin, Flashbangs, Flashed, LevelRoot, Monster, FLASHBANG_BURST_DELAY},
+    devices::{DevicePlugin, Flashbangs, Flashed, FLASHBANG_BURST_DELAY},
+    facility::LevelRoot,
+    monster::Monster,
+    player::PlayerController,
 };
 
 mod common;

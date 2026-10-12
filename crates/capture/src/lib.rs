@@ -1,18 +1,19 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
-pub mod loops;
 pub mod screenshot;
+pub mod video;
 
-#[derive(Default)]
 pub struct CapturePlugin {
-    pub loops: loops::LoopCapturePlugin,
+    pub video: video::VideoCapturePlugin,
     pub screenshot: screenshot::ScreenshotCapturePlugin,
 }
 
 impl CapturePlugin {
-    pub fn new(fps: u32) -> Self {
+    pub fn new(profile: video::VideoProfile, step: Duration) -> Self {
         Self {
-            loops: loops::LoopCapturePlugin::new(fps),
+            video: video::VideoCapturePlugin::new(profile, step),
             screenshot: screenshot::ScreenshotCapturePlugin,
         }
     }
@@ -21,7 +22,7 @@ impl CapturePlugin {
 impl Plugin for CapturePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CaptureState>()
-            .add_plugins((self.screenshot, self.loops));
+            .add_plugins((self.screenshot, self.video.clone()));
     }
 }
 

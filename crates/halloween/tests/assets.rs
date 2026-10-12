@@ -1,6 +1,18 @@
 use std::{fs, path::Path};
 
 use game_halloween::{CANDY_FUSE, HALLOWEEN_MODULES};
+use gameplay::facility::Module;
+
+fn stem(module: Module) -> String {
+    let mut stem = String::new();
+    for (index, character) in format!("{module:?}").char_indices() {
+        if character.is_ascii_uppercase() && index > 0 {
+            stem.push('_');
+        }
+        stem.push(character.to_ascii_lowercase());
+    }
+    stem
+}
 
 fn manifest(dir: &str) -> serde_json::Value {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -89,27 +101,28 @@ fn decorations_rest_on_their_prop_surfaces() {
     let facility = manifest("facility/modules");
     let halloween = manifest("halloween");
     for decor in game_halloween::DECOR {
-        if decor.prop == "ceiling_light_amber" {
+        if decor.prop == Some(Module::CeilingLightAmber) {
             assert_eq!(decor.anchor, bevy::prelude::Vec2::new(0.0, -2.5));
             assert!(decor.offset.y >= 1.8 && decor.offset.y <= 2.2);
             continue;
         }
-        if decor.prop == "potted_plant" {
+        if decor.prop == Some(Module::PottedPlant) {
             assert_eq!(decor.offset, bevy::prelude::Vec3::ZERO);
             continue;
         }
-        if decor.prop == "clutter_tools" {
+        if decor.prop == Some(Module::ClutterTools) {
             assert_eq!(decor.offset.y, 0.0);
             assert!(decor.offset.x.abs() >= 0.8);
             continue;
         }
-        let prop = &facility["modules"][decor.prop];
+        let prop_module = decor.prop.expect("surface decor names a prop");
+        let prop = &facility["modules"][stem(prop_module)];
         if prop["snap"] == "wall_mount" {
             assert!(decor.offset.y.abs() <= 0.17);
             assert!(decor.offset.z <= 0.0);
             continue;
         }
-        let top = if decor.prop == "workbench" {
+        let top = if prop_module == Module::Workbench {
             0.9
         } else {
             bounds(prop, "max")[1] as f32
@@ -119,32 +132,32 @@ fn decorations_rest_on_their_prop_surfaces() {
         assert!(base.abs() < 1e-3, "{} base", decor.module);
         assert!(
             (decor.offset.y - top).abs() < 0.03,
-            "{} on {}",
+            "{} on {:?}",
             decor.module,
-            decor.prop
+            prop_module
         );
         let half_width = (bounds(module, "max")[0] - bounds(module, "min")[0]) as f32 / 2.0;
         let prop_min = bounds(prop, "min");
         let prop_max = bounds(prop, "max");
         assert!(
             decor.offset.x - half_width >= prop_min[0] as f32 - 0.02,
-            "{} on {} at {}",
+            "{} on {:?} at {}",
             decor.module,
-            decor.prop,
+            prop_module,
             decor.anchor
         );
         assert!(
             decor.offset.x + half_width <= prop_max[0] as f32 + 0.02,
-            "{} on {} at {}",
+            "{} on {:?} at {}",
             decor.module,
-            decor.prop,
+            prop_module,
             decor.anchor
         );
         assert!(
             decor.offset.z.abs() + half_width <= prop_max[2] as f32 + 0.02,
-            "{} on {} at {}",
+            "{} on {:?} at {}",
             decor.module,
-            decor.prop,
+            prop_module,
             decor.anchor
         );
     }

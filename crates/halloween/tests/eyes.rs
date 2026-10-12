@@ -1,6 +1,6 @@
 use bevy::{gltf::GltfMeshName, prelude::*, world_serialization::WorldAssetRoot};
 use game_halloween::{EyeHalo, HalloweenEyes, MonsterEyesPlugin, EYE_COLOR, MONSTER_EYES_MESH};
-use gameplay::levels::MONSTER_HEAD_JOINT;
+use gameplay::monster::MONSTER_HEAD_JOINT;
 
 fn spawn_monster(
     app: &mut App,

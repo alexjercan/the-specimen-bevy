@@ -1,6 +1,13 @@
 pub mod achievements;
-pub mod controller;
-pub mod levels;
+pub mod ambience;
+pub mod audible;
+pub mod devices;
+pub mod facility;
+pub mod fuses;
+pub mod hiding;
+pub mod interaction;
+pub mod monster;
+pub mod player;
 pub mod presets;
 
 use bevy::prelude::*;
@@ -9,25 +16,23 @@ pub struct GameplayPlugin;
 
 impl Plugin for GameplayPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<presets::GamePreset>().add_plugins((
-            controller::PlayerControllerPlugin,
+        app.add_plugins((
+            presets::PresetsPlugin,
+            player::PlayerPlugin,
             achievements::AchievementPlugin,
-            levels::DoorPlugin,
-            levels::PickupPlugin,
-            levels::FusePlugin,
-            levels::HidingPlugin,
-            levels::ObjectivePlugin,
-            levels::FacilityPowerPlugin,
-            levels::PropSoundsPlugin,
-            levels::PropLightsPlugin,
-            levels::MonsterPlugin,
-            levels::DevicePlugin,
+            facility::FacilityPlugin,
+            interaction::InteractionPlugin,
+            fuses::FusePlugin,
+            hiding::HidingPlugin,
+            ambience::AmbiencePlugin,
+            monster::MonsterPlugin,
+            devices::DevicePlugin,
         ));
     }
 }
 
 pub mod prelude {
-    pub use crate::controller::{PlayerController, PlayerControllerPlugin, PlayerInput};
-    pub use crate::levels::{build_first_floor, Room};
+    pub use crate::facility::{build_first_floor, Room};
+    pub use crate::player::{PlayerController, PlayerInput, PlayerPlugin};
     pub use crate::GameplayPlugin;
 }

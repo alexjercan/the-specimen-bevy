@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use bevy::prelude::*;
-use gameplay::levels::{
+use gameplay::facility::Module;
+use gameplay::facility::{
     build_first_floor, Ceiling, Door, DoorOf, DoorRef, DoorState, Doors, Passage, Room,
 };
 
@@ -17,7 +18,9 @@ fn every_first_floor_room_has_a_ceiling() {
     let mut rooms = world.query::<(&Room, &Ceiling)>();
     let rooms: Vec<_> = rooms.iter(world).collect();
     assert_eq!(rooms.len(), 26);
-    assert!(rooms.iter().all(|(_, ceiling)| ceiling.0 == "ceiling_tile"));
+    assert!(rooms
+        .iter()
+        .all(|(_, ceiling)| ceiling.0 == Module::CeilingTile));
 }
 
 #[test]
@@ -50,14 +53,14 @@ fn first_floor_openings_link_rooms_and_align_with_walls() {
                 door.position,
                 door.rotation,
                 door.state,
-                door.frame.clone(),
-                door.panel.clone(),
+                door.frame,
+                door.panel,
             )
         })
         .collect();
     assert_eq!(doors.len(), 26);
     assert!(doors.iter().all(|(_, _, _, state, frame, panel)| {
-        *state == DoorState::Closed && frame == "wall_doorway" && panel == "door_panel"
+        *state == DoorState::Closed && *frame == Module::WallDoorway && *panel == Module::DoorPanel
     }));
 
     let mut passage_query = world.query::<(Entity, &Passage)>();

@@ -1,12 +1,16 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use bevy::{ecs::system::SystemState, prelude::*};
+use gameplay::facility::Module;
 use gameplay::{
-    controller::{door_frames, wall_obstacles},
-    levels::{
-        build_first_floor, Door, DoorOf, DoorRef, DoorSwing, Doors, FuseSeed, FuseZone, HidingSpot,
-        Passage, PickupKind, Prop, PropCollider, Room, FUSE_TABLES,
+    facility::{
+        build_first_floor, Door, DoorOf, DoorRef, DoorSwing, Doors, FuseZone, Passage, Prop,
+        PropCollider, Room, FUSE_TABLES,
     },
+    fuses::FuseSeed,
+    hiding::HidingSpot,
+    interaction::PickupKind,
+    player::{door_frames, wall_obstacles},
 };
 
 mod common;
@@ -443,7 +447,7 @@ fn fuse_tables_and_placeholders_keep_clearance_from_hiding_props_and_openings() 
     let hiding_positions: Vec<Vec2> = world
         .query::<(&Prop, &Transform)>()
         .iter(world)
-        .filter(|(prop, _)| prop.0 == "concept_locker" || prop.0 == "concept_table")
+        .filter(|(prop, _)| prop.0 == Module::ConceptLocker || prop.0 == Module::ConceptTable)
         .map(|(_, transform)| transform.translation.xz())
         .collect();
     let mut openings: Vec<Vec2> = world

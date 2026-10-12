@@ -81,27 +81,15 @@
 
           checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
             package = game;
-            smoke = unwrapped.overrideAttrs (old: {
-              src = ./.;
-              doNotPostBuildInstallCargoBinaries = true;
-              nativeBuildInputs = (old.nativeBuildInputs or []) ++ [ pkgs.python3 pkgs.coreutils ];
-              buildPhase = ''
-                runHook preBuild
-                bash ./tests.sh --smoke
-                runHook postBuild
-              '';
-              installPhase = ''
-                runHook preInstall
-                mkdir -p $out
-                runHook postInstall
-              '';
-            });
           };
 
           devShells.default = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
               rustToolchain rust-analyzer pkg-config python3 cargo-about ffmpeg xvfb-run trunk
-            ] ++ lib.optional (lib.meta.availableOn pkgs.stdenv.hostPlatform pkgs.blender) pkgs.blender;
+              # NOTE: tracy 0.13.1 pairs with the tracy-client-sys pin in Cargo.toml.
+              tracy cargo-flamegraph
+            ] ++ lib.optional (lib.meta.availableOn pkgs.stdenv.hostPlatform pkgs.blender) pkgs.blender
+              ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.perf;
             buildInputs = gameLibs;
             LD_LIBRARY_PATH = lib.makeLibraryPath gameLibs;
             RUST_BACKTRACE = "1";

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
 use bevy::prelude::*;
-use gameplay::levels::{build_first_floor, Door, DoorRef, Doors, Passage, Prop, Room};
+use gameplay::facility::{build_first_floor, Door, DoorRef, Doors, Module, Passage, Prop, Room};
 
 mod common;
 
@@ -13,7 +13,7 @@ const OUTSIDE: Vec2 = Vec2::new(0.0, -31.25);
 struct Floor {
     rooms: Vec<(String, Rect)>,
     openings: HashMap<String, Vec<(Vec2, Option<String>)>>,
-    props: Vec<(String, Transform, bool)>,
+    props: Vec<(Module, Transform, bool)>,
 }
 
 impl Floor {
@@ -62,20 +62,42 @@ impl Floor {
     fn arrows(&self) -> impl Iterator<Item = &Transform> {
         self.props
             .iter()
-            .filter(|(module, ..)| module == "sign_arrow")
+            .filter(|(module, ..)| *module == Module::SignArrow)
             .map(|(_, transform, _)| transform)
     }
 
-    fn label_for(&self, arrow: &Transform) -> &str {
+    fn label_for(&self, arrow: &Transform) -> Module {
         let expected = arrow.translation + face_rotation(arrow) * Vec3::X * LABEL_TO_ARROW;
         self.props
             .iter()
             .find(|(module, transform, _)| {
-                module.starts_with("sign_label_") && transform.translation.distance(expected) < 0.01
+                sign_label(*module) && transform.translation.distance(expected) < 0.01
             })
-            .map(|(module, ..)| module.as_str())
+            .map(|(module, ..)| *module)
             .unwrap_or_else(|| panic!("arrow at {} has no label", arrow.translation))
     }
+}
+
+fn sign_label(module: Module) -> bool {
+    matches!(
+        module,
+        Module::SignLabelBoilerRoom
+            | Module::SignLabelStorage
+            | Module::SignLabelMaintenance
+            | Module::SignLabelUtility
+            | Module::SignLabelOffice
+            | Module::SignLabelLab
+            | Module::SignLabelSecurity
+            | Module::SignLabelPrep
+            | Module::SignLabelExit
+    )
+}
+
+fn ceiling_light(module: Module) -> bool {
+    matches!(
+        module,
+        Module::CeilingLightCool | Module::CeilingLightDead | Module::CeilingLightAmber
+    )
 }
 
 fn face_rotation(arrow: &Transform) -> Quat {
@@ -136,7 +158,7 @@ fn floor() -> Floor {
             let global = parent
                 .map(|parent| parents[&parent.parent()] * *transform)
                 .unwrap_or(*transform);
-            (prop.0.clone(), global, parent.is_some())
+            (prop.0, global, parent.is_some())
         })
         .collect();
 
@@ -150,15 +172,15 @@ fn floor() -> Floor {
     }
 }
 
-fn target_room(label: &str) -> &'static str {
+fn target_room(label: Module) -> &'static str {
     match label {
-        "sign_label_exit" => "exit",
-        "sign_label_lab" => "lab",
-        "sign_label_storage" => "storage",
-        "sign_label_office" => "office",
-        "sign_label_maintenance" => "maintenance",
-        "sign_label_boiler_room" => "boiler",
-        other => panic!("unexpected wayfinding label {other}"),
+        Module::SignLabelExit => "exit",
+        Module::SignLabelLab => "lab",
+        Module::SignLabelStorage => "storage",
+        Module::SignLabelOffice => "office",
+        Module::SignLabelMaintenance => "maintenance",
+        Module::SignLabelBoilerRoom => "boiler",
+        other => panic!("unexpected wayfinding label {other:?}"),
     }
 }
 
@@ -183,7 +205,7 @@ fn every_arrow_points_along_a_route_to_its_label() {
         let pointing = heading(arrow);
         assert!(
             pointing.y > -0.01,
-            "{label} arrow at {} points down",
+            "{label:?} arrow at {} points down",
             arrow.translation
         );
         let direction = if pointing.y > 0.99 {
@@ -204,12 +226,12 @@ fn every_arrow_points_along_a_route_to_its_label() {
             0
         };
         let waypoints = floor.waypoints(room, target, slack);
-        assert!(!waypoints.is_empty(), "{label} read from {room}");
+        assert!(!waypoints.is_empty(), "{label:?} read from {room}");
         assert!(
             waypoints
                 .iter()
                 .any(|waypoint| (*waypoint - position).normalize().dot(direction) > 0.7),
-            "{label} arrow at {} read from {room} points {direction}, route {waypoints:?}",
+            "{label:?} arrow at {} read from {room} points {direction}, route {waypoints:?}",
             arrow.translation
         );
         checked += 1;
@@ -222,7 +244,7 @@ fn exit_arrows_are_spread_across_front_middle_and_back() {
     let floor = floor();
     let exits: Vec<Vec3> = floor
         .arrows()
-        .filter(|arrow| floor.label_for(arrow) == "sign_label_exit")
+        .filter(|arrow| floor.label_for(arrow) == Module::SignLabelExit)
         .map(|arrow| arrow.translation)
         .collect();
     let front = exits.iter().filter(|position| position.z < -8.75).count();
@@ -239,7 +261,7 @@ fn rear_hall_points_to_both_back_wing_routes() {
     let headings: Vec<Vec3> = floor
         .arrows()
         .filter(|arrow| {
-            floor.label_for(arrow) == "sign_label_exit"
+            floor.label_for(arrow) == Module::SignLabelExit
                 && floor.room_at(reader(arrow).0) == "rear_hall"
         })
         .map(heading)
@@ -254,7 +276,7 @@ fn hangers_keep_clear_of_ceiling_lights_and_openings() {
     let lights: Vec<Vec2> = floor
         .props
         .iter()
-        .filter(|(module, _, child)| module.starts_with("ceiling_light") && !child)
+        .filter(|(module, _, child)| ceiling_light(*module) && !child)
         .map(|(_, transform, _)| transform.translation.xz())
         .collect();
     let openings: Vec<Vec2> = floor
@@ -266,7 +288,7 @@ fn hangers_keep_clear_of_ceiling_lights_and_openings() {
     let hangers: Vec<Vec2> = floor
         .props
         .iter()
-        .filter(|(module, ..)| module == "sign_hanger")
+        .filter(|(module, ..)| *module == Module::SignHanger)
         .map(|(_, transform, _)| transform.translation.xz())
         .collect();
     assert_eq!(hangers.len(), 9);
@@ -296,7 +318,7 @@ fn wall_signs_sit_on_walls_and_face_into_their_rooms() {
         let room = floor.room_at(position);
         let rect = floor.rooms.iter().find(|(name, _)| name == room).unwrap().1;
         let on_hanger = floor.props.iter().any(|(module, transform, _)| {
-            module == "sign_hanger"
+            *module == Module::SignHanger
                 && transform.translation.xz().distance(arrow.translation.xz()) < 0.8
         });
         if on_hanger {

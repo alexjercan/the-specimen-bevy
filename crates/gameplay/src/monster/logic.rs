@@ -1,0 +1,935 @@
+use std::collections::{HashMap, HashSet, VecDeque};
+
+use bevy::prelude::*;
+use bevy_rand::prelude::ChaCha8Rng;
+use game_audio::{Curve, Falloff};
+use rand_core::{Rng, SeedableRng};
+
+use crate::{
+    audible::{Audible, Origin},
+    player::{
+        apply_input, clear_for_player, door_frames, door_panel, move_player, rotate,
+        wall_obstacles, PlayerController, PlayerControlsEnabled, PlayerInput, Stamina,
+    },
+    presets::GamePreset,
+};
+
+use crate::{
+    devices::{tick_burst, unseen, FlashTargets, Flashed},
+    facility::{
+        Door, DoorLock, DoorOf, DoorRef, DoorState, DoorSwing, Doors, Escaped, Passage,
+        PropCollider, Room, ToggleDoor,
+    },
+    hiding::{Hidden, HidingMotion, HidingPhase, HidingSpot},
+    interaction::StructuralSight,
+};
+
+const SIGHT_COS: f32 = 0.45;
+const SEARCH_TIME: f32 = 8.0;
+const SEARCH_RADIUS: f32 = 2.5;
+const SEARCH_REACH: f32 = 10.0;
+const STALL_LIMIT: u8 = 3;
+const SEARCH_RETRY: f32 = 0.5;
+const LONG_PATROL_DISTANCE: f32 = 24.0;
+const SHORT_PATROL_LEGS: u8 = 3;
+const ATTACK_REACH: f32 = 1.8;
+pub(super) const ATTACK_DURATION: f32 = 40.0 / 24.0;
+const JUMPSCARE_TURN_SPEED: f32 = 9.0;
+pub const MONSTER_HEAD_JOINT: &str = "C_Head_J_023";
+const HEAD_REST: Vec3 = Vec3::new(0.085, -0.166, 0.591);
+const GRID: f32 = 0.5;
+const ARRIVAL: f32 = 0.16;
+const DOOR_APPROACH: f32 = 1.35;
+const DOOR_PASS: f32 = 0.5;
+const DOOR_LOOKAHEAD: f32 = DOOR_APPROACH + GRID;
+const DOOR_FACING_COS: f32 = 0.3;
+const STEP_PERIOD: f32 = 0.6;
+const CHASE_STEP_PERIOD: f32 = 0.32;
+const PRESENCE_INTERVAL: f32 = 24.0;
+pub(super) const MODEL_SCALE: f32 = 0.42;
+pub(super) const MODEL_LIFT: f32 = 1.93;
+pub(super) const MODEL_PIVOT: Vec2 = Vec2::new(0.091, 3.793);
+const TURN_SPEED: f32 = 2.1;
+const CHASE_TURN_SPEED: f32 = 8.0;
+const MOVE_FACING_TOLERANCE: f32 = 0.18;
+
+#[derive(Component)]
+pub struct Monster {
+    route: VecDeque<Vec2>,
+    step_clock: f32,
+    presence_clock: f32,
+    step_index: usize,
+    route_retry: f32,
+    stalls: u8,
+    patrol_legs: u8,
+    long_patrol: LongPatrol,
+    pursuit: Option<Pursuit>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LongPatrol {
+    Off,
+    Walking,
+    Running,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MonsterNavigation {
+    pub waypoints: Vec<Vec2>,
+    pub destination: Option<Vec2>,
+    pub last_sensed: Option<Vec2>,
+    pub long_range: bool,
+    pub running: bool,
+}
+
+impl Monster {
+    pub(super) fn is_chasing(&self) -> bool {
+        self.pursuit.is_some()
+            || (self.long_patrol == LongPatrol::Running && !self.route.is_empty())
+    }
+
+    pub(super) fn is_idle(&self) -> bool {
+        self.route.is_empty()
+    }
+
+    pub fn debug_navigation(&self) -> MonsterNavigation {
+        MonsterNavigation {
+            waypoints: self.route.iter().copied().collect(),
+            destination: self.route.back().copied(),
+            last_sensed: self.pursuit.map(|pursuit| pursuit.last_sensed),
+            long_range: self.long_patrol != LongPatrol::Off
+                && self.pursuit.is_none()
+                && !self.route.is_empty(),
+            running: (self.pursuit.is_some() || self.long_patrol == LongPatrol::Running)
+                && !self.route.is_empty(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Pursuit {
+    last_sensed: Vec2,
+    remaining: f32,
+    searching: bool,
+    planned: Option<Vec2>,
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct WitnessedHiding {
+    pub monster: Entity,
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct Caught {
+    pub monster: Entity,
+    pub remaining: f32,
+}
+
+impl Caught {
+    pub fn new(monster: Entity) -> Self {
+        Self {
+            monster,
+            remaining: ATTACK_DURATION,
+        }
+    }
+
+    pub fn finished(&self) -> bool {
+        self.remaining <= 0.0
+    }
+}
+
+impl Default for Monster {
+    fn default() -> Self {
+        Self {
+            route: VecDeque::new(),
+            step_clock: 0.0,
+            presence_clock: 0.0,
+            step_index: 0,
+            route_retry: 0.0,
+            stalls: 0,
+            patrol_legs: 0,
+            long_patrol: LongPatrol::Off,
+            pursuit: None,
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct PatrolRng(ChaCha8Rng);
+
+impl PatrolRng {
+    pub fn new(seed: u64) -> Self {
+        Self(ChaCha8Rng::seed_from_u64(seed))
+    }
+}
+
+impl Default for PatrolRng {
+    fn default() -> Self {
+        Self::new(0)
+    }
+}
+
+#[derive(Component)]
+#[require(Transform, Visibility)]
+pub struct MonsterFigure;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MonsterCueKind {
+    Presence,
+    Step(usize),
+    Detected,
+    Attack,
+    Heartbeat,
+}
+
+#[derive(Message, Clone, Copy, Debug, PartialEq)]
+pub struct MonsterCue {
+    pub monster: Entity,
+    pub kind: MonsterCueKind,
+}
+
+impl Audible for MonsterCue {
+    fn name(&self) -> Option<&'static str> {
+        Some(match self.kind {
+            MonsterCueKind::Presence => "monster_presence",
+            MonsterCueKind::Step(_) => "monster_step",
+            MonsterCueKind::Detected => "monster_detected",
+            MonsterCueKind::Attack => "monster_attack",
+            MonsterCueKind::Heartbeat => "monster_heartbeat",
+        })
+    }
+
+    fn origin(&self) -> Origin {
+        Origin::From(self.monster)
+    }
+
+    fn falloff(&self) -> Falloff {
+        match self.kind {
+            MonsterCueKind::Step(_) => Falloff {
+                range: 16.0,
+                scale: 0.12,
+                curve: Curve::SquaredFade { gain: 0.8 },
+            },
+            MonsterCueKind::Presence => Falloff {
+                range: 32.0,
+                scale: 0.12,
+                curve: Curve::SquaredFade { gain: 0.8 },
+            },
+            MonsterCueKind::Detected => Falloff {
+                curve: Curve::InverseSquare {
+                    gain: 1.0,
+                    coefficient: 0.015,
+                },
+                ..Falloff::DEFAULT
+            },
+            MonsterCueKind::Attack | MonsterCueKind::Heartbeat => Falloff::DEFAULT,
+        }
+    }
+}
+
+pub struct MonsterPlugin;
+
+impl Plugin for MonsterPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_message::<MonsterCue>().add_systems(
+            Update,
+            (sense_player, manage_doors, patrol, catch_player)
+                .chain()
+                .after(tick_burst)
+                .before(apply_input),
+        );
+    }
+}
+
+fn room_at(position: Vec2, rooms: &[(Entity, Rect)]) -> Option<Entity> {
+    rooms
+        .iter()
+        .find(|(_, bounds)| {
+            let inset = 0.05;
+            position.x >= bounds.min.x - inset
+                && position.x <= bounds.max.x + inset
+                && position.y >= bounds.min.y - inset
+                && position.y <= bounds.max.y + inset
+        })
+        .map(|(entity, _)| *entity)
+}
+
+fn node(point: Vec2) -> IVec2 {
+    (point / GRID).round().as_ivec2()
+}
+
+fn point(cell: IVec2) -> Vec2 {
+    cell.as_vec2() * GRID
+}
+
+fn route(
+    start: Vec2,
+    end: Vec2,
+    rooms: &[(Entity, Rect)],
+    blockers: &[(Vec2, Vec2, f32)],
+) -> Option<VecDeque<Vec2>> {
+    let origin = start;
+    let goal = node(end);
+    let valid = |cell: IVec2| {
+        let position = point(cell);
+        room_at(position, rooms).is_some() && clear_for_player(position, blockers)
+    };
+    let start = (-1..=1)
+        .flat_map(|x| (-1..=1).map(move |y| node(origin) + IVec2::new(x, y)))
+        .filter(|&cell| valid(cell) && clear_path(origin, point(cell), blockers))
+        .min_by(|a, b| {
+            origin
+                .distance_squared(point(*a))
+                .total_cmp(&origin.distance_squared(point(*b)))
+        })?;
+    let goal = if valid(goal) {
+        goal
+    } else {
+        (-6..=6)
+            .flat_map(|x| (-6..=6).map(move |y| goal + IVec2::new(x, y)))
+            .filter(|&candidate| {
+                valid(candidate) && room_at(point(candidate), rooms) == room_at(end, rooms)
+            })
+            .min_by_key(|candidate| (candidate.x - goal.x).pow(2) + (candidate.y - goal.y).pow(2))?
+    };
+    let mut open = VecDeque::from([start]);
+    let mut seen = HashSet::from([start]);
+    let mut previous = HashMap::new();
+    while let Some(current) = open.pop_front() {
+        if current == goal {
+            let mut cells = vec![current];
+            let mut cursor = current;
+            while cursor != start {
+                cursor = previous[&cursor];
+                cells.push(cursor);
+            }
+            cells.reverse();
+            let mut path: VecDeque<_> = cells.into_iter().map(point).collect();
+            if path
+                .front()
+                .is_some_and(|first| first.distance(origin) < ARRIVAL)
+            {
+                path.pop_front();
+            }
+            return Some(path);
+        }
+        for direction in [IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y] {
+            let next = current + direction;
+            if seen.contains(&next) || !valid(next) {
+                continue;
+            }
+            let from = point(current);
+            let delta = point(next) - from;
+            if move_player(from, delta, blockers).distance(from + delta) > 0.01 {
+                continue;
+            }
+            seen.insert(next);
+            previous.insert(next, current);
+            open.push_back(next);
+        }
+    }
+    None
+}
+
+fn long_patrol_route(
+    position: Vec2,
+    rooms: &[(Entity, Rect)],
+    blockers: &[(Vec2, Vec2, f32)],
+) -> Option<VecDeque<Vec2>> {
+    let mut centers: Vec<_> = rooms
+        .iter()
+        .map(|(_, bounds)| (bounds.min + bounds.max) * 0.5)
+        .filter(|center| position.distance(*center) >= LONG_PATROL_DISTANCE)
+        .collect();
+    centers.sort_by(|a, b| {
+        position
+            .distance_squared(*b)
+            .total_cmp(&position.distance_squared(*a))
+    });
+    centers
+        .into_iter()
+        .find_map(|center| route(position, center, rooms, blockers).filter(|path| !path.is_empty()))
+}
+
+fn clear_path(start: Vec2, end: Vec2, blockers: &[(Vec2, Vec2, f32)]) -> bool {
+    move_player(start, end - start, blockers).distance(end) < 0.01
+}
+
+fn search_route(
+    position: Vec2,
+    center: Vec2,
+    rng: &mut ChaCha8Rng,
+    rooms: &[(Entity, Rect)],
+    blockers: &[(Vec2, Vec2, f32)],
+) -> VecDeque<Vec2> {
+    let first = rng.next_u32() as usize;
+    (0..16)
+        .map(|index| (first + index) % 16)
+        .map(|index| {
+            let radius = if index < 8 {
+                SEARCH_RADIUS
+            } else {
+                SEARCH_RADIUS * 0.5
+            };
+            center + Vec2::from_angle(index as f32 * std::f32::consts::FRAC_PI_4) * radius
+        })
+        .filter(|&target| {
+            position.distance(target) > GRID
+                && room_at(target, rooms).is_some()
+                && clear_for_player(target, blockers)
+        })
+        .find_map(|target| {
+            route(position, target, rooms, blockers)
+                .filter(|path| !path.is_empty() && path.len() as f32 * GRID <= SEARCH_REACH)
+        })
+        .unwrap_or_default()
+}
+
+fn turn_toward(transform: &mut Transform, direction: Vec2, delta: f32, speed: f32) -> bool {
+    let target = (-direction.x).atan2(-direction.y);
+    let (current, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
+    let difference = (target - current + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+        - std::f32::consts::PI;
+    let step = difference.clamp(-speed * delta, speed * delta);
+    transform.rotation = Quat::from_rotation_y(current + step);
+    (difference - step).abs() <= MOVE_FACING_TOLERANCE
+}
+
+pub(crate) fn sees_player(pose: &Transform, target: Vec2, sight: &StructuralSight) -> bool {
+    let direction = target - pose.translation.xz();
+    (direction.length() <= ATTACK_REACH
+        || direction
+            .normalize_or_zero()
+            .dot((pose.rotation * -Vec3::Z).xz())
+            >= SIGHT_COS)
+        && sight.clear_sight(pose.translation.xz(), target)
+}
+
+fn sense_player(
+    time: Res<Time>,
+    enabled: Res<PlayerControlsEnabled>,
+    preset: Res<GamePreset>,
+    sight: StructuralSight,
+    players: Query<
+        (
+            &Transform,
+            &PlayerInput,
+            &Stamina,
+            Option<&Hidden>,
+            Option<&WitnessedHiding>,
+            Option<&Flashed>,
+            Option<&FlashTargets>,
+        ),
+        (With<PlayerController>, Without<Escaped>, Without<Caught>),
+    >,
+    mut monsters: Query<(Entity, &Transform, &mut Monster), Without<PlayerController>>,
+    spots: Query<(&HidingSpot, &Transform), Without<PlayerController>>,
+    mut cues: MessageWriter<MonsterCue>,
+) {
+    if !enabled.0 {
+        return;
+    }
+    for (entity, transform, mut monster) in &mut monsters {
+        let position = transform.translation.xz();
+        let sensed = players.iter().find_map(
+            |(player, input, stamina, hidden, witness, flashed, targets)| {
+                if unseen(flashed, targets, entity) {
+                    return None;
+                }
+                if let Some(hidden) = hidden {
+                    return (witness.is_some_and(|witness| witness.monster == entity))
+                        .then(|| spots.get(hidden.spot).ok())
+                        .flatten()
+                        .map(|(kind, place)| kind.exit(place));
+                }
+                let target = player.translation.xz();
+                let distance = position.distance(target);
+                let visible = sees_player(transform, target, &sight);
+                let heard = input.movement.length_squared() > 0.01
+                    && distance
+                        <= if stamina.sprinting() {
+                            preset.rules().monster.run_hearing.value()
+                        } else {
+                            preset.rules().monster.walk_hearing.value()
+                        };
+                (visible || heard).then_some(target)
+            },
+        );
+        if let Some(target) = sensed {
+            if let Some(mut pursuit) = monster.pursuit {
+                if pursuit.searching {
+                    pursuit.searching = false;
+                    pursuit.planned = None;
+                    monster.route.clear();
+                }
+                pursuit.last_sensed = target;
+                pursuit.remaining = SEARCH_TIME;
+                monster.pursuit = Some(pursuit);
+            } else {
+                cues.write(MonsterCue {
+                    monster: entity,
+                    kind: MonsterCueKind::Detected,
+                });
+                monster.route.clear();
+                monster.stalls = 0;
+                monster.long_patrol = LongPatrol::Off;
+                monster.pursuit = Some(Pursuit {
+                    last_sensed: target,
+                    remaining: SEARCH_TIME,
+                    searching: false,
+                    planned: None,
+                });
+            }
+        } else if let Some(mut pursuit) = monster.pursuit {
+            pursuit.remaining -= time.delta_secs();
+            if pursuit.remaining <= 0.0 {
+                monster.pursuit = None;
+                monster.route.clear();
+            } else {
+                monster.pursuit = Some(pursuit);
+            }
+        }
+    }
+}
+
+pub(crate) fn catch_player(
+    time: Res<Time>,
+    enabled: Res<PlayerControlsEnabled>,
+    sight: StructuralSight,
+    mut players: Query<
+        (
+            Entity,
+            &mut Transform,
+            Option<&mut Hidden>,
+            Option<&WitnessedHiding>,
+            Option<&mut Caught>,
+            Option<&Flashed>,
+            Option<&FlashTargets>,
+        ),
+        (With<PlayerController>, Without<Escaped>),
+    >,
+    mut monsters: Query<
+        (Entity, &mut Transform, &mut Monster),
+        (Without<PlayerController>, Without<HidingSpot>),
+    >,
+    children: Query<&Children>,
+    joints: Query<(&Name, &GlobalTransform)>,
+    spots: Query<(&HidingSpot, &Transform), Without<PlayerController>>,
+    mut cues: MessageWriter<MonsterCue>,
+    mut commands: Commands,
+) {
+    if !enabled.0 {
+        return;
+    }
+    let delta = time.delta_secs();
+    let mut staged = false;
+    for (_, mut view, _, _, caught, _, _) in &mut players {
+        let Some(mut caught) = caught else {
+            continue;
+        };
+        staged = true;
+        if caught.finished() {
+            continue;
+        }
+        caught.remaining = (caught.remaining - delta).max(0.0);
+        let Ok((monster, mut pose, _)) = monsters.get_mut(caught.monster) else {
+            continue;
+        };
+        let toward = (view.translation.xz() - pose.translation.xz()).normalize_or_zero();
+        if toward != Vec2::ZERO {
+            turn_toward(&mut pose, toward, delta, CHASE_TURN_SPEED);
+            let focus = head_position(monster, &pose, &children, &joints);
+            let facing = view.looking_at(focus, Vec3::Y).rotation;
+            view.rotation = view
+                .rotation
+                .rotate_towards(facing, JUMPSCARE_TURN_SPEED * delta);
+        }
+    }
+    if staged {
+        return;
+    }
+    for (monster_entity, pose, mut monster) in &mut monsters {
+        if monster.pursuit.is_none() {
+            continue;
+        }
+        let Some((player, hiding_spot)) = players
+            .iter()
+            .find(|(_, view, hidden, witness, _, flashed, targets)| {
+                if unseen(*flashed, *targets, monster_entity) {
+                    return false;
+                }
+                let target = if let Some(hidden) = hidden {
+                    if !witness.is_some_and(|witness| witness.monster == monster_entity) {
+                        return false;
+                    }
+                    let Ok((kind, place)) = spots.get(hidden.spot) else {
+                        return false;
+                    };
+                    kind.exit(place)
+                } else {
+                    view.translation.xz()
+                };
+                pose.translation.xz().distance(target) <= ATTACK_REACH
+                    && sight.clear_sight(pose.translation.xz(), target)
+            })
+            .map(|(player, _, hidden, _, _, _, _)| (player, hidden.map(|hidden| hidden.spot)))
+        else {
+            continue;
+        };
+        if hiding_spot.is_some() {
+            if let Ok((_, view, Some(mut hidden), _, _, _, _)) = players.get_mut(player) {
+                if !matches!(hidden.phase, HidingPhase::Leaving(_)) {
+                    hidden.phase = HidingPhase::Leaving(HidingMotion::from(&view));
+                }
+            }
+            monster.route.clear();
+            return;
+        }
+        commands.entity(player).remove::<WitnessedHiding>();
+        monster.route.clear();
+        cues.write(MonsterCue {
+            monster: monster_entity,
+            kind: MonsterCueKind::Attack,
+        });
+        commands.entity(player).insert(Caught::new(monster_entity));
+        return;
+    }
+}
+
+fn head_rest_offset() -> Vec3 {
+    Vec3::new(
+        (HEAD_REST.x - MODEL_PIVOT.x) * MODEL_SCALE,
+        HEAD_REST.y * MODEL_SCALE + MODEL_LIFT,
+        (HEAD_REST.z - MODEL_PIVOT.y) * MODEL_SCALE,
+    )
+}
+
+fn head_position(
+    monster: Entity,
+    pose: &Transform,
+    children: &Query<&Children>,
+    joints: &Query<(&Name, &GlobalTransform)>,
+) -> Vec3 {
+    let mut stack = vec![monster];
+    while let Some(entity) = stack.pop() {
+        if let Ok((name, joint)) = joints.get(entity) {
+            if name.as_str() == MONSTER_HEAD_JOINT {
+                return joint.translation();
+            }
+        }
+        if let Ok(descendants) = children.get(entity) {
+            stack.extend(descendants.iter());
+        }
+    }
+    pose.transform_point(head_rest_offset())
+}
+
+fn door_on_route(position: Vec2, route: &VecDeque<Vec2>, door: Vec2) -> bool {
+    let mut from = position;
+    let mut travelled = 0.0;
+    for &to in route {
+        let segment = to - from;
+        let along = (door - from).dot(segment) / segment.length_squared().max(1e-6);
+        if door.distance(from + segment * along.clamp(0.0, 1.0)) <= DOOR_PASS {
+            return true;
+        }
+        travelled += segment.length();
+        if travelled >= DOOR_LOOKAHEAD {
+            break;
+        }
+        from = to;
+    }
+    false
+}
+
+fn approaching_door(transform: &Transform, route: &VecDeque<Vec2>, door: &Door) -> bool {
+    let position = transform.translation.xz();
+    let toward = door.position - position;
+    let facing = (transform.rotation * Vec3::NEG_Z).xz();
+    toward.length() < DOOR_APPROACH
+        && (toward.length() < GRID || toward.normalize().dot(facing) >= DOOR_FACING_COS)
+        && door_on_route(position, route, door.position)
+}
+
+fn manage_doors(
+    enabled: Res<PlayerControlsEnabled>,
+    doors: Query<(Entity, &Door, Has<DoorLock>)>,
+    monsters: Query<(&Transform, &Monster)>,
+    caught: Query<(), (With<PlayerController>, With<Caught>)>,
+    mut toggles: MessageWriter<ToggleDoor>,
+) {
+    if !caught.is_empty() || !enabled.0 {
+        return;
+    }
+    for (entity, door, locked) in &doors {
+        if !locked
+            && door.state == DoorState::Closed
+            && monsters
+                .iter()
+                .any(|(transform, monster)| approaching_door(transform, &monster.route, door))
+        {
+            toggles.write(ToggleDoor(entity));
+        }
+    }
+}
+
+fn patrol(
+    time: Res<Time>,
+    enabled: Res<PlayerControlsEnabled>,
+    preset: Res<GamePreset>,
+    sight: StructuralSight,
+    rooms: Query<(Entity, &Room, Option<&Doors>)>,
+    room_walls: Query<(&Room, Option<&Doors>)>,
+    links: Query<(&DoorRef, &DoorOf)>,
+    doors: Query<(Entity, &Door, &DoorSwing, Has<DoorLock>)>,
+    door_walls: Query<(&Door, &DoorSwing)>,
+    passages: Query<&Passage>,
+    props: Query<(&PropCollider, &Transform), (Without<PlayerController>, Without<Monster>)>,
+    mut monsters: Query<
+        (Entity, &mut Monster, &mut Transform, &mut PatrolRng),
+        Without<PlayerController>,
+    >,
+    caught: Query<(), (With<PlayerController>, With<Caught>)>,
+    mut cues: MessageWriter<MonsterCue>,
+) {
+    if !caught.is_empty() || !enabled.0 {
+        return;
+    }
+    let rooms_data: Vec<_> = rooms
+        .iter()
+        .map(|(entity, room, _)| (entity, room.0))
+        .collect();
+    let mut blockers = wall_obstacles(&room_walls, &links, &door_walls, &passages);
+    for (_, door, _, locked) in &doors {
+        blockers.extend(door_frames(door));
+        if locked {
+            blockers.push(door_panel(door, &DoorSwing::default()));
+        }
+    }
+    for (collider, transform) in &props {
+        let (yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
+        let center =
+            transform.translation.xz() + rotate(collider.center * transform.scale.xz(), yaw);
+        blockers.push((center, collider.half * transform.scale.xz().abs(), yaw));
+    }
+    let mut dynamic = blockers.clone();
+    for (_, door, swing, locked) in &doors {
+        if !locked {
+            dynamic.push(door_panel(door, swing));
+        }
+    }
+    let delta = time.delta_secs().min(0.1);
+    for (entity, mut monster, mut transform, mut rng) in &mut monsters {
+        monster.presence_clock += delta;
+        if monster.presence_clock >= PRESENCE_INTERVAL {
+            monster.presence_clock -= PRESENCE_INTERVAL;
+            cues.write(MonsterCue {
+                monster: entity,
+                kind: MonsterCueKind::Presence,
+            });
+        }
+        let position = transform.translation.xz();
+        if let Some(mut pursuit) = monster.pursuit {
+            if !pursuit.searching
+                && pursuit
+                    .planned
+                    .is_none_or(|planned| planned.distance(pursuit.last_sensed) > GRID)
+            {
+                pursuit.planned = Some(pursuit.last_sensed);
+                monster.route = route(position, pursuit.last_sensed, &rooms_data, &blockers)
+                    .unwrap_or_default();
+                monster.stalls = 0;
+            }
+            if monster.route.is_empty() && !pursuit.searching && pursuit.remaining >= SEARCH_TIME {
+                let toward = (pursuit.last_sensed - position).normalize_or_zero();
+                if toward != Vec2::ZERO {
+                    turn_toward(&mut transform, toward, delta, CHASE_TURN_SPEED);
+                }
+                monster.pursuit = Some(pursuit);
+                continue;
+            }
+            if monster.route.is_empty() {
+                pursuit.searching = true;
+                if monster.route_retry > 0.0 {
+                    monster.route_retry -= delta;
+                } else {
+                    monster.route = search_route(
+                        position,
+                        pursuit.last_sensed,
+                        &mut rng.0,
+                        &rooms_data,
+                        &blockers,
+                    );
+                    if monster.route.is_empty() {
+                        monster.route_retry = SEARCH_RETRY;
+                    }
+                }
+            }
+            monster.pursuit = Some(pursuit);
+            if monster.route.is_empty() {
+                continue;
+            }
+        }
+        if monster.route.is_empty() && monster.route_retry > 0.0 {
+            monster.route_retry -= delta;
+            continue;
+        }
+        if monster.route.is_empty()
+            && monster.pursuit.is_none()
+            && monster.patrol_legs >= SHORT_PATROL_LEGS
+        {
+            if let Some(path) = long_patrol_route(position, &rooms_data, &blockers) {
+                monster.route = path;
+                monster.patrol_legs = 0;
+                monster.long_patrol = if rng.0.next_u32() % 2 == 0 {
+                    LongPatrol::Running
+                } else {
+                    LongPatrol::Walking
+                };
+            }
+        }
+        if monster.route.is_empty() {
+            if let Some(room) = room_at(position, &rooms_data) {
+                let neighbors: Vec<_> = rooms
+                    .iter()
+                    .filter_map(|(candidate, room_data, links_in_room)| {
+                        (candidate != room
+                            && links_in_room.is_some_and(|room_links| {
+                                room_links.iter().any(|link| {
+                                    let Ok((door_ref, _)) = links.get(link) else {
+                                        return false;
+                                    };
+                                    let opening = door_ref.0;
+                                    let connected = rooms
+                                        .get(room)
+                                        .ok()
+                                        .and_then(|(_, _, old_links)| old_links)
+                                        .is_some_and(|old_links| {
+                                            old_links.iter().any(|other| {
+                                                links.get(other).is_ok_and(|(reference, _)| {
+                                                    reference.0 == opening
+                                                })
+                                            })
+                                        });
+                                    connected
+                                        && !doors.get(opening).is_ok_and(|(_, _, _, locked)| locked)
+                                })
+                            }))
+                        .then_some((candidate, room_data.0))
+                    })
+                    .collect();
+                if !neighbors.is_empty() {
+                    let count = neighbors.len() as u64;
+                    let limit = u64::MAX - u64::MAX % count;
+                    let sample = loop {
+                        let sample = rng.0.next_u64();
+                        if sample < limit {
+                            break sample;
+                        }
+                    };
+                    let pick = (sample % count) as usize;
+                    let (_, bounds) = neighbors[pick];
+                    let center = (bounds.min + bounds.max) * 0.5;
+                    if let Some(path) = route(position, center, &rooms_data, &blockers) {
+                        monster.route = path;
+                        monster.patrol_legs = monster.patrol_legs.saturating_add(1);
+                        monster.long_patrol = LongPatrol::Off;
+                    } else {
+                        monster.route_retry = 1.0;
+                    }
+                }
+            }
+        }
+        while monster
+            .route
+            .front()
+            .is_some_and(|next| position.distance(*next) < ARRIVAL)
+        {
+            monster.route.pop_front();
+        }
+        while monster.route.len() > 1 && clear_path(position, monster.route[1], &dynamic) {
+            monster.route.pop_front();
+        }
+        let Some(next) = monster.route.front().copied() else {
+            continue;
+        };
+        let forward = (next - position).normalize_or_zero();
+        let turn_speed = if monster.pursuit.is_some() {
+            CHASE_TURN_SPEED
+        } else {
+            TURN_SPEED
+        };
+        let waiting = doors.iter().find_map(|(_, door, swing, locked)| {
+            (!locked
+                && position.distance(door.position) < DOOR_APPROACH
+                && (door.state == DoorState::Closed || swing.0 < 1.4)
+                && door_on_route(position, &monster.route, door.position))
+            .then_some(door.position)
+        });
+        if let Some(door) = waiting {
+            let toward = (door - position).normalize_or_zero();
+            if toward != Vec2::ZERO {
+                turn_toward(&mut transform, toward, delta, turn_speed);
+            }
+            continue;
+        }
+        let facing_waypoint = turn_toward(&mut transform, forward, delta, turn_speed);
+        if !facing_waypoint {
+            continue;
+        }
+        let speed = if monster.pursuit.is_some() || monster.long_patrol == LongPatrol::Running {
+            preset.rules().monster.chase_speed.value()
+        } else {
+            preset.rules().monster.walk_speed.value()
+        };
+        let mut travel = (speed * delta).min(position.distance(next));
+        if let Some(pursuit) = monster
+            .pursuit
+            .filter(|pursuit| !pursuit.searching && pursuit.remaining >= SEARCH_TIME)
+        {
+            if sight.clear_sight(position, pursuit.last_sensed) {
+                travel = travel
+                    .min((position.distance(pursuit.last_sensed) - ATTACK_REACH * 0.9).max(0.0));
+            }
+        }
+        if travel <= 0.0 {
+            continue;
+        }
+        let step = forward * travel;
+        let moved = move_player(position, step, &dynamic);
+        if moved.distance(position) < step.length() * 0.15 {
+            monster.stalls += 1;
+            let goal = monster.route.back().copied();
+            monster.route = goal
+                .filter(|_| monster.stalls < STALL_LIMIT)
+                .and_then(|goal| route(position, goal, &rooms_data, &dynamic))
+                .unwrap_or_default();
+            if monster.route.is_empty() {
+                monster.stalls = 0;
+                match monster.pursuit.as_mut() {
+                    Some(pursuit) => pursuit.searching = true,
+                    None => monster.route_retry = 1.0,
+                }
+            }
+            continue;
+        }
+        monster.stalls = 0;
+        transform.translation.x = moved.x;
+        transform.translation.z = moved.y;
+        monster.step_clock += delta;
+        let step_period = if monster.pursuit.is_some() || monster.long_patrol == LongPatrol::Running
+        {
+            CHASE_STEP_PERIOD
+        } else {
+            STEP_PERIOD
+        };
+        if monster.step_clock >= step_period {
+            monster.step_clock -= step_period;
+            cues.write(MonsterCue {
+                monster: entity,
+                kind: MonsterCueKind::Step(monster.step_index),
+            });
+            monster.step_index = (monster.step_index + 1) % 6;
+        }
+    }
+}

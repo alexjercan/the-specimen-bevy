@@ -1,44 +1,58 @@
 use std::{f32::consts::PI, time::Duration};
 
 use bevy::prelude::*;
-use game_audio::{PlaySound, Sound};
 use gameplay::{
     achievements::{Achievement, AchievementPlugin, AchievementProgress, RunAchievements},
-    controller::{Flashlight, PlayerController, PlayerControlsEnabled},
-    levels::{
-        detector_reading, pulse_interval, Caught, Detector, DevicePlugin, DoorPlugin,
-        FacilityPower, FlashExposure, Flashbangs, Flashed, FuseInventory, FusePlugin, Monster,
-        PickupKind, PickupPlugin, Room, DETECTOR_RANGE, FLASHBANG_BURST_DELAY, FLASHBANG_DURATION,
-        PULSE_FAST, PULSE_NEAR, PULSE_SLOW,
+    devices::{
+        detector_reading, pulse_interval, Detector, DeviceCue, DevicePlugin, FlashExposure,
+        Flashbangs, Flashed, DETECTOR_RANGE, FLASHBANG_BURST_DELAY, FLASHBANG_DURATION, PULSE_FAST,
+        PULSE_NEAR, PULSE_SLOW,
     },
+    facility::{DoorPlugin, FacilityPowerPlugin, Room},
+    fuses::{FuseInventory, FusePlugin},
+    interaction::{PickupCue, PickupKind, PickupPlugin},
+    monster::{Caught, Monster, MonsterPlugin},
+    player::{Flashlight, PlayerController, PlayerControlsEnabled},
 };
 
 mod common;
 
-#[derive(Resource, Default)]
-struct Heard(Vec<Sound>);
-
-fn collect(mut sounds: MessageReader<PlaySound>, mut heard: ResMut<Heard>) {
-    heard.0.extend(sounds.read().map(|cue| cue.sound));
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Cue {
+    Device(DeviceCue),
+    Pickup(PickupCue),
 }
 
-fn cues(app: &mut App, sound: Sound) -> usize {
+#[derive(Resource, Default)]
+struct Heard(Vec<Cue>);
+
+fn collect(
+    mut devices: MessageReader<DeviceCue>,
+    mut pickups: MessageReader<PickupCue>,
+    mut heard: ResMut<Heard>,
+) {
+    heard.0.extend(devices.read().map(|&cue| Cue::Device(cue)));
+    heard.0.extend(pickups.read().map(|&cue| Cue::Pickup(cue)));
+}
+
+fn cues(app: &mut App, sound: Cue) -> usize {
     let heard = std::mem::take(&mut app.world_mut().resource_mut::<Heard>().0);
     heard.into_iter().filter(|&cue| cue == sound).count()
 }
 
 fn app() -> (App, Entity) {
     let mut app = common::player_app(Duration::from_millis(100));
-    app.init_resource::<FacilityPower>()
-        .add_plugins((
-            DoorPlugin,
-            FusePlugin,
-            PickupPlugin,
-            DevicePlugin,
-            AchievementPlugin,
-        ))
-        .init_resource::<Heard>()
-        .add_systems(PostUpdate, collect);
+    app.add_plugins((
+        DoorPlugin,
+        FacilityPowerPlugin,
+        FusePlugin,
+        PickupPlugin,
+        DevicePlugin,
+        MonsterPlugin,
+        AchievementPlugin,
+    ))
+    .init_resource::<Heard>()
+    .add_systems(PostUpdate, collect);
     app.finish();
     app.cleanup();
     app.update();
@@ -463,15 +477,15 @@ fn only_the_detector_pickup_plays_the_detector_pickup_cue() {
     let (mut app, player) = app();
     device(&mut app, PickupKind::Flashbang, Vec3::new(0.5, 0.9, -1.5));
     device(&mut app, PickupKind::Detector, Vec3::new(1.5, 0.9, -1.5));
-    cues(&mut app, Sound::DetectorPickup);
+    cues(&mut app, Cue::Pickup(PickupCue::Detector));
     aim(&mut app, player, Vec3::new(0.5, 0.96, -1.5));
     press_key(&mut app, KeyCode::KeyF);
-    assert_eq!(cues(&mut app, Sound::DetectorPickup), 0);
+    assert_eq!(cues(&mut app, Cue::Pickup(PickupCue::Detector)), 0);
     aim(&mut app, player, Vec3::new(1.5, 0.96, -1.5));
     press_key(&mut app, KeyCode::KeyF);
-    assert_eq!(cues(&mut app, Sound::DetectorPickup), 1);
+    assert_eq!(cues(&mut app, Cue::Pickup(PickupCue::Detector)), 1);
     press_key(&mut app, KeyCode::KeyF);
-    assert_eq!(cues(&mut app, Sound::DetectorPickup), 0);
+    assert_eq!(cues(&mut app, Cue::Pickup(PickupCue::Detector)), 0);
 }
 
 #[test]
@@ -489,11 +503,11 @@ fn pulse_interval_shrinks_from_the_cap_to_the_near_floor() {
 }
 
 fn nearby_cues(app: &mut App, frames: usize) -> usize {
-    cues(app, Sound::DetectorNearby);
+    cues(app, Cue::Device(DeviceCue::DetectorNearby));
     for _ in 0..frames {
         app.update();
     }
-    cues(app, Sound::DetectorNearby)
+    cues(app, Cue::Device(DeviceCue::DetectorNearby))
 }
 
 fn detector_app(monster_distance: f32) -> (App, Entity, Entity) {
@@ -574,26 +588,26 @@ fn flashbang_pickup_and_throw_each_play_their_cue_exactly_once() {
     device(&mut app, PickupKind::Flashbang, Vec3::new(0.5, 0.9, -1.5));
     aim(&mut app, player, Vec3::new(1.5, 0.96, -1.5));
     press_key(&mut app, KeyCode::KeyF);
-    assert_eq!(cues(&mut app, Sound::FlashbangPickup), 0);
+    assert_eq!(cues(&mut app, Cue::Pickup(PickupCue::Flashbang)), 0);
 
     click(&mut app, MouseButton::Right);
-    assert_eq!(cues(&mut app, Sound::FlashbangThrow), 0);
+    assert_eq!(cues(&mut app, Cue::Device(DeviceCue::FlashbangThrow)), 0);
 
     aim(&mut app, player, Vec3::new(0.5, 0.96, -1.5));
     press_key(&mut app, KeyCode::KeyF);
-    assert_eq!(cues(&mut app, Sound::FlashbangPickup), 1);
+    assert_eq!(cues(&mut app, Cue::Pickup(PickupCue::Flashbang)), 1);
     press_key(&mut app, KeyCode::KeyF);
-    assert_eq!(cues(&mut app, Sound::FlashbangPickup), 0);
+    assert_eq!(cues(&mut app, Cue::Pickup(PickupCue::Flashbang)), 0);
 
     click(&mut app, MouseButton::Right);
-    assert_eq!(cues(&mut app, Sound::FlashbangThrow), 1);
+    assert_eq!(cues(&mut app, Cue::Device(DeviceCue::FlashbangThrow)), 1);
     click(&mut app, MouseButton::Right);
     for _ in 0..60 {
         app.update();
     }
     click(&mut app, MouseButton::Right);
-    assert_eq!(cues(&mut app, Sound::FlashbangThrow), 0);
-    assert_eq!(cues(&mut app, Sound::FlashbangPickup), 0);
+    assert_eq!(cues(&mut app, Cue::Device(DeviceCue::FlashbangThrow)), 0);
+    assert_eq!(cues(&mut app, Cue::Pickup(PickupCue::Flashbang)), 0);
 }
 
 #[test]
@@ -608,11 +622,11 @@ fn blocked_flashbang_throw_plays_no_cue() {
         .entity_mut(player)
         .insert(Caught::new(monster));
     click(&mut app, MouseButton::Right);
-    assert_eq!(cues(&mut app, Sound::FlashbangThrow), 0);
+    assert_eq!(cues(&mut app, Cue::Device(DeviceCue::FlashbangThrow)), 0);
     assert_eq!(flashbangs(&app, player), Some(1));
 }
 
-fn heard(app: &mut App) -> Vec<Sound> {
+fn heard(app: &mut App) -> Vec<Cue> {
     std::mem::take(&mut app.world_mut().resource_mut::<Heard>().0)
 }
 
@@ -628,24 +642,29 @@ fn flashbang_burst_plays_once_at_detonation_after_the_throw() {
     assert!(app.world().get::<Flashed>(player).is_none());
     let detonation: Vec<_> = heard(&mut app)
         .into_iter()
-        .filter(|sound| matches!(sound, Sound::FlashbangThrow | Sound::FlashbangBurst))
+        .filter(|sound| {
+            matches!(
+                sound,
+                Cue::Device(DeviceCue::FlashbangThrow) | Cue::Device(DeviceCue::FlashbangBurst)
+            )
+        })
         .collect();
-    assert_eq!(detonation, vec![Sound::FlashbangThrow]);
+    assert_eq!(detonation, vec![Cue::Device(DeviceCue::FlashbangThrow)]);
     app.world_mut()
         .resource_mut::<ButtonInput<MouseButton>>()
         .release(MouseButton::Right);
     for _ in 1..(FLASHBANG_BURST_DELAY * 10.0) as usize - 1 {
         app.update();
     }
-    assert_eq!(cues(&mut app, Sound::FlashbangBurst), 0);
+    assert_eq!(cues(&mut app, Cue::Device(DeviceCue::FlashbangBurst)), 0);
     app.update();
-    assert_eq!(cues(&mut app, Sound::FlashbangBurst), 1);
+    assert_eq!(cues(&mut app, Cue::Device(DeviceCue::FlashbangBurst)), 1);
     click(&mut app, MouseButton::Right);
     for _ in 0..60 {
         app.update();
     }
     assert!(app.world().get::<Flashed>(player).is_none());
-    assert_eq!(cues(&mut app, Sound::FlashbangBurst), 0);
+    assert_eq!(cues(&mut app, Cue::Device(DeviceCue::FlashbangBurst)), 0);
 }
 
 #[test]
@@ -678,11 +697,11 @@ fn rapid_throws_with_cheated_stack_each_burst_independently() {
     click(&mut app, MouseButton::Right);
     click(&mut app, MouseButton::Right);
     assert_eq!(flashbangs(&app, player), Some(8));
-    assert_eq!(cues(&mut app, Sound::FlashbangThrow), 2);
+    assert_eq!(cues(&mut app, Cue::Device(DeviceCue::FlashbangThrow)), 2);
     for _ in 0..5 {
         app.update();
     }
-    assert_eq!(cues(&mut app, Sound::FlashbangBurst), 2);
+    assert_eq!(cues(&mut app, Cue::Device(DeviceCue::FlashbangBurst)), 2);
     assert!(app
         .world()
         .resource::<AchievementProgress>()
@@ -710,14 +729,14 @@ fn twenty_rapid_flashbang_throws_each_burst_once() {
     assert_eq!(
         sounds
             .iter()
-            .filter(|&&cue| cue == Sound::FlashbangThrow)
+            .filter(|&&cue| cue == Cue::Device(DeviceCue::FlashbangThrow))
             .count(),
         20
     );
     assert_eq!(
         sounds
             .iter()
-            .filter(|&&cue| cue == Sound::FlashbangBurst)
+            .filter(|&&cue| cue == Cue::Device(DeviceCue::FlashbangBurst))
             .count(),
         20
     );
@@ -773,7 +792,7 @@ fn blocked_flashbang_use_never_bursts() {
         .entity_mut(player)
         .insert(Caught::new(monster));
     click(&mut app, MouseButton::Right);
-    assert_eq!(cues(&mut app, Sound::FlashbangBurst), 0);
+    assert_eq!(cues(&mut app, Cue::Device(DeviceCue::FlashbangBurst)), 0);
     assert_eq!(flashbangs(&app, player), Some(1));
     assert!(app.world().get::<Flashed>(player).is_none());
 }

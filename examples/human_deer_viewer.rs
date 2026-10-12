@@ -70,7 +70,10 @@ fn main() {
             .act(|world| screenshot_start(world, SCREENSHOT_PATH))
             .until(screenshot_written_at(SCREENSHOT_PATH), 15.0)
             .add();
-        app.add_plugins((CapturePlugin::new(30), script));
+        app.add_plugins((
+            CapturePlugin::new(VideoProfile::PREVIEW, FrameStep::SCREENSHOTS.duration()),
+            script,
+        ));
     }
     app.run();
 }

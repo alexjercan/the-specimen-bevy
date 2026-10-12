@@ -5,8 +5,8 @@ use std::time::Duration;
 use bevy::{input::InputPlugin, prelude::*, time::TimeUpdateStrategy};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use gameplay::{
-    controller::{ControllerSettings, KeyBindings, PlayerControllerPlugin},
-    levels::FuseSeed,
+    fuses::FuseSeed,
+    player::{ControllerSettings, Input, KeyBindings, PlayerPlugin},
     presets::GamePreset,
 };
 
@@ -21,8 +21,8 @@ pub fn controller_settings() -> ControllerSettings {
             right: KeyCode::KeyD,
             sprint: KeyCode::ShiftLeft,
             interact: KeyCode::KeyF,
-            flashlight: MouseButton::Left.into(),
-            flashbang: MouseButton::Right.into(),
+            flashlight: Input::Mouse(MouseButton::Left),
+            flashbang: Input::Mouse(MouseButton::Right),
         },
         mouse_sensitivity: 0.0015,
     }
@@ -41,6 +41,6 @@ pub fn player_app(frame: Duration) -> App {
     app.add_plugins((InputPlugin, EnhancedInputPlugin))
         .insert_resource(TimeUpdateStrategy::ManualDuration(frame))
         .insert_resource(controller_settings())
-        .add_plugins(PlayerControllerPlugin);
+        .add_plugins(PlayerPlugin);
     app
 }

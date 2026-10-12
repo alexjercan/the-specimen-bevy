@@ -1,10 +1,10 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use game_audio::{PlaySound, Sound};
-use gameplay::controller::{
-    Flashlight, FlashlightBeam, PlayerController, PlayerControlsEnabled, PlayerPresentationPlugin,
-    RESTART_CHARGE,
+use game_settings::GameSettingsPlugin;
+use gameplay::player::{
+    Flashlight, FlashlightBeam, PlayerController, PlayerControlsEnabled, PlayerCue,
+    PlayerViewPlugin, RESTART_CHARGE,
 };
 
 mod common;
@@ -12,7 +12,7 @@ mod common;
 fn blank_app(camera: bool) -> App {
     let mut app = common::player_app(Duration::from_secs(1));
     if camera {
-        app.add_plugins(PlayerPresentationPlugin);
+        app.add_plugins((GameSettingsPlugin { persist: false }, PlayerViewPlugin));
     }
     app.finish();
     app.cleanup();
@@ -164,9 +164,9 @@ fn empty_charge_requires_recovery_before_restart() {
 #[test]
 fn manual_switches_emit_one_click_each_but_depletion_and_blocked_toggles_are_silent() {
     let (mut app, player) = app(false);
-    let clicks = |app: &mut App| -> Vec<PlaySound> {
+    let clicks = |app: &mut App| -> Vec<PlayerCue> {
         app.world_mut()
-            .resource_mut::<Messages<PlaySound>>()
+            .resource_mut::<Messages<PlayerCue>>()
             .drain()
             .collect()
     };
@@ -177,9 +177,7 @@ fn manual_switches_emit_one_click_each_but_depletion_and_blocked_toggles_are_sil
         .press(MouseButton::Left);
     app.update();
     let played = clicks(&mut app);
-    assert_eq!(played.len(), 1);
-    assert_eq!(played[0].sound, Sound::FlashlightClick);
-    assert_eq!(played[0].position, None);
+    assert_eq!(played, vec![PlayerCue::FlashlightClick]);
     app.update();
     assert!(clicks(&mut app).is_empty());
 

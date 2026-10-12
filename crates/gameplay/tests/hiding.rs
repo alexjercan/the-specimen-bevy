@@ -1,14 +1,18 @@
 use std::{f32::consts::PI, time::Duration};
 
 use bevy::{input::mouse::MouseMotion, prelude::*};
-use game_audio::{PlaySourceSound, Sound, SourceSounds};
+use gameplay::facility::Module;
 use gameplay::{
-    controller::{PlayerController, PlayerControlsEnabled, PlayerInput},
-    levels::{
-        build_first_floor, Door, DoorPlugin, DoorState, FacilityPower, FuseInventory, FusePlugin,
-        Hidden, HidingPhase, HidingPlugin, HidingSpot, PickupKind, PickupPlugin, Prop,
-        PropCollider, Room, HIDING_TRANSITION,
+    facility::{
+        build_first_floor, Door, DoorPlugin, DoorState, FacilityPowerPlugin, Prop, PropCollider,
+        Room,
     },
+    fuses::{FuseInventory, FusePlugin},
+    hiding::{
+        Hidden, HidingCue, HidingCueKind, HidingPhase, HidingPlugin, HidingSpot, HIDING_TRANSITION,
+    },
+    interaction::{PickupKind, PickupPlugin},
+    player::{PlayerController, PlayerControlsEnabled, PlayerInput},
 };
 
 mod common;
@@ -19,17 +23,17 @@ const PLAYER_RADIUS: f32 = 0.25;
 const WALL_HALF_DEPTH: f32 = 0.125;
 
 #[derive(Resource, Default)]
-struct SoundLog(Vec<(Sound, Entity)>);
+struct SoundLog(Vec<(HidingCueKind, Entity)>);
 
-fn collect_sounds(mut events: MessageReader<PlaySourceSound>, mut log: ResMut<SoundLog>) {
-    log.0
-        .extend(events.read().map(|sound| (sound.sound, sound.source)));
+fn collect_sounds(mut events: MessageReader<HidingCue>, mut log: ResMut<SoundLog>) {
+    log.0.extend(events.read().map(|cue| (cue.kind, cue.spot)));
 }
 
 fn plugins() -> App {
     let mut app = common::player_app(Duration::from_millis(100));
-    app.init_resource::<FacilityPower>().add_plugins((
+    app.add_plugins((
         DoorPlugin,
+        FacilityPowerPlugin,
         FusePlugin,
         PickupPlugin,
         HidingPlugin,
@@ -52,13 +56,13 @@ fn app() -> (App, Entity) {
 
 fn spot(app: &mut App, kind: HidingSpot, position: Vec3, yaw: f32) -> Entity {
     let module = match kind {
-        HidingSpot::Locker => "concept_locker",
-        HidingSpot::Table => "concept_table",
+        HidingSpot::Locker => Module::ConceptLocker,
+        HidingSpot::Table => Module::ConceptTable,
     };
     let entity = app
         .world_mut()
         .spawn((
-            Prop(module.to_owned()),
+            Prop(module),
             Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw)),
         ))
         .id();
@@ -71,8 +75,8 @@ fn door(app: &mut App, z: f32) -> Entity {
         .spawn(Door {
             position: Vec2::new(0.0, z),
             rotation: Quat::IDENTITY,
-            frame: String::new(),
-            panel: String::new(),
+            frame: Module::WallDoorway,
+            panel: Module::DoorPanel,
             state: DoorState::Closed,
         })
         .id()
@@ -162,7 +166,7 @@ fn prop_observer_registers_tables_and_lockers_but_not_other_props() {
     let locker = spot(&mut app, HidingSpot::Locker, Vec3::new(2.0, 0.0, -2.0), PI);
     let shelf = app
         .world_mut()
-        .spawn((Prop("shelf_unit".to_owned()), Transform::IDENTITY))
+        .spawn((Prop(Module::ShelfUnit), Transform::IDENTITY))
         .id();
     app.update();
 
@@ -431,10 +435,10 @@ fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
     app.update();
 
     let world = app.world_mut();
-    let spots: Vec<(Entity, HidingSpot, Transform, String)> = world
+    let spots: Vec<(Entity, HidingSpot, Transform, Module)> = world
         .query::<(Entity, &HidingSpot, &Transform, &Prop)>()
         .iter(world)
-        .map(|(entity, spot, transform, prop)| (entity, *spot, *transform, prop.0.clone()))
+        .map(|(entity, spot, transform, prop)| (entity, *spot, *transform, prop.0))
         .collect();
     let rooms: Vec<Rect> = world
         .query::<&Room>()
@@ -472,7 +476,7 @@ fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
     let concept_lockers = world
         .query::<&Prop>()
         .iter(world)
-        .filter(|prop| prop.0 == "concept_locker")
+        .filter(|prop| prop.0 == Module::ConceptLocker)
         .count();
     assert_eq!(lockers.len(), concept_lockers);
     let tables = spots
@@ -482,7 +486,7 @@ fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
     let concept_tables = world
         .query::<&Prop>()
         .iter(world)
-        .filter(|prop| prop.0 == "concept_table")
+        .filter(|prop| prop.0 == Module::ConceptTable)
         .count();
     assert_eq!(tables, concept_tables);
     assert_eq!(tables, 7);
@@ -502,8 +506,8 @@ fn first_floor_hiding_spots_have_clear_exits_and_round_trip() {
 
     for (entity, kind, spot_transform, module) in spots {
         let expected = match kind {
-            HidingSpot::Locker => "concept_locker",
-            HidingSpot::Table => "concept_table",
+            HidingSpot::Locker => Module::ConceptLocker,
+            HidingSpot::Table => Module::ConceptTable,
         };
         assert_eq!(module, expected);
         let exit = kind.exit(&spot_transform);
@@ -575,14 +579,14 @@ fn hiding_actions_emit_one_kind_specific_cue_per_transition() {
         (
             HidingSpot::Locker,
             Vec3::new(0.0, 0.0, -2.0),
-            Sound::LockerOpen,
-            Sound::LockerClose,
+            HidingCueKind::LockerOpen,
+            HidingCueKind::LockerClose,
         ),
         (
             HidingSpot::Table,
             Vec3::new(2.0, 0.0, -2.0),
-            Sound::TableEnter,
-            Sound::TableLeave,
+            HidingCueKind::TableEnter,
+            HidingCueKind::TableLeave,
         ),
     ] {
         let entity = spot(&mut app, kind, position, PI);
@@ -594,9 +598,6 @@ fn hiding_actions_emit_one_kind_specific_cue_per_transition() {
         press_f(&mut app);
         settle(&mut app);
         assert_eq!(hidden(&app, player), None);
-        let emitted = app.world().get::<SourceSounds>(entity).unwrap();
-        assert!(emitted.0.iter().any(|(sound, _)| *sound == enter));
-        assert!(emitted.0.iter().any(|(sound, _)| *sound == leave));
         let cues = &app.world().resource::<SoundLog>().0;
         assert_eq!(&cues[cues.len() - 2..], &[(enter, entity), (leave, entity)]);
         app.world_mut().despawn(entity);
@@ -614,7 +615,7 @@ fn storage_lockers_hide_with_f_after_walking_in_from_the_door() {
         .query::<(Entity, &Prop, &Transform)>()
         .iter(world)
         .filter(|(_, prop, transform)| {
-            prop.0 == "concept_locker"
+            prop.0 == Module::ConceptLocker
                 && Rect::new(6.25, -16.25, 13.75, -8.75).contains(transform.translation.xz())
         })
         .map(|(entity, _, transform)| (entity, *transform))

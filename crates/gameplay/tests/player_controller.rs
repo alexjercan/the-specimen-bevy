@@ -6,9 +6,10 @@ use bevy::{
     prelude::*,
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
-use gameplay::controller::{
-    ControllerSettings, Flashlight, PlayerController, PlayerControlsEnabled, PlayerInput,
-    PlayerPresentationPlugin, RUN_SPEED, WALK_SPEED,
+use game_settings::GameSettingsPlugin;
+use gameplay::player::{
+    ControllerSettings, Flashlight, Input, PlayerController, PlayerControlsEnabled, PlayerInput,
+    PlayerViewPlugin, RUN_SPEED, WALK_SPEED,
 };
 
 mod common;
@@ -16,7 +17,7 @@ mod common;
 fn app(camera: bool) -> (App, Entity) {
     let mut app = common::player_app(Duration::from_millis(100));
     if camera {
-        app.add_plugins(PlayerPresentationPlugin);
+        app.add_plugins((GameSettingsPlugin { persist: false }, PlayerViewPlugin));
     }
     app.finish();
     app.cleanup();
@@ -131,7 +132,7 @@ fn changed_movement_binding_replaces_wasd_action() {
 fn changing_flashlight_binding_replaces_mouse_action() {
     let (mut app, player) = app(false);
     let mut settings = common::controller_settings();
-    settings.keys.flashlight = KeyCode::KeyQ.into();
+    settings.keys.flashlight = Input::Key(KeyCode::KeyQ);
     app.insert_resource(settings);
     app.update();
     app.world_mut()

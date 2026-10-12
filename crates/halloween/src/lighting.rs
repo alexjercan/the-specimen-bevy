@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use gameplay::levels::LightingSettings;
+use gameplay::facility::LightingSettings;
 
 pub struct HalloweenLightingPlugin;
 

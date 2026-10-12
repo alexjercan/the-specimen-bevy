@@ -3,7 +3,7 @@ name: game-task
 description: Used to create a task to a persistent file in the repo
 ---
 
-# Nova Task
+# Tatr Task
 
 Use this project wrapper around Tatr only when the user requests tracked work.
 Keep one request and its follow-ups in one task.
@@ -37,6 +37,16 @@ tatr edit <id> --status CLOSED
 
 Use `-r ROOT` for another checkout. Valid statuses are `OPEN` and `CLOSED`.
 Edit existing task bodies directly.
+
+## Rules the project paid for
+
+- State the intended result first, then the deletion list, then the sequence.
+- Change the owning interface first; callers and tests follow.
+- `Res<T>`, never `Option<Res<T>>` with a fallback. The owning plugin inits
+  the resource. Tests add that plugin. No mirror resources, no
+  `is_plugin_added`.
+- Examples never assert. Asserting scenarios live in `tests/e2e/`.
+- Each mechanical rule names its check in `tests.sh`. No check, no rule.
 
 ## Deliver against the task
 

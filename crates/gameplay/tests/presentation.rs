@@ -1,27 +1,47 @@
 use std::time::Duration;
 
-use bevy::{prelude::*, time::TimeUpdateStrategy, world_serialization::WorldAssetRoot};
-use bevy_asset_loader::mapped::{AssetFileStem, MapKey};
-use game_assets::FacilityAssets;
+use bevy::{
+    asset::uuid::Uuid, platform::collections::HashMap, prelude::*, time::TimeUpdateStrategy,
+    world_serialization::WorldAssetRoot,
+};
 use gameplay::{
-    controller::{PlayerController, PlayerControlsEnabled},
-    levels::{
-        FacilityPower, FuseInventory, FusePanel, FusePlugin, InstallFuses, LevelRenderPlugin,
-        FUSE_COUNT, FUSE_MODULE,
-    },
+    facility::{FacilityAssets, FacilityPowerPlugin, Module},
+    fuses::{FuseInventory, FusePanel, FusePlugin, FuseViewPlugin, InstallFuses, FUSE_COUNT},
+    interaction::PickupKind,
+    player::{PlayerController, PlayerControlsEnabled},
 };
 
 mod common;
 
 fn facility_assets() -> FacilityAssets {
-    let mut modules = bevy::platform::collections::HashMap::default();
-    modules.insert(
-        AssetFileStem::from_asset_path(
-            &format!("facility/modules/{FUSE_MODULE}.glb#Scene0").into(),
-        ),
-        Handle::default(),
-    );
-    FacilityAssets { modules }
+    FacilityAssets {
+        modules: HashMap::from_iter([(
+            Module::FusePickup,
+            Handle::Uuid(Uuid::from_u128(1), default()),
+        )]),
+    }
+}
+
+fn view_app() -> App {
+    let mut app = common::level_app();
+    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+        10,
+    )))
+    .insert_resource(PlayerControlsEnabled::default())
+    .init_resource::<Assets<Mesh>>()
+    .init_resource::<Assets<StandardMaterial>>()
+    .add_plugins((FacilityPowerPlugin, FusePlugin, FuseViewPlugin));
+    app
+}
+
+fn children_of(app: &mut App, parent: Entity) -> Vec<Entity> {
+    let world = app.world_mut();
+    let mut children = world.query::<(Entity, &ChildOf)>();
+    children
+        .iter(world)
+        .filter(|(_, child_of)| child_of.parent() == parent)
+        .map(|(entity, _)| entity)
+        .collect()
 }
 
 fn visuals(app: &mut App, panel: Entity) -> Vec<(Entity, Vec3, Visibility)> {
@@ -35,17 +55,33 @@ fn visuals(app: &mut App, panel: Entity) -> Vec<(Entity, Vec3, Visibility)> {
 }
 
 #[test]
+fn fuse_pickups_render_once_facility_assets_exist() {
+    let mut app = view_app();
+    let fuse = app
+        .world_mut()
+        .spawn((PickupKind::Fuse { slot: 0 }, Transform::IDENTITY))
+        .id();
+    app.update();
+    app.update();
+    assert!(children_of(&mut app, fuse).is_empty());
+
+    app.insert_resource(facility_assets());
+    app.update();
+    let children = children_of(&mut app, fuse);
+    assert_eq!(children.len(), 2);
+    let scenes = children
+        .iter()
+        .filter(|&&child| app.world().get::<WorldAssetRoot>(child).is_some())
+        .count();
+    assert_eq!(scenes, 1);
+    app.update();
+    assert_eq!(children_of(&mut app, fuse).len(), 2);
+}
+
+#[test]
 fn installing_fuses_spawns_one_scene_child_per_fuse_and_slides_them_in_one_by_one() {
-    let mut app = common::level_app();
-    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-        10,
-    )))
-    .insert_resource(facility_assets())
-    .insert_resource(FacilityPower::default())
-    .insert_resource(PlayerControlsEnabled::default())
-    .init_resource::<Assets<Mesh>>()
-    .init_resource::<Assets<StandardMaterial>>()
-    .add_plugins((FusePlugin, LevelRenderPlugin));
+    let mut app = view_app();
+    app.insert_resource(facility_assets());
     let player = app
         .world_mut()
         .spawn((

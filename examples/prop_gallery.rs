@@ -1,6 +1,5 @@
 use bevy::{prelude::*, render::render_resource::Face};
 
-#[path = "gallery/mod.rs"]
 mod gallery;
 
 use gallery::{part, wall_part, Exhibit, Gallery, GalleryPlugin};

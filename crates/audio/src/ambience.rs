@@ -2,68 +2,35 @@ use bevy::{
     audio::{PlaybackSettings, SpatialScale},
     prelude::*,
 };
-use game_assets::SoundAssets;
 
-use super::{volume, AmbienceActive, AudioGain, AudioPaused, ConduitAmbience, WorldAudio};
-use game_settings::GameSettings;
+use super::{volume, AudioGain, AudioPaused, Bus, Volumes};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AmbientSound {
-    Roomtone,
-    LowPressure,
-    Conduit,
-    Boiler,
-    Tank,
-    Vent,
-    VentWind,
-    CoolBuzz,
-}
+const AMBIENT_SPATIAL_SCALE: f32 = 0.3;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AmbientEmitter {
     pub source: Entity,
-    pub sound: AmbientSound,
+    pub handle: Handle<AudioSource>,
     pub volume: f32,
+    pub spatial: bool,
 }
 
 #[derive(Resource, Default)]
 pub struct AmbientEmitters(pub Vec<AmbientEmitter>);
 
+#[derive(Resource, Default)]
+pub struct AmbienceActive(pub bool);
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct AmbientUpdate;
+
 #[derive(Component)]
 pub(super) struct AmbientVoice(Entity);
 
-impl AmbientSound {
-    pub fn requires_power(self) -> bool {
-        matches!(
-            self,
-            Self::Boiler | Self::Vent | Self::VentWind | Self::CoolBuzz
-        )
-    }
-
-    pub fn spatial(self) -> bool {
-        !matches!(self, Self::Roomtone | Self::LowPressure | Self::Conduit)
-    }
-
-    fn handle(self, assets: &SoundAssets) -> Handle<AudioSource> {
-        match self {
-            Self::Roomtone => assets.roomtone.clone(),
-            Self::LowPressure => assets.low_pressure.clone(),
-            Self::Conduit => assets.conduit_roomtone.clone(),
-            Self::Boiler => assets.furnace.clone(),
-            Self::Tank => assets.tank_hum.clone(),
-            Self::Vent => assets.vent_hvac.clone(),
-            Self::VentWind => assets.vent_wind.clone(),
-            Self::CoolBuzz => assets.cool_buzz.clone(),
-        }
-    }
-}
-
 pub(super) fn update_ambience(
     active: Res<AmbienceActive>,
-    conduit: Res<ConduitAmbience>,
     paused: Res<AudioPaused>,
-    assets: Res<SoundAssets>,
-    settings: Res<GameSettings>,
+    volumes: Res<Volumes>,
     emitters: Res<AmbientEmitters>,
     playing: Query<(Entity, &AmbientVoice)>,
     mut commands: Commands,
@@ -75,24 +42,20 @@ pub(super) fn update_ambience(
         return;
     }
     for (entity, voice) in &playing {
-        if !emitters.0.iter().any(|source| {
-            source.source == voice.0 && (source.sound != AmbientSound::Conduit || conduit.0)
-        }) {
+        if !emitters.0.iter().any(|source| source.source == voice.0) {
             commands.entity(entity).despawn();
         }
     }
     for source in &emitters.0 {
-        if source.sound == AmbientSound::Conduit && !conduit.0 {
-            continue;
-        }
         if playing.iter().any(|(_, voice)| voice.0 == source.source) {
             continue;
         }
-        let mut playback = PlaybackSettings::LOOP.with_volume(volume(&settings, source.volume));
-        if source.sound.spatial() {
+        let mut playback =
+            PlaybackSettings::LOOP.with_volume(volume(&volumes, Bus::World, source.volume));
+        if source.spatial {
             playback = playback
                 .with_spatial(true)
-                .with_spatial_scale(SpatialScale::new(0.3));
+                .with_spatial_scale(SpatialScale::new(AMBIENT_SPATIAL_SCALE));
         }
         if paused.0 {
             playback = playback.paused();
@@ -101,9 +64,9 @@ pub(super) fn update_ambience(
             parent.with_children(|children| {
                 children.spawn((
                     AmbientVoice(source.source),
-                    WorldAudio,
+                    Bus::World,
                     AudioGain(source.volume),
-                    AudioPlayer::new(source.sound.handle(&assets)),
+                    AudioPlayer::new(source.handle.clone()),
                     playback,
                     Transform::IDENTITY,
                 ));

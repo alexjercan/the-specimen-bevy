@@ -5,8 +5,11 @@ use game_halloween::{
     Decor, HalloweenAssets, HalloweenDecor, CANDLE_CLUSTER, DECOR, JACK_O_LANTERN, LANTERN,
     SIGN_TRIM, SPECIMEN_JAR, SPIDER, SPIDER_WEB,
 };
-use gameplay::levels::{
-    build_first_floor, build_main_menu_background, PickupKind, Prop, PropCollider, FUSE_TABLES,
+use gameplay::{
+    facility::{
+        build_first_floor, build_main_menu_background, Module, Prop, PropCollider, FUSE_TABLES,
+    },
+    interaction::PickupKind,
 };
 
 use common::{halloween_app, halloween_assets, level_app};
@@ -14,24 +17,37 @@ use common::{halloween_app, halloween_assets, level_app};
 const ANCHOR_TOLERANCE: f32 = 0.01;
 const LIT_MODULES: [&str; 3] = [JACK_O_LANTERN, LANTERN, CANDLE_CLUSTER];
 
-fn anchored(decor: &Decor, prop: &str, transform: &Transform) -> bool {
-    decor.prop == prop && decor.anchor.distance(transform.translation.xz()) <= ANCHOR_TOLERANCE
+fn anchored(decor: &Decor, prop: Module, transform: &Transform) -> bool {
+    decor.prop == Some(prop)
+        && decor.anchor.distance(transform.translation.xz()) <= ANCHOR_TOLERANCE
 }
 
-fn decor_for<'a>(
-    prop: &'a str,
-    transform: &'a Transform,
-) -> impl Iterator<Item = &'static Decor> + 'a {
+fn decor_for(prop: Module, transform: &Transform) -> impl Iterator<Item = &'static Decor> + '_ {
     DECOR
         .iter()
         .filter(move |decor| anchored(decor, prop, transform))
+}
+
+fn sign_label(module: Module) -> bool {
+    matches!(
+        module,
+        Module::SignLabelBoilerRoom
+            | Module::SignLabelStorage
+            | Module::SignLabelMaintenance
+            | Module::SignLabelUtility
+            | Module::SignLabelOffice
+            | Module::SignLabelLab
+            | Module::SignLabelSecurity
+            | Module::SignLabelPrep
+            | Module::SignLabelExit
+    )
 }
 
 fn spawn_menu_background(mut commands: Commands) {
     build_main_menu_background(&mut commands);
 }
 
-fn level_props() -> Vec<(String, Transform)> {
+fn level_props() -> Vec<(Module, Transform)> {
     let mut app = level_app();
     app.add_systems(Startup, (build_first_floor, spawn_menu_background));
     app.update();
@@ -39,7 +55,7 @@ fn level_props() -> Vec<(String, Transform)> {
     world
         .query::<(&Prop, &Transform)>()
         .iter(world)
-        .map(|(prop, transform)| (prop.0.clone(), *transform))
+        .map(|(prop, transform)| (prop.0, *transform))
         .collect()
 }
 
@@ -81,12 +97,12 @@ fn every_decoration_anchors_to_exactly_one_authored_prop() {
         let matches = props
             .iter()
             .filter(|(module, transform)| {
-                decor_for(module, transform).any(|d| std::ptr::eq(d, decor))
+                decor_for(*module, transform).any(|d| std::ptr::eq(d, decor))
             })
             .count();
         assert_eq!(
             matches, 1,
-            "{} on {} at {}",
+            "{} on {:?} at {}",
             decor.module, decor.prop, decor.anchor
         );
     }
@@ -96,22 +112,22 @@ fn every_decoration_anchors_to_exactly_one_authored_prop() {
 fn office_security_and_storage_have_anchored_shelf_and_table_decor() {
     let props = level_props();
     for (module, x, z, surface) in [
-        ("concept_table", 3.75, -18.75, 0.8),
-        ("shelf_unit_bins", 8.1, -17.5, 2.005),
-        ("file_cabinet_open", 13.4, -26.25, 1.32),
-        ("shelf_unit", 13.35, -18.75, 2.005),
-        ("shelf_unit_alt", 10.75, -12.5, 2.005),
-        ("shelf_unit_bins", 10.75, -14.8, 2.005),
-        ("shelf_unit_low", 13.15, -6.25, 1.005),
+        (Module::ConceptTable, 3.75, -18.75, 0.8),
+        (Module::ShelfUnitBins, 8.1, -17.5, 2.005),
+        (Module::FileCabinetOpen, 13.4, -26.25, 1.32),
+        (Module::ShelfUnit, 13.35, -18.75, 2.005),
+        (Module::ShelfUnitAlt, 10.75, -12.5, 2.005),
+        (Module::ShelfUnitBins, 10.75, -14.8, 2.005),
+        (Module::ShelfUnitLow, 13.15, -6.25, 1.005),
     ] {
         let prop = props
             .iter()
             .find(|(name, transform)| {
-                name == module && transform.translation.xz().distance(Vec2::new(x, z)) < 0.01
+                *name == module && transform.translation.xz().distance(Vec2::new(x, z)) < 0.01
             })
             .expect("authored room prop");
         assert!(
-            decor_for(&prop.0, &prop.1).any(|decor| (decor.offset.y - surface).abs() < 0.01),
+            decor_for(prop.0, &prop.1).any(|decor| (decor.offset.y - surface).abs() < 0.01),
             "missing surface decoration at {x}, {z}"
         );
     }
@@ -121,23 +137,23 @@ fn office_security_and_storage_have_anchored_shelf_and_table_decor() {
 fn rooms_beyond_prep_have_surface_decor() {
     let props = level_props();
     for (name, x, z, module) in [
-        ("shelf_unit_bins", -9.5, -7.0, LANTERN),
-        ("shelf_unit_low", -13.3, -13.2, CANDLE_CLUSTER),
-        ("shelf_unit_alt", -10.0, -5.7, SPECIMEN_JAR),
-        ("shelf_unit_bins", -7.5, 9.7, SPECIMEN_JAR),
-        ("shelf_unit", -12.35, 15.65, LANTERN),
-        ("shelf_unit_bins", 7.1, 13.75, LANTERN),
-        ("shelf_unit_low", 7.5, 18.38, LANTERN),
-        ("shelf_unit", 9.0, 4.25, SPECIMEN_JAR),
+        (Module::ShelfUnitBins, -9.5, -7.0, LANTERN),
+        (Module::ShelfUnitLow, -13.3, -13.2, CANDLE_CLUSTER),
+        (Module::ShelfUnitAlt, -10.0, -5.7, SPECIMEN_JAR),
+        (Module::ShelfUnitBins, -7.5, 9.7, SPECIMEN_JAR),
+        (Module::ShelfUnit, -12.35, 15.65, LANTERN),
+        (Module::ShelfUnitBins, 7.1, 13.75, LANTERN),
+        (Module::ShelfUnitLow, 7.5, 18.38, LANTERN),
+        (Module::ShelfUnit, 9.0, 4.25, SPECIMEN_JAR),
     ] {
         let prop = props
             .iter()
             .find(|(prop, transform)| {
-                prop == name && transform.translation.xz().distance(Vec2::new(x, z)) < 0.01
+                *prop == name && transform.translation.xz().distance(Vec2::new(x, z)) < 0.01
             })
             .expect("authored room prop");
         assert!(
-            decor_for(&prop.0, &prop.1).any(|decor| decor.module == module),
+            decor_for(prop.0, &prop.1).any(|decor| decor.module == module),
             "missing {module} at {x}, {z}"
         );
     }
@@ -184,19 +200,19 @@ fn decorations_spawn_as_visual_children_without_gameplay_components() {
     app.update();
     let placed = placed_decor(&mut app);
     let world = app.world_mut();
-    let props: Vec<(Entity, String, Transform)> = world
+    let props: Vec<(Entity, Module, Transform)> = world
         .query::<(Entity, &Prop, &Transform)>()
         .iter(world)
-        .map(|(entity, prop, transform)| (entity, prop.0.clone(), *transform))
+        .map(|(entity, prop, transform)| (entity, prop.0, *transform))
         .collect();
     let authored: usize = props
         .iter()
-        .filter(|(_, name, _)| name != "potted_plant")
-        .map(|(_, name, transform)| decor_for(name, transform).count())
+        .filter(|(_, name, _)| *name != Module::PottedPlant)
+        .map(|(_, name, transform)| decor_for(*name, transform).count())
         .sum();
     let labels: Vec<Entity> = props
         .iter()
-        .filter(|(_, name, _)| name.starts_with("sign_label_"))
+        .filter(|(_, name, _)| sign_label(*name))
         .map(|(entity, _, _)| *entity)
         .collect();
     assert!(labels.len() >= 20);
@@ -295,7 +311,7 @@ fn plant_visuals_become_pumpkins_without_changing_their_prop_identity() {
         world
             .query::<(Entity, &Prop, &Transform)>()
             .iter(world)
-            .filter(|(_, prop, _)| prop.0 == "potted_plant")
+            .filter(|(_, prop, _)| prop.0 == Module::PottedPlant)
             .map(|(entity, _, transform)| (entity, *transform))
             .collect()
     };
@@ -313,9 +329,9 @@ fn plant_visuals_become_pumpkins_without_changing_their_prop_identity() {
     let world = app.world();
     let assets: &HalloweenAssets = world.resource::<HalloweenAssets>();
     for (&(plant, transform), &visual) in plants.iter().zip(&visuals) {
-        assert_eq!(world.get::<Prop>(plant).unwrap().0, "potted_plant");
+        assert_eq!(world.get::<Prop>(plant).unwrap().0, Module::PottedPlant);
         assert!(world.get::<PropCollider>(plant).is_none());
-        let decor = decor_for("potted_plant", &transform)
+        let decor = decor_for(Module::PottedPlant, &transform)
             .next()
             .expect("every plant has a pumpkin");
         assert!(world.get::<HalloweenDecor>(visual).is_some());

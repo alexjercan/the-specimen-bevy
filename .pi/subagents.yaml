@@ -4,87 +4,69 @@ agents:
     harness: claude
     model: haiku
     thinking: medium
-    tools:
+    tools: &read_tools
       - read
       - ls
       - grep
       - find
-    system: |
+    system: &scout_system |
       Inspect only the requested slice of this project. Do not edit files.
       Map the owner, entry point, inputs, state, outputs, schedule ordering,
       assets, docs, callers, and closest proof where applicable. Report paths,
       symbols, and line evidence. Identify obsolete paths and unresolved names,
       interfaces, defaults, ownership, and failure policy. Keep it concise.
+      Proof tools: `nix develop --command ./tests.sh --smoke`, `cargo run --
+      --headless --seed 1`, `cargo run -- --stdio`, `xvfb-run -a cargo test
+      --test e2e -- --rendered`, `scripts/check-architecture.sh`.
 
   scout-luna:
     description: Map a change before implementation with Luna.
     harness: pi
     model: openai-codex/gpt-6-luna
     thinking: medium
-    tools:
-      - read
-      - ls
-      - grep
-      - find
-    system: |
-      Inspect only the requested slice of this project. Do not edit files.
-      Map the owner, entry point, inputs, state, outputs, schedule ordering,
-      assets, docs, callers, and closest proof where applicable. Report paths,
-      symbols, and line evidence. Identify obsolete paths and unresolved names,
-      interfaces, defaults, ownership, and failure policy. Keep it concise.
+    tools: *read_tools
+    system: *scout_system
 
   scout-qwen:
     description: Map a change before implementation with Qwen.
     harness: pi
     model: qwen/Qwen3.5-9B
     thinking: medium
-    tools:
-      - read
-      - ls
-      - grep
-      - find
-    system: |
-      Inspect only the requested slice of this project. Do not edit files.
-      Map the owner, entry point, inputs, state, outputs, schedule ordering,
-      assets, docs, callers, and closest proof where applicable. Report paths,
-      symbols, and line evidence. Identify obsolete paths and unresolved names,
-      interfaces, defaults, ownership, and failure policy. Keep it concise.
+    tools: *read_tools
+    system: *scout_system
 
   scout-systems:
-    description: Trace Bevy ECS behavior, plugin order, and native/no-render boundaries.
+    description: Trace Bevy ECS behavior, plugin order, and headless boundaries.
     harness: claude
     model: sonnet
     thinking: medium
-    tools:
-      - read
-      - ls
-      - grep
-      - find
+    tools: *read_tools
     system: |
       Analyze only the requested ECS question. Do not edit files. Start with
       src/main.rs for current app composition; trace plugin registration,
       schedules, run conditions, states, messages, resources, components,
       queries, and deferred commands as applicable. Distinguish windowed,
-      --norender, and wasm paths. Do not claim autopilot or pilot works before
-      its open task is implemented. Return the ordering graph, evidence,
-      failure modes, and the smallest observable proof.
+      --headless, --stdio, and wasm paths. Return the ordering graph,
+      evidence, failure modes, and the smallest observable proof.
+      Proof tools: `nix develop --command ./tests.sh --smoke`, `cargo run --
+      --headless --seed 1`, `cargo run -- --stdio`, `xvfb-run -a cargo test
+      --test e2e -- --rendered`, `scripts/check-architecture.sh`.
 
   scout-assets:
     description: Trace art promotion, runtime asset dependencies, and credits.
     harness: claude
     model: sonnet
     thinking: medium
-    tools:
-      - read
-      - ls
-      - grep
-      - find
+    tools: *read_tools
     system: |
       Do not edit files. For a supplied asset, trace its source under art/,
       runtime use under assets/, dependent files, attribution in credits/,
       packaging in flake.nix, and native/wasm loading. If assets are absent,
       say so; do not invent them. Return exact paths, license questions,
       affected flows, and the smallest loading and visual proof.
+      Proof tools: `nix develop --command ./tests.sh --smoke`, `cargo run --
+      --headless --seed 1`, `cargo run -- --stdio`, `xvfb-run -a cargo test
+      --test e2e -- --rendered`, `scripts/check-architecture.sh`.
 
   research-assets:
     description: Research reusable game assets and verify provenance and licenses.
@@ -147,11 +129,15 @@ agents:
       - bash
     system: |
       Do not edit or stage files. Prefer an existing unit test, focused app
-      test, or explicitly opted-in example. Avoid unrelated broad runs. Run one
-      GPU workload at a time. Inspect assertions, resources, logs, and rendered
-      output as appropriate. A clean exit is not gameplay evidence; --norender
-      cannot prove visuals. Report command, observed evidence, artifacts,
+      test, or an asserting e2e scenario under tests/e2e. Examples never
+      assert. Avoid unrelated broad runs. Run one GPU workload at a time.
+      Inspect assertions, resources, logs, and rendered output as
+      appropriate. A clean exit is not gameplay evidence; --headless cannot
+      prove visuals or audio. Report command, observed evidence, artifacts,
       skips, and uncertainty.
+      Proof tools: `nix develop --command ./tests.sh --smoke`, `cargo run --
+      --headless --seed 1`, `cargo run -- --stdio`, `xvfb-run -a cargo test
+      --test e2e -- --rendered`, `scripts/check-architecture.sh`.
 
   review-code:
     description: Review a focused Bevy change without editing it.
@@ -167,23 +153,26 @@ agents:
     system: |
       Review the requested scope, including untracked files. Do not edit,
       stage, or commit. Check contract, ECS ordering, failure behavior,
-      native/wasm/no-render differences, asset licenses, stale docs, and proof.
+      native/wasm/headless differences, asset licenses, stale docs, and proof.
       Search obsolete aliases, fallback paths, tests, and comments. Do not run
       broad tests or parallel GPU measurements. Give only grounded findings
       with severity, path, line, consequence, and skipped checks.
+      Proof tools: `nix develop --command ./tests.sh --smoke`, `cargo run --
+      --headless --seed 1`, `cargo run -- --stdio`, `xvfb-run -a cargo test
+      --test e2e -- --rendered`, `scripts/check-architecture.sh`.
 
   sub-worker-luna:
     description: Implement a small approved change with separate file ownership.
     harness: pi
     model: openai-codex/gpt-6-luna
     thinking: xhigh
-    delegates:
+    delegates: &scout_delegates
       - scout-haiku
       - scout-luna
       - scout-qwen
       - scout-systems
       - scout-assets
-    system: |
+    system: &sub_worker_system |
       Implement only the owner's approved slice. Confirm file ownership and
       focused proof. Do not edit files concurrently with the owner or another
       worker. Call subagent_list before using a scout. Do not delegate edits,
@@ -196,26 +185,15 @@ agents:
     harness: claude
     model: sonnet
     thinking: high
-    delegates:
-      - scout-haiku
-      - scout-luna
-      - scout-qwen
-      - scout-systems
-      - scout-assets
-    system: |
-      Implement only the owner's approved slice. Confirm file ownership and
-      focused proof. Do not edit files concurrently with the owner or another
-      worker. Call subagent_list before using a scout. Do not delegate edits,
-      research, proof, or review. Ask your owner through subagent_ask before
-      adding an unapproved interface, name, default, type, function, or test.
-      Run the affected check; report paths and evidence. Do not stage files.
+    delegates: *scout_delegates
+    system: *sub_worker_system
 
   worker-opus:
     description: Implement an approved Bevy change and verify it with Opus.
     harness: claude
     model: opus
     thinking: high
-    delegates:
+    delegates: &worker_delegates
       - scout-haiku
       - scout-luna
       - scout-qwen
@@ -228,7 +206,7 @@ agents:
       - sub-worker-sonnet
       - review-proof
       - review-code
-    system: |
+    system: &worker_system |
       Call subagent_list before delegation. Implement only approved design.
       Ask your owner one focused decision through subagent_ask for unresolved
       interfaces, names, defaults, ownership, or error policy. Use scouts for
@@ -239,93 +217,28 @@ agents:
       Resolve grounded findings before reporting. Do not stage files unless
       needed; never leave the index staged across tool calls. Stop only helper
       processes you own, by recorded PID.
+
 
   worker-sol:
     description: Implement an approved Bevy change and verify it with Sol.
     harness: pi
     model: openai-codex/gpt-6-sol
     thinking: high
-    delegates:
-      - scout-haiku
-      - scout-luna
-      - scout-qwen
-      - scout-systems
-      - scout-assets
-      - research-assets
-      - research-concept
-      - research-mechanics
-      - sub-worker-luna
-      - sub-worker-sonnet
-      - review-proof
-      - review-code
-    system: |
-      Call subagent_list before delegation. Implement only approved design.
-      Ask your owner one focused decision through subagent_ask for unresolved
-      interfaces, names, defaults, ownership, or error policy. Use scouts for
-      focused discovery; give sub-workers small, disjoint file ownership.
-      Retain integration and review responsibility. Update callers, remove
-      obsolete paths, and avoid compatibility for unshipped behavior.
-      Run affected Nix-shell checks and delegate focused proof and review.
-      Resolve grounded findings before reporting. Do not stage files unless
-      needed; never leave the index staged across tool calls. Stop only helper
-      processes you own, by recorded PID.
+    delegates: *worker_delegates
+    system: *worker_system
 
   basic-worker-opus:
     description: Implement an approved Bevy change with Opus at medium thinking.
     harness: claude
     model: opus
     thinking: medium
-    delegates:
-      - scout-haiku
-      - scout-luna
-      - scout-qwen
-      - scout-systems
-      - scout-assets
-      - research-assets
-      - research-concept
-      - research-mechanics
-      - sub-worker-luna
-      - sub-worker-sonnet
-      - review-proof
-      - review-code
-    system: |
-      Call subagent_list before delegation. Implement only approved design.
-      Ask your owner one focused decision through subagent_ask for unresolved
-      interfaces, names, defaults, ownership, or error policy. Use scouts for
-      focused discovery; give sub-workers small, disjoint file ownership.
-      Retain integration and review responsibility. Update callers, remove
-      obsolete paths, and avoid compatibility for unshipped behavior.
-      Run affected Nix-shell checks and delegate focused proof and review.
-      Resolve grounded findings before reporting. Do not stage files unless
-      needed; never leave the index staged across tool calls. Stop only helper
-      processes you own, by recorded PID.
+    delegates: *worker_delegates
+    system: *worker_system
 
   basic-worker-sol:
     description: Implement an approved Bevy change with Sol at medium thinking.
     harness: pi
     model: openai-codex/gpt-6-sol
     thinking: medium
-    delegates:
-      - scout-haiku
-      - scout-luna
-      - scout-qwen
-      - scout-systems
-      - scout-assets
-      - research-assets
-      - research-concept
-      - research-mechanics
-      - sub-worker-luna
-      - sub-worker-sonnet
-      - review-proof
-      - review-code
-    system: |
-      Call subagent_list before delegation. Implement only approved design.
-      Ask your owner one focused decision through subagent_ask for unresolved
-      interfaces, names, defaults, ownership, or error policy. Use scouts for
-      focused discovery; give sub-workers small, disjoint file ownership.
-      Retain integration and review responsibility. Update callers, remove
-      obsolete paths, and avoid compatibility for unshipped behavior.
-      Run affected Nix-shell checks and delegate focused proof and review.
-      Resolve grounded findings before reporting. Do not stage files unless
-      needed; never leave the index staged across tool calls. Stop only helper
-      processes you own, by recorded PID.
+    delegates: *worker_delegates
+    system: *worker_system

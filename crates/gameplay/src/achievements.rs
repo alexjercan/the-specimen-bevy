@@ -3,9 +3,12 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::{
-    controller::PlayerController,
-    levels::{Caught, Escaped, FacilityPower},
-    presets::{GameMode, GamePreset},
+    devices::FlashbangHit,
+    facility::{Escaped, ExitOpened, FacilityPower, ObjectiveSystems, PowerCue},
+    interaction::PickupCue,
+    monster::{Caught, MonsterCue, MonsterCueKind},
+    player::PlayerController,
+    presets::GamePreset,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -134,31 +137,15 @@ pub struct RunAchievements {
     pub detected: bool,
 }
 
-#[derive(Event, Clone, Copy, Debug)]
-pub struct AchievementSignal {
-    pub player: Entity,
-    pub kind: AchievementSignalKind,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum AchievementSignalKind {
-    PickedFlashbang,
-    PickedDetector,
-    RestoredBoiler,
-    ExitOpened,
-    Detected,
-    FlashbangHitMonster,
-}
-
 pub struct AchievementPlugin;
 
 impl Plugin for AchievementPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AchievementProgress>()
             .add_observer(attach_run)
-            .add_observer(record_signal)
             .add_observer(record_escape)
-            .add_observer(record_caught);
+            .add_observer(record_caught)
+            .add_systems(PostUpdate, record_run.before(ObjectiveSystems));
     }
 }
 
@@ -168,31 +155,43 @@ fn attach_run(added: On<Add, PlayerController>, mut commands: Commands) {
         .insert(RunAchievements::default());
 }
 
-fn record_signal(
-    signal: On<AchievementSignal>,
-    mut runs: Query<&mut RunAchievements, With<PlayerController>>,
+fn record_run(
+    mut pickups: MessageReader<PickupCue>,
+    mut power_cues: MessageReader<PowerCue>,
+    mut exits: MessageReader<ExitOpened>,
+    mut monster_cues: MessageReader<MonsterCue>,
+    mut hits: MessageReader<FlashbangHit>,
+    mut run: Single<&mut RunAchievements, With<PlayerController>>,
     mut progress: ResMut<AchievementProgress>,
     mut commands: Commands,
 ) {
-    let Ok(mut run) = runs.get_mut(signal.player) else {
-        return;
-    };
-    match signal.kind {
-        AchievementSignalKind::PickedFlashbang => run.picked_flashbang = true,
-        AchievementSignalKind::PickedDetector => run.picked_detector = true,
-        AchievementSignalKind::RestoredBoiler => {
+    for pickup in pickups.read() {
+        match pickup {
+            PickupCue::Flashbang => run.picked_flashbang = true,
+            PickupCue::Detector => run.picked_detector = true,
+            PickupCue::Fuse { .. } => {}
+        }
+    }
+    for cue in power_cues.read() {
+        if matches!(cue, PowerCue::BoilerRestart { .. }) {
             run.restored_boiler = true;
             unlock(&mut progress, &mut commands, Achievement::RestoreBoiler);
         }
-        AchievementSignalKind::ExitOpened => run.exit_opened = true,
-        AchievementSignalKind::Detected => run.detected = true,
-        AchievementSignalKind::FlashbangHitMonster => {
-            unlock(
-                &mut progress,
-                &mut commands,
-                Achievement::FlashbangHitMonster,
-            );
+    }
+    if exits.read().next().is_some() {
+        run.exit_opened = true;
+    }
+    for cue in monster_cues.read() {
+        if cue.kind == MonsterCueKind::Detected {
+            run.detected = true;
         }
+    }
+    if hits.read().next().is_some() {
+        unlock(
+            &mut progress,
+            &mut commands,
+            Achievement::FlashbangHitMonster,
+        );
     }
 }
 
@@ -212,15 +211,11 @@ fn record_escape(
         (!run.picked_flashbang, Achievement::EscapeWithoutFlashbang),
         (!run.picked_detector, Achievement::EscapeWithoutDetector),
         (
-            !run.restored_boiler && !power.on,
+            !run.restored_boiler && !power.is_on(),
             Achievement::EscapeWithoutBoiler,
         ),
         (!run.detected, Achievement::EscapeUndetected),
-        (
-            matches!(preset.mode, GameMode::Insane | GameMode::Custom)
-                && preset.insane_equivalent(),
-            Achievement::EscapeInsane,
-        ),
+        (preset.insane_equivalent(), Achievement::EscapeInsane),
     ] {
         if earned {
             unlock(&mut progress, &mut commands, achievement);

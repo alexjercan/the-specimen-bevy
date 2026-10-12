@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use gameplay::levels::{LightConfig, LightEffect, LightIntensity, Prop, PropLightsPlugin};
+use gameplay::facility::Module;
+use gameplay::facility::{LightConfig, LightEffect, LightIntensity, Prop, PropLightsPlugin};
 
 #[test]
 fn registered_props_get_light_children_and_unlit_props_do_not() {
@@ -7,19 +8,19 @@ fn registered_props_get_light_children_and_unlit_props_do_not() {
     app.add_plugins((MinimalPlugins, PropLightsPlugin));
     let cool = app
         .world_mut()
-        .spawn((Prop("ceiling_light_cool".into()), Transform::IDENTITY))
+        .spawn((Prop(Module::CeilingLightCool), Transform::IDENTITY))
         .id();
     let dead = app
         .world_mut()
-        .spawn((Prop("ceiling_light_dead".into()), Transform::IDENTITY))
+        .spawn((Prop(Module::CeilingLightDead), Transform::IDENTITY))
         .id();
     let boiler = app
         .world_mut()
-        .spawn((Prop("boiler_unit".into()), Transform::IDENTITY))
+        .spawn((Prop(Module::BoilerUnit), Transform::IDENTITY))
         .id();
     let red = app
         .world_mut()
-        .spawn((Prop("wall_lamp_red".into()), Transform::IDENTITY))
+        .spawn((Prop(Module::WallLampRed), Transform::IDENTITY))
         .id();
     app.update();
 
@@ -64,7 +65,7 @@ fn authored_config_overrides_fixture_defaults_once() {
     let parent = app
         .world_mut()
         .spawn((
-            Prop("ceiling_light_cool".into()),
+            Prop(Module::CeilingLightCool),
             Transform::IDENTITY,
             LightConfig {
                 position: Some(Vec3::new(1.0, 2.0, 3.0)),

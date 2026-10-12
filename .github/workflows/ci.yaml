@@ -15,3 +15,11 @@ jobs:
       - uses: cachix/install-nix-action@v31
       - name: Run test suite
         run: nix develop --command ./tests.sh --full
+  rendered:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Run the rendered e2e scenarios under Xvfb
+        run: nix develop --command bash -c 'VK_ICD_FILENAMES="$BEVY_SOFTWARE_VK_ICD" xvfb-run -a cargo test --locked --test e2e -- --rendered'

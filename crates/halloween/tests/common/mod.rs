@@ -1,20 +1,15 @@
 #![allow(dead_code)]
 
 use bevy::{
-    asset::{uuid::Uuid, AssetPath},
-    platform::collections::HashMap,
-    prelude::*,
-    state::app::StatesPlugin,
+    asset::uuid::Uuid, platform::collections::HashMap, prelude::*, state::app::StatesPlugin,
     world_serialization::WorldAsset,
 };
-use bevy_asset_loader::{
-    loading_state::{LoadingState, LoadingStateAppExt},
-    mapped::{AssetFileStem, MapKey},
-};
-use game_assets::{FacilityAssets, GameAssetsState};
+use bevy_asset_loader::loading_state::{LoadingState, LoadingStateAppExt};
+use game_assets::GameAssetsState;
 use game_halloween::{HalloweenAssets, HalloweenPlugin};
 use gameplay::{
-    levels::{FuseSeed, FUSE_MODULE},
+    facility::{FacilityAssets, Module},
+    fuses::FuseSeed,
     presets::GamePreset,
 };
 
@@ -41,9 +36,8 @@ pub fn halloween_assets() -> HalloweenAssets {
 }
 
 fn facility_assets() -> FacilityAssets {
-    let path = AssetPath::from(format!("facility/modules/{FUSE_MODULE}.glb"));
     FacilityAssets {
-        modules: HashMap::from_iter([(AssetFileStem::from_asset_path(&path), fuse_module())]),
+        modules: HashMap::from_iter([(Module::FusePickup, fuse_module())]),
     }
 }
 

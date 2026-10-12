@@ -1,13 +1,13 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use game_audio::{PlaySound, Sound};
 use gameplay::{
-    controller::{
-        PlayerController, PlayerControlsEnabled, SprintExhausted, Stamina, RUN_SPEED,
-        SPRINT_DRAIN_SECONDS, SPRINT_RECHARGE_SECONDS, SPRINT_RESTART_CHARGE, WALK_SPEED,
+    hiding::{Hidden, HidingMotion, HidingPhase},
+    player::{
+        PlayerController, PlayerControlsEnabled, PlayerCue, SprintExhausted, Stamina, StaminaState,
+        RUN_SPEED, SPRINT_DRAIN_SECONDS, SPRINT_RECHARGE_SECONDS, SPRINT_RESTART_CHARGE,
+        WALK_SPEED,
     },
-    levels::{Hidden, HidingMotion, HidingPhase},
 };
 
 mod common;
@@ -32,10 +32,10 @@ fn stamina_drains_only_while_moving_and_sprinting() {
     assert_eq!(stamina.charge, 1.0);
     assert!(!stamina.advance(true, true, SPRINT_DRAIN_SECONDS / 2.0));
     assert_eq!(stamina.charge, 0.5);
-    assert!(stamina.sprinting);
+    assert!(stamina.sprinting());
     assert!(!stamina.advance(false, true, SPRINT_RECHARGE_SECONDS / 2.0));
     assert_eq!(stamina.charge, 1.0);
-    assert!(!stamina.sprinting);
+    assert!(!stamina.sprinting());
 }
 
 #[test]
@@ -43,30 +43,30 @@ fn exhaustion_occurs_once_and_requires_release_and_recovery() {
     let mut stamina = Stamina::default();
     assert!(stamina.advance(true, true, SPRINT_DRAIN_SECONDS));
     assert_eq!(stamina.charge, 0.0);
-    assert!(stamina.exhausted);
+    assert!(stamina.exhausted());
     assert!(!stamina.advance(true, true, SPRINT_RECHARGE_SECONDS));
     assert_eq!(stamina.charge, 1.0);
-    assert!(!stamina.sprinting);
+    assert!(!stamina.sprinting());
     assert!(!stamina.advance(false, true, 0.0));
-    assert!(!stamina.exhausted);
+    assert!(!stamina.exhausted());
     assert!(!stamina.advance(true, true, 0.1));
-    assert!(stamina.sprinting);
+    assert!(stamina.sprinting());
 
     stamina.charge = 0.0;
-    stamina.exhausted = true;
+    stamina.state = StaminaState::Exhausted;
     assert!(!stamina.advance(
         false,
         false,
         SPRINT_RESTART_CHARGE * SPRINT_RECHARGE_SECONDS / 2.0
     ));
-    assert!(stamina.exhausted);
+    assert!(stamina.exhausted());
     assert!(!stamina.advance(
         false,
         false,
         SPRINT_RESTART_CHARGE * SPRINT_RECHARGE_SECONDS / 2.0
     ));
     assert!(!stamina.advance(false, false, 0.0));
-    assert!(!stamina.exhausted);
+    assert!(!stamina.exhausted());
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn hiding_recharges_stamina_even_when_movement_and_shift_are_held() {
     app.update();
     let stamina = app.world().get::<Stamina>(player).unwrap();
     assert!((stamina.charge - (0.25 + 0.1 / SPRINT_RECHARGE_SECONDS)).abs() < 0.001);
-    assert!(!stamina.sprinting);
+    assert!(!stamina.sprinting());
     assert_eq!(
         app.world().get::<Transform>(player).unwrap().translation,
         before
@@ -105,7 +105,7 @@ fn hiding_recharges_stamina_even_when_movement_and_shift_are_held() {
     app.update();
     let stamina = app.world().get::<Stamina>(player).unwrap();
     assert!((stamina.charge - (0.25 + 0.2 / SPRINT_RECHARGE_SECONDS)).abs() < 0.001);
-    assert!(!stamina.sprinting);
+    assert!(!stamina.sprinting());
     assert_eq!(
         app.world().get::<Transform>(player).unwrap().translation,
         before
@@ -122,7 +122,7 @@ fn shift_falls_back_to_walk_when_exhausted_and_emits_one_event() {
         .resource_mut::<ButtonInput<KeyCode>>()
         .press(KeyCode::ShiftLeft);
     app.update();
-    assert!(app.world().get::<Stamina>(player).unwrap().sprinting);
+    assert!(app.world().get::<Stamina>(player).unwrap().sprinting());
     assert!(
         (app.world().get::<Transform>(player).unwrap().translation.z + RUN_SPEED * 0.1).abs()
             < 0.01
@@ -131,8 +131,8 @@ fn shift_falls_back_to_walk_when_exhausted_and_emits_one_event() {
     app.world_mut().get_mut::<Stamina>(player).unwrap().charge = 0.01;
     app.update();
     let stamina = app.world().get::<Stamina>(player).unwrap();
-    assert!(stamina.exhausted);
-    assert!(!stamina.sprinting);
+    assert!(stamina.exhausted());
+    assert!(!stamina.sprinting());
     let events: Vec<_> = app
         .world_mut()
         .resource_mut::<Messages<SprintExhausted>>()
@@ -142,12 +142,10 @@ fn shift_falls_back_to_walk_when_exhausted_and_emits_one_event() {
     assert_eq!(events[0].position.y, 1.6);
     let cues: Vec<_> = app
         .world_mut()
-        .resource_mut::<Messages<PlaySound>>()
+        .resource_mut::<Messages<PlayerCue>>()
         .drain()
         .collect();
-    assert_eq!(cues.len(), 1);
-    assert_eq!(cues[0].sound, Sound::SprintExhausted);
-    assert_eq!(cues[0].position, None);
+    assert_eq!(cues, vec![PlayerCue::SprintExhausted]);
     let z = app.world().get::<Transform>(player).unwrap().translation.z;
     app.update();
     assert!(
@@ -176,7 +174,6 @@ fn spent_stamina_never_recovers_or_sprints() {
     }
     assert_eq!(stamina, Stamina::spent());
     stamina.charge = 1.0;
-    stamina.exhausted = false;
     assert!(!stamina.advance(true, true, 0.1));
     assert_eq!(stamina, Stamina::spent());
 }

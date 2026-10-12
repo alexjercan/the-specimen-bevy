@@ -229,13 +229,62 @@ pub enum PreferredMode {
     Insane,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum CustomLevel {
+    #[default]
+    Low,
+    Medium,
+    High,
+}
+
+impl CustomLevel {
+    pub const ALL: [Self; 3] = [Self::Low, Self::Medium, Self::High];
+
+    pub fn pick<T: Copy>(self, choices: [T; 3]) -> T {
+        let [low, medium, high] = choices;
+        match self {
+            Self::Low => low,
+            Self::Medium => medium,
+            Self::High => high,
+        }
+    }
+
+    pub fn of<T: Copy + PartialEq>(choices: [T; 3], value: T) -> Self {
+        Self::ALL
+            .into_iter()
+            .find(|level| level.pick(choices) == value)
+            .unwrap_or_default()
+    }
+}
+
+// NOTE: saved as the number 0, 1 or 2 so older settings files still load; unknown numbers mean Low.
+impl Serialize for CustomLevel {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_u8(match self {
+            Self::Low => 0,
+            Self::Medium => 1,
+            Self::High => 2,
+        })
+    }
+}
+
+impl<'de> Deserialize<'de> for CustomLevel {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(match u8::deserialize(deserializer)? {
+            1 => Self::Medium,
+            2 => Self::High,
+            _ => Self::Low,
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CustomDifficulty {
-    pub walk_speed: u8,
-    pub chase_speed: u8,
-    pub walk_hearing: u8,
-    pub run_hearing: u8,
+    pub walk_speed: CustomLevel,
+    pub chase_speed: CustomLevel,
+    pub walk_hearing: CustomLevel,
+    pub run_hearing: CustomLevel,
     pub sprint: bool,
     pub flashbangs: bool,
     pub detector: bool,
@@ -245,10 +294,10 @@ pub struct CustomDifficulty {
 impl Default for CustomDifficulty {
     fn default() -> Self {
         Self {
-            walk_speed: 0,
-            chase_speed: 0,
-            walk_hearing: 0,
-            run_hearing: 0,
+            walk_speed: CustomLevel::Low,
+            chase_speed: CustomLevel::Low,
+            walk_hearing: CustomLevel::Low,
+            run_hearing: CustomLevel::Low,
             sprint: true,
             flashbangs: true,
             detector: true,
@@ -306,17 +355,6 @@ impl GameSettings {
         };
         if !self.keys.unique() {
             self.keys = MovementKeys::default();
-        }
-        let custom = &mut self.custom_difficulty;
-        for value in [
-            &mut custom.walk_speed,
-            &mut custom.chase_speed,
-            &mut custom.walk_hearing,
-            &mut custom.run_hearing,
-        ] {
-            if *value > 2 {
-                *value = 0;
-            }
         }
     }
 

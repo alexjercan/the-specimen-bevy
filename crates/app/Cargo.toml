@@ -1,0 +1,37 @@
+[package]
+name = "game_app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[features]
+debug = ["dep:debug", "game_frontend/debug"]
+steam = ["game_achievements/steam"]
+halloween = ["dep:game_halloween"]
+
+[dependencies]
+bevy.workspace = true
+capture.workspace = true
+bevy_enhanced_input.workspace = true
+game_achievements.workspace = true
+game_assets.workspace = true
+game_audio.workspace = true
+game_flow.workspace = true
+game_frontend.workspace = true
+bevy_rand.workspace = true
+rand_core.workspace = true
+gameplay.workspace = true
+game_ui.workspace = true
+game_settings.workspace = true
+stdio.workspace = true
+serde.workspace = true
+debug = { workspace = true, optional = true }
+game_halloween = { workspace = true, optional = true }
+
+[dev-dependencies]
+bevy_asset_loader.workspace = true
+serde_json.workspace = true

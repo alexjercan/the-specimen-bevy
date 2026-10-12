@@ -1,6 +1,6 @@
 use bevy::{camera::RenderTarget, gizmos::prelude::GizmoConfigGroup, prelude::*};
 use bevy_egui::{egui, EguiContext, PrimaryEguiContext};
-use gameplay::levels::{Monster, MonsterNavigation};
+use gameplay::monster::{Monster, MonsterNavigation};
 
 use crate::DebugSettings;
 

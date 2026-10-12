@@ -1,42 +1,25 @@
 mod common;
 
-use bevy::{audio::PlaybackMode, prelude::*, state::app::StatesPlugin};
-use game_assets::SoundAssets;
-use game_audio::{
-    AmbienceActive, AmbientEmitter, AmbientEmitters, AmbientSound, AudioPaused, ConduitAmbience,
-    GameAudioPlugin,
-};
-use game_settings::GameSettings;
+use bevy::{audio::PlaybackMode, prelude::*};
+use game_audio::{AmbienceActive, AmbientEmitter, AmbientEmitters, AudioPaused, Bus, Volumes};
 
-use common::{audio_app, sound_assets};
+use common::{audio_app, clip};
 
-fn ambient_clip(sound: AmbientSound, assets: &SoundAssets) -> Handle<AudioSource> {
-    match sound {
-        AmbientSound::Roomtone => assets.roomtone.clone(),
-        AmbientSound::LowPressure => assets.low_pressure.clone(),
-        AmbientSound::Conduit => assets.conduit_roomtone.clone(),
-        AmbientSound::Boiler => assets.furnace.clone(),
-        AmbientSound::Tank => assets.tank_hum.clone(),
-        AmbientSound::Vent => assets.vent_hvac.clone(),
-        AmbientSound::VentWind => assets.vent_wind.clone(),
-        AmbientSound::CoolBuzz => assets.cool_buzz.clone(),
-    }
-}
-
-fn ambience_app(sources: &[(AmbientSound, Option<Vec3>, f32)]) -> App {
+fn ambience_app(sources: &[(u128, Option<Vec3>, f32)]) -> App {
     let mut app = audio_app();
     app.insert_resource(AmbienceActive(true));
     let emitters = sources
         .iter()
-        .map(|&(sound, position, volume)| {
+        .map(|&(id, position, volume)| {
             let source = app
                 .world_mut()
                 .spawn(Transform::from_translation(position.unwrap_or(Vec3::ZERO)))
                 .id();
             AmbientEmitter {
                 source,
-                sound,
+                handle: clip(id),
                 volume,
+                spatial: position.is_some(),
             }
         })
         .collect();
@@ -56,65 +39,38 @@ fn voices(app: &mut App) -> Vec<(Entity, Handle<AudioSource>, PlaybackSettings)>
 }
 
 #[test]
-fn ambience_is_inert_before_assets_are_ready() {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, StatesPlugin, GameAudioPlugin))
-        .insert_resource(GameSettings::default())
-        .insert_resource(AmbienceActive(true))
-        .insert_resource(AmbientEmitters(vec![AmbientEmitter {
-            source: Entity::PLACEHOLDER,
-            sound: AmbientSound::Roomtone,
-            volume: 0.1,
-        }]));
+fn ambience_plays_nothing_while_inactive() {
+    let mut app = ambience_app(&[(1, None, 0.1), (2, Some(Vec3::X), 0.2)]);
+    app.insert_resource(AmbienceActive(false));
     app.update();
-    let world = app.world_mut();
-    let mut query = world.query::<&AudioPlayer>();
-    assert_eq!(query.iter(world).count(), 0);
+    app.update();
+    assert!(voices(&mut app).is_empty());
+    assert!(!app.world().resource::<AmbienceActive>().0);
 }
 
 #[test]
-fn ambient_sounds_use_approved_clips() {
-    let sounds = [
-        AmbientSound::Roomtone,
-        AmbientSound::LowPressure,
-        AmbientSound::Conduit,
-        AmbientSound::Boiler,
-        AmbientSound::Tank,
-        AmbientSound::Vent,
-        AmbientSound::VentWind,
-        AmbientSound::CoolBuzz,
-    ];
-    let sources: Vec<_> = sounds.iter().map(|&sound| (sound, None, 0.1)).collect();
-    let mut app = ambience_app(&sources);
-    app.insert_resource(ConduitAmbience(true));
+fn ambience_is_inactive_by_default() {
+    let mut app = audio_app();
+    let source = app.world_mut().spawn(Transform::IDENTITY).id();
+    app.insert_resource(AmbientEmitters(vec![AmbientEmitter {
+        source,
+        handle: clip(1),
+        volume: 0.1,
+        spatial: false,
+    }]));
     app.update();
-    let assets = sound_assets();
-    let emitters = app.world().resource::<AmbientEmitters>().0.clone();
-    let playing = voices(&mut app);
-    assert_eq!(playing.len(), sounds.len());
-    for emitter in &emitters {
-        let (_, handle, _) = playing
-            .iter()
-            .find(|voice| voice.0 == emitter.source)
-            .unwrap();
-        assert_eq!(*handle, ambient_clip(emitter.sound, &assets));
-    }
+    assert!(voices(&mut app).is_empty());
 }
 
 #[test]
 fn ambient_loops_attach_to_their_sources_and_follow_lifecycle() {
     let mut app = ambience_app(&[
-        (AmbientSound::LowPressure, None, 0.04),
-        (AmbientSound::Boiler, Some(Vec3::new(-10.0, 1.0, 0.0)), 0.17),
-        (
-            AmbientSound::VentWind,
-            Some(Vec3::new(-13.65, 0.45, -1.1)),
-            0.035,
-        ),
+        (1, None, 0.04),
+        (2, Some(Vec3::new(-10.0, 1.0, 0.0)), 0.17),
+        (3, Some(Vec3::new(-13.65, 0.45, -1.1)), 0.035),
     ]);
     app.update();
     app.update();
-    let assets = sound_assets();
     let emitters = app.world().resource::<AmbientEmitters>().0.clone();
     let playing = voices(&mut app);
     assert_eq!(playing.len(), 3);
@@ -124,11 +80,19 @@ fn ambient_loops_attach_to_their_sources_and_follow_lifecycle() {
             .find(|voice| voice.0 == emitter.source)
             .unwrap();
         assert_eq!(*parent, emitter.source);
-        assert_eq!(*handle, ambient_clip(emitter.sound, &assets));
+        assert_eq!(*handle, emitter.handle);
         assert!(matches!(settings.mode, PlaybackMode::Loop));
         assert_eq!(settings.volume.to_linear(), emitter.volume);
-        assert_eq!(settings.spatial, emitter.sound.spatial());
+        assert_eq!(settings.spatial, emitter.spatial);
+        assert!(!settings.paused);
     }
+    let world = app.world_mut();
+    let mut query = world.query::<(&Bus, &Transform, &ChildOf)>();
+    assert_eq!(query.iter(world).count(), 3);
+    assert!(query
+        .iter(world)
+        .all(|(bus, transform, _)| *bus == Bus::World && *transform == Transform::IDENTITY));
+
     let boiler = emitters[1].source;
     app.world_mut()
         .entity_mut(boiler)
@@ -152,41 +116,88 @@ fn ambient_loops_attach_to_their_sources_and_follow_lifecycle() {
 }
 
 #[test]
-fn removing_powered_sources_stops_their_voices_without_stopping_tank_audio() {
+fn removing_emitters_stops_their_voices_without_stopping_the_rest() {
     let mut app = ambience_app(&[
-        (AmbientSound::Vent, Some(Vec3::ZERO), 0.09),
-        (AmbientSound::CoolBuzz, Some(Vec3::ZERO), 0.045),
-        (AmbientSound::Boiler, Some(Vec3::ZERO), 0.17),
-        (AmbientSound::Tank, Some(Vec3::ZERO), 0.15),
+        (1, Some(Vec3::ZERO), 0.09),
+        (2, Some(Vec3::ZERO), 0.045),
+        (3, Some(Vec3::ZERO), 0.17),
+        (4, Some(Vec3::ZERO), 0.15),
     ]);
     app.update();
     assert_eq!(voices(&mut app).len(), 4);
+    let kept = app.world().resource::<AmbientEmitters>().0[3].source;
     app.world_mut()
         .resource_mut::<AmbientEmitters>()
         .0
-        .retain(|source| !source.sound.requires_power());
+        .retain(|source| source.source == kept);
     app.update();
     let remaining = voices(&mut app);
     assert_eq!(remaining.len(), 1);
-    assert_eq!(remaining[0].1, sound_assets().tank_hum);
+    assert_eq!(remaining[0].0, kept);
+    assert_eq!(remaining[0].1, clip(4));
+    assert!(app.world().get_entity(kept).is_ok());
 }
 
 #[test]
-fn ambient_loops_follow_pause_activity_and_conduit_state() {
-    let mut app = ambience_app(&[
-        (AmbientSound::Roomtone, None, 0.12),
-        (AmbientSound::Conduit, None, 0.055),
-    ]);
+fn ambient_emitters_skip_despawned_sources_and_play_once_per_source() {
+    let mut app = ambience_app(&[(1, None, 0.1), (2, None, 0.1)]);
+    let gone = app.world().resource::<AmbientEmitters>().0[1].source;
+    app.world_mut().entity_mut(gone).despawn();
+    app.update();
+    app.update();
+    let playing = voices(&mut app);
+    assert_eq!(playing.len(), 1);
+    assert_eq!(playing[0].1, clip(1));
+}
+
+#[test]
+fn ambient_voices_scale_with_world_volume() {
+    let mut app = ambience_app(&[(1, None, 0.5)]);
+    app.insert_resource(Volumes {
+        master: 0.5,
+        world: 0.4,
+        ui: 0.1,
+    });
+    app.update();
+    let playing = voices(&mut app);
+    assert_eq!(playing.len(), 1);
+    assert!((playing[0].2.volume.to_linear() - 0.1).abs() < 0.001);
+}
+
+#[test]
+fn spatial_and_non_spatial_emitters_differ_only_in_spatial_playback() {
+    let mut app = ambience_app(&[(1, None, 0.12), (2, Some(Vec3::new(2.0, 0.0, 0.0)), 0.12)]);
+    app.update();
+    let emitters = app.world().resource::<AmbientEmitters>().0.clone();
+    let playing = voices(&mut app);
+    assert_eq!(playing.len(), 2);
+    let room = playing
+        .iter()
+        .find(|voice| voice.0 == emitters[0].source)
+        .unwrap();
+    let machine = playing
+        .iter()
+        .find(|voice| voice.0 == emitters[1].source)
+        .unwrap();
+    assert!(!room.2.spatial);
+    assert!(room.2.spatial_scale.is_none());
+    assert!(machine.2.spatial);
+    assert_eq!(
+        machine.2.spatial_scale.map(|scale| scale.0),
+        Some(Vec3::splat(0.3))
+    );
+    assert_eq!(room.2.volume, machine.2.volume);
+    assert!(matches!(room.2.mode, PlaybackMode::Loop));
+    assert!(matches!(machine.2.mode, PlaybackMode::Loop));
+}
+
+#[test]
+fn ambient_loops_follow_pause_and_activity() {
+    let mut app = ambience_app(&[(1, None, 0.12)]);
     app.world_mut().resource_mut::<AudioPaused>().0 = true;
     app.update();
     assert_eq!(voices(&mut app).len(), 1);
     assert!(voices(&mut app)[0].2.paused);
-    app.world_mut().resource_mut::<ConduitAmbience>().0 = true;
-    app.update();
-    assert_eq!(voices(&mut app).len(), 2);
-    app.world_mut().resource_mut::<ConduitAmbience>().0 = false;
-    app.update();
-    assert_eq!(voices(&mut app).len(), 1);
     app.world_mut().resource_mut::<AmbienceActive>().0 = false;
     app.update();
     assert!(voices(&mut app).is_empty());
@@ -195,4 +206,6 @@ fn ambient_loops_follow_pause_activity_and_conduit_state() {
     app.update();
     assert_eq!(voices(&mut app).len(), 1);
     assert!(!voices(&mut app)[0].2.paused);
+    let source = app.world().resource::<AmbientEmitters>().0[0].source;
+    assert_eq!(voices(&mut app)[0].0, source);
 }

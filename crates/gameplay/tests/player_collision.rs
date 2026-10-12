@@ -2,8 +2,10 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use gameplay::{
-    controller::{PlayerController, PlayerControlsEnabled},
-    levels::{Door, DoorOf, DoorRef, DoorState, DoorSwing, Passage, Prop, PropCollider, Room},
+    facility::{
+        Door, DoorOf, DoorRef, DoorState, DoorSwing, Module, Passage, Prop, PropCollider, Room,
+    },
+    player::{PlayerController, PlayerControlsEnabled},
 };
 
 mod common;
@@ -127,8 +129,8 @@ fn door_blocks_when_closed_and_allows_crossing_when_open() {
         .spawn(Door {
             position: Vec2::new(0.0, -1.25),
             rotation: Quat::IDENTITY,
-            frame: "wall_doorway".to_owned(),
-            panel: "door_panel".to_owned(),
+            frame: Module::WallDoorway,
+            panel: Module::DoorPanel,
             state: DoorState::Closed,
         })
         .id();
@@ -149,8 +151,8 @@ fn swinging_leaf_blocks_the_current_pose_not_only_the_closed_pose() {
         .spawn(Door {
             position: Vec2::new(0.0, -1.25),
             rotation: Quat::IDENTITY,
-            frame: "wall_doorway".to_owned(),
-            panel: "door_panel".to_owned(),
+            frame: Module::WallDoorway,
+            panel: Module::DoorPanel,
             state: DoorState::Open,
         })
         .id();
@@ -172,8 +174,8 @@ fn door_frame_blocks_sideways_motion_through_open_leaf() {
         .spawn(Door {
             position: Vec2::new(0.0, -1.25),
             rotation: Quat::IDENTITY,
-            frame: "wall_doorway".to_owned(),
-            panel: "door_panel".to_owned(),
+            frame: Module::WallDoorway,
+            panel: Module::DoorPanel,
             state: DoorState::Open,
         })
         .id();
@@ -238,7 +240,7 @@ fn tables_block_movement_but_allow_walking_around_them() {
     let table = app
         .world_mut()
         .spawn((
-            Prop("concept_table".to_owned()),
+            Prop(Module::ConceptTable),
             Transform::from_xyz(0.0, 0.0, -1.5),
         ))
         .id();
@@ -256,7 +258,7 @@ fn rotated_shelves_use_their_rotated_footprint_and_current_position() {
     let shelf = app
         .world_mut()
         .spawn((
-            Prop("shelf_unit".to_owned()),
+            Prop(Module::ShelfUnit),
             Transform::from_xyz(0.0, 0.0, -1.5)
                 .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)),
         ))
@@ -275,20 +277,20 @@ fn rotated_shelves_use_their_rotated_footprint_and_current_position() {
 #[test]
 fn decorative_props_do_not_block_movement() {
     for module in [
-        "sign_label_lab",
-        "clutter_papers",
-        "potted_plant",
-        "chair_tipped",
+        Module::SignLabelLab,
+        Module::ClutterPapers,
+        Module::PottedPlant,
+        Module::ChairTipped,
     ] {
         let (mut app, player) = app();
         let decoration = app
             .world_mut()
-            .spawn((Prop(module.to_owned()), Transform::from_xyz(0.0, 0.0, -1.5)))
+            .spawn((Prop(module), Transform::from_xyz(0.0, 0.0, -1.5)))
             .id();
         app.update();
         assert!(app.world().get::<PropCollider>(decoration).is_none());
         walk(&mut app, KeyCode::KeyW, 8);
-        assert!(position(&app, player).z < -1.5, "{module}");
+        assert!(position(&app, player).z < -1.5, "{module:?}");
     }
 }
 
@@ -301,4 +303,40 @@ fn disabled_controls_do_not_turn_walk_or_interact() {
     app.world_mut().resource_mut::<PlayerControlsEnabled>().0 = true;
     app.update();
     assert_eq!(position(&app, player), Vec3::new(0.0, 1.6, 0.0));
+}
+
+#[test]
+fn module_footprints_drive_prop_colliders() {
+    let (mut app, _) = app();
+    let props: Vec<(Module, Entity)> = Module::ALL
+        .iter()
+        .map(|&module| {
+            let entity = app
+                .world_mut()
+                .spawn((Prop(module), Transform::from_xyz(50.0, 0.0, 50.0)))
+                .id();
+            (module, entity)
+        })
+        .collect();
+    app.update();
+    let mut solid = 0;
+    for (module, entity) in props {
+        let collider = app.world().get::<PropCollider>(entity);
+        match module.footprint() {
+            Some((min, max)) => {
+                assert!(min.x < max.x && min.y < max.y, "{module:?}");
+                let collider = collider.unwrap_or_else(|| panic!("{module:?} collider"));
+                assert_eq!(collider.center, (min + max) / 2.0, "{module:?}");
+                assert_eq!(collider.half, (max - min) / 2.0, "{module:?}");
+                solid += 1;
+            }
+            None => assert!(collider.is_none(), "{module:?}"),
+        }
+    }
+    assert_eq!(solid, 17);
+    assert_eq!(
+        Module::Workbench.footprint(),
+        Some((Vec2::new(-0.8, -0.35), Vec2::new(0.8, 0.35)))
+    );
+    assert_eq!(Module::ClutterPapers.footprint(), None);
 }

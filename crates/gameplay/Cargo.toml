@@ -13,8 +13,6 @@ bevy.workspace = true
 bevy_enhanced_input.workspace = true
 bevy_rand.workspace = true
 rand_core.workspace = true
-game_assets.workspace = true
 game_audio.workspace = true
-
-[dev-dependencies]
-bevy_asset_loader.workspace = true
+game_settings.workspace = true
+game_ui.workspace = true

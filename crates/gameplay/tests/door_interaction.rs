@@ -1,19 +1,20 @@
 use std::{f32::consts::FRAC_PI_2, time::Duration};
 
 use bevy::prelude::*;
+use gameplay::facility::Module;
 use gameplay::{
-    controller::{PlayerController, PlayerControlsEnabled},
-    levels::{
-        panel_center, panel_top, Door, DoorPanel, DoorPlugin, DoorState, DoorSwing, FacilityPower,
-        ToggleDoor,
+    facility::{
+        panel_center, panel_top, Door, DoorPanel, DoorPlugin, DoorState, DoorSwing,
+        FacilityPowerPlugin, ToggleDoor,
     },
+    player::{PlayerController, PlayerControlsEnabled},
 };
 
 mod common;
 
 fn app() -> (App, Entity) {
     let mut app = common::player_app(Duration::from_millis(100));
-    app.init_resource::<FacilityPower>().add_plugins(DoorPlugin);
+    app.add_plugins((DoorPlugin, FacilityPowerPlugin));
     app.finish();
     app.cleanup();
     app.update();
@@ -30,8 +31,8 @@ fn door(app: &mut App, x: f32, z: f32) -> Entity {
         .spawn(Door {
             position: Vec2::new(x, z),
             rotation: Quat::IDENTITY,
-            frame: String::new(),
-            panel: String::new(),
+            frame: Module::WallDoorway,
+            panel: Module::DoorPanel,
             state: DoorState::Closed,
         })
         .id()

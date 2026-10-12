@@ -3,23 +3,23 @@ use std::{
     time::Duration,
 };
 
-use bevy::{
-    prelude::*, state::app::StatesPlugin, time::TimeUpdateStrategy,
-    world_serialization::WorldAssetRoot,
-};
-use game_assets::{GameAssetsState, MonsterAssets};
-use game_audio::{PlaySound, PlaySourceSound, Sound};
+use bevy::{prelude::*, time::TimeUpdateStrategy, world_serialization::WorldAssetRoot};
+use gameplay::facility::Module;
 use gameplay::{
-    controller::{
-        door_frames, door_panel, PlayerController, PlayerControlsEnabled, PlayerInput, Stamina,
-        RUN_SPEED,
+    devices::{Detector, DeviceCue, DevicePlugin, Flashbangs, Flashed},
+    facility::{
+        build_first_floor, spawn_first_floor_actors, Door, DoorLock, DoorOf, DoorPlugin, DoorRef,
+        DoorState, DoorSwing, ExitDoor, Passage, PropCollider, Room, ToggleDoor,
     },
-    levels::{
-        build_first_floor, spawn_first_floor_actors, Caught, Detector, DevicePlugin, Door,
-        DoorLock, DoorOf, DoorPlugin, DoorRef, DoorState, DoorSwing, ExitDoor, Flashbangs, Flashed,
-        FusePanel, Hidden, HidingPhase, HidingPlugin, HidingSpot, Monster, MonsterFigure,
-        MonsterNavigation, MonsterPlugin, MonsterRenderPlugin, Passage, PatrolRng, PropCollider,
-        Room, ToggleDoor, UseHidingSpot, MONSTER_HEAD_JOINT,
+    fuses::FusePanel,
+    hiding::{Hidden, HidingPhase, HidingPlugin, HidingSpot, UseHidingSpot},
+    monster::{
+        Caught, Monster, MonsterAssets, MonsterCue, MonsterCueKind, MonsterFigure,
+        MonsterNavigation, MonsterPlugin, MonsterViewPlugin, PatrolRng, MONSTER_HEAD_JOINT,
+    },
+    player::{
+        door_frames, door_panel, PlayerController, PlayerControlsEnabled, PlayerInput, Stamina,
+        StaminaState, RUN_SPEED,
     },
     presets::{GameMode, GamePreset},
 };
@@ -33,7 +33,7 @@ fn monster_app_with(frame: Duration) -> App {
     let mut app = common::level_app();
     app.insert_resource(TimeUpdateStrategy::ManualDuration(frame))
         .insert_resource(PlayerControlsEnabled::default())
-        .add_plugins(MonsterPlugin);
+        .add_plugins((MonsterPlugin, DoorPlugin));
     app
 }
 
@@ -105,21 +105,18 @@ fn walk(app: &mut App, player: Entity) {
 
 fn sprint(app: &mut App, player: Entity) {
     walk(app, player);
-    app.world_mut()
-        .get_mut::<Stamina>(player)
-        .unwrap()
-        .sprinting = true;
+    app.world_mut().get_mut::<Stamina>(player).unwrap().state = StaminaState::Sprinting;
 }
 
 #[derive(Resource, Default)]
-struct Cues(Vec<(Entity, Sound)>);
+struct Cues(Vec<(Entity, MonsterCueKind)>);
 
-fn collect_cues(mut sounds: MessageReader<PlaySourceSound>, mut cues: ResMut<Cues>) {
+fn collect_cues(mut sounds: MessageReader<MonsterCue>, mut cues: ResMut<Cues>) {
     cues.0
-        .extend(sounds.read().map(|cue| (cue.source, cue.sound)));
+        .extend(sounds.read().map(|cue| (cue.monster, cue.kind)));
 }
 
-fn count(app: &App, source: Entity, sound: Sound) -> usize {
+fn count(app: &App, source: Entity, sound: MonsterCueKind) -> usize {
     app.world()
         .resource::<Cues>()
         .0
@@ -170,13 +167,13 @@ fn presence_repeats_while_monster_waits_without_a_route() {
     for _ in 190..500 {
         app.update();
     }
-    assert_eq!(count(&app, monster, Sound::MonsterPresence), 2);
+    assert_eq!(count(&app, monster, MonsterCueKind::Presence), 2);
     assert!(!app
         .world()
         .resource::<Cues>()
         .0
         .iter()
-        .any(|(_, cue)| matches!(cue, Sound::MonsterStep(_))));
+        .any(|(_, cue)| matches!(cue, MonsterCueKind::Step(_))));
 }
 
 fn measure_chase(mode: GameMode) -> Vec<f32> {
@@ -203,7 +200,11 @@ fn measure_chase(mode: GameMode) -> Vec<f32> {
 
 #[test]
 fn chase_runs_one_meter_per_second_faster_than_a_sprint() {
-    let chase = GamePreset::of(GameMode::Normal).monster.chase_speed.value();
+    let chase = GamePreset::of(GameMode::Normal)
+        .rules()
+        .monster
+        .chase_speed
+        .value();
     assert!((chase - RUN_SPEED - 1.0).abs() < 0.001);
     for travelled in measure_chase(GameMode::Normal) {
         assert!(
@@ -216,7 +217,11 @@ fn chase_runs_one_meter_per_second_faster_than_a_sprint() {
 
 #[test]
 fn insane_chase_runs_at_double_sprint_speed() {
-    let chase = GamePreset::of(GameMode::Insane).monster.chase_speed.value();
+    let chase = GamePreset::of(GameMode::Insane)
+        .rules()
+        .monster
+        .chase_speed
+        .value();
     assert!((chase - RUN_SPEED * 2.0).abs() < 0.001);
     for travelled in measure_chase(GameMode::Insane) {
         assert!(
@@ -480,7 +485,7 @@ fn hiding_entry_behind_a_wall_is_not_witnessed() {
 #[test]
 fn caught_player_cannot_move_look_or_hide_and_faces_the_full_attack() {
     let mut app = common::player_app(Duration::from_millis(100));
-    app.add_plugins((MonsterPlugin, HidingPlugin));
+    app.add_plugins((MonsterPlugin, DoorPlugin, HidingPlugin));
     app.finish();
     app.cleanup();
     app.update();
@@ -814,8 +819,8 @@ fn detection_and_attack_emit_one_source_attached_cue_each() {
     for _ in 0..12 {
         app.update();
     }
-    assert_eq!(count(&app, monster, Sound::MonsterDetected), 1);
-    assert_eq!(count(&app, monster, Sound::MonsterAttack), 1);
+    assert_eq!(count(&app, monster, MonsterCueKind::Detected), 1);
+    assert_eq!(count(&app, monster, MonsterCueKind::Attack), 1);
     assert!(caught(&app, player).is_some());
 }
 
@@ -870,7 +875,12 @@ fn patrol_schedules_a_distant_room_after_short_legs() {
             walking.push(travelled);
         }
     }
-    let walk = GamePreset::of(GameMode::Insane).monster.walk_speed.value() * 4.0;
+    let walk = GamePreset::of(GameMode::Insane)
+        .rules()
+        .monster
+        .walk_speed
+        .value()
+        * 4.0;
     assert!(!running.is_empty() && !walking.is_empty());
     assert!(running.iter().all(|distance| *distance > walk));
     assert!(walking.iter().all(|distance| *distance < walk));
@@ -882,8 +892,8 @@ fn spawn_door(app: &mut App, position: Vec2, yaw: f32, locked: bool) -> Entity {
         Door {
             position,
             rotation: Quat::from_rotation_y(yaw),
-            frame: "wall_doorway".to_owned(),
-            panel: "door_panel".to_owned(),
+            frame: Module::WallDoorway,
+            panel: Module::DoorPanel,
             state: DoorState::Closed,
         },
     ));
@@ -943,8 +953,7 @@ fn record_door_toggles(mut toggles: MessageReader<ToggleDoor>, mut recorded: Res
 
 fn door_app(door_at: Vec2, yaw: f32, rooms: [Rect; 2]) -> (App, Entity) {
     let mut app = monster_app();
-    app.add_plugins(DoorPlugin)
-        .init_resource::<DoorToggles>()
+    app.init_resource::<DoorToggles>()
         .add_systems(PostUpdate, record_door_toggles);
     let door = spawn_door(&mut app, door_at, yaw, false);
     link_rooms(&mut app, door, rooms);
@@ -1123,7 +1132,6 @@ fn patrol_opens_traverses_and_leaves_an_unlocked_door_open() {
 #[test]
 fn locked_exit_is_not_a_patrol_neighbor() {
     let mut app = monster_app_with(Duration::from_millis(16));
-    app.add_plugins(DoorPlugin);
     let door = spawn_door(&mut app, Vec2::ZERO, FRAC_PI_2, true);
     link_rooms(
         &mut app,
@@ -1145,8 +1153,7 @@ fn locked_exit_is_not_a_patrol_neighbor() {
 #[test]
 fn authored_floor_schedules_a_reachable_long_patrol_destination() {
     let mut app = monster_app();
-    app.add_plugins(DoorPlugin)
-        .add_systems(Startup, build_first_floor);
+    app.add_systems(Startup, build_first_floor);
     app.update();
     let monster = spawn_monster(&mut app, Transform::from_xyz(-2.5, 0.0, 0.0));
     let mut planned = None;
@@ -1225,8 +1232,7 @@ fn monster_crosses_office_east_door_to_reach_a_witnessed_table() {
 #[test]
 fn authored_first_floor_patrol_reaches_another_room() {
     let mut app = monster_app_with(Duration::from_millis(16));
-    app.add_plugins(DoorPlugin)
-        .init_resource::<Cues>()
+    app.init_resource::<Cues>()
         .add_systems(Startup, build_first_floor)
         .add_systems(PostUpdate, collect_cues);
     app.update();
@@ -1266,25 +1272,32 @@ fn authored_first_floor_patrol_reaches_another_room() {
             .resource::<Cues>()
             .0
             .iter()
-            .any(|(_, cue)| matches!(cue, Sound::MonsterStep(_))),
+            .any(|(_, cue)| matches!(cue, MonsterCueKind::Step(_))),
         "moving patrol must emit timed footsteps"
     );
 }
 
-fn render_app() -> App {
+fn monster_assets() -> MonsterAssets {
+    MonsterAssets {
+        scene: default(),
+        idle: default(),
+        walk: default(),
+        chase: default(),
+        attack: default(),
+    }
+}
+
+fn view_app() -> App {
     let mut app = common::level_app();
-    app.add_plugins(StatesPlugin)
-        .insert_state(GameAssetsState::Ready)
-        .init_resource::<Assets<AnimationGraph>>()
-        .insert_resource(MonsterAssets {
-            scene: default(),
-            idle: default(),
-            walk: default(),
-            chase: default(),
-            attack: default(),
-        })
+    app.init_resource::<Assets<AnimationGraph>>()
         .insert_resource(PlayerControlsEnabled::default())
-        .add_plugins(MonsterRenderPlugin);
+        .add_plugins(MonsterViewPlugin);
+    app
+}
+
+fn render_app() -> App {
+    let mut app = view_app();
+    app.insert_resource(monster_assets());
     app
 }
 
@@ -1301,7 +1314,7 @@ fn scene_roots(app: &mut App, parent: Entity) -> Vec<Entity> {
 #[test]
 fn rendered_monster_attaches_one_scene_once() {
     let mut app = render_app();
-    app.add_plugins(MonsterPlugin)
+    app.add_plugins((MonsterPlugin, DoorPlugin))
         .add_systems(Startup, spawn_first_floor_actors);
     app.update();
     app.update();
@@ -1314,6 +1327,18 @@ fn rendered_monster_attaches_one_scene_once() {
     assert_eq!(app.world().get::<Children>(monster).unwrap().len(), 1);
     let world = app.world_mut();
     assert_eq!(world.query::<&WorldAssetRoot>().iter(world).count(), 1);
+}
+
+#[test]
+fn view_waits_for_monster_assets_before_attaching_a_scene() {
+    let mut app = view_app();
+    let figure = app.world_mut().spawn(MonsterFigure).id();
+    app.update();
+    app.update();
+    assert!(scene_roots(&mut app, figure).is_empty());
+    app.insert_resource(monster_assets());
+    app.update();
+    assert_eq!(scene_roots(&mut app, figure).len(), 1);
 }
 
 #[test]
@@ -1422,13 +1447,13 @@ fn monster_figure_never_gains_monster_ai_behavior() {
 
 fn flash_app() -> App {
     flash_app_with(|app| {
-        app.add_plugins((DevicePlugin, MonsterPlugin));
+        app.add_plugins((DevicePlugin, MonsterPlugin, DoorPlugin));
     })
 }
 
 fn flash_app_with_hiding() -> App {
     flash_app_with(|app| {
-        app.add_plugins((DevicePlugin, MonsterPlugin, HidingPlugin));
+        app.add_plugins((DevicePlugin, MonsterPlugin, DoorPlugin, HidingPlugin));
     })
 }
 
@@ -1736,10 +1761,10 @@ fn flash_after_contact_does_not_cancel_the_catch() {
 #[derive(Resource, Default)]
 struct Pulses(usize);
 
-fn count_pulses(mut sounds: MessageReader<PlaySound>, mut pulses: ResMut<Pulses>) {
+fn count_pulses(mut sounds: MessageReader<DeviceCue>, mut pulses: ResMut<Pulses>) {
     pulses.0 += sounds
         .read()
-        .filter(|cue| cue.sound == Sound::DetectorNearby)
+        .filter(|&&cue| cue == DeviceCue::DetectorNearby)
         .count();
 }
 

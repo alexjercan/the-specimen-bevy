@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 use gameplay::{
-    controller::{PlayerController, Stamina},
-    levels::{build_first_floor, spawn_first_floor_actors, FacilityPower, FuseSeed, PickupKind},
-    presets::{GameMode, GamePreset},
+    facility::{build_first_floor, spawn_first_floor_actors, FacilityPower},
+    fuses::FuseSeed,
+    interaction::PickupKind,
+    player::{PlayerController, Stamina},
+    presets::{GameMode, GamePreset, PresetRules},
 };
 
 mod common;
@@ -12,44 +14,43 @@ fn insane_equivalence_needs_every_handicap_of_the_insane_preset() {
     let normal = GamePreset::default();
     assert_eq!(normal, GamePreset::of(GameMode::Normal));
     assert!(!normal.insane_equivalent());
-    assert!(normal.sprint && normal.flashbangs && normal.detector && !normal.blackout);
+    let rules = normal.rules();
+    assert!(rules.sprint && rules.flashbangs && rules.detector && !rules.blackout);
 
     let custom = GamePreset::of(GameMode::Custom);
-    assert_eq!(custom.monster, normal.monster);
+    assert_eq!(custom.rules().monster, normal.rules().monster);
     assert!(!custom.insane_equivalent());
 
     let insane = GamePreset::of(GameMode::Insane);
-    assert_ne!(insane.monster, normal.monster);
-    assert!(!insane.sprint && !insane.flashbangs && !insane.detector && insane.blackout);
+    let rules = insane.rules();
+    assert_ne!(rules.monster, normal.rules().monster);
+    assert!(!rules.sprint && !rules.flashbangs && !rules.detector && rules.blackout);
     assert!(insane.insane_equivalent());
-    let max_custom = GamePreset {
-        mode: GameMode::Custom,
-        ..insane
-    };
-    assert!(max_custom.insane_equivalent());
+    let max_custom = insane.rules();
+    assert!(GamePreset::Custom(max_custom).insane_equivalent());
     for easier in [
-        GamePreset {
+        PresetRules {
             sprint: true,
             ..max_custom
         },
-        GamePreset {
+        PresetRules {
             flashbangs: true,
             ..max_custom
         },
-        GamePreset {
+        PresetRules {
             detector: true,
             ..max_custom
         },
-        GamePreset {
+        PresetRules {
             blackout: false,
             ..max_custom
         },
-        GamePreset {
-            monster: normal.monster,
+        PresetRules {
+            monster: normal.rules().monster,
             ..max_custom
         },
     ] {
-        assert!(!easier.insane_equivalent());
+        assert!(!GamePreset::Custom(easier).insane_equivalent());
     }
 }
 
@@ -96,21 +97,21 @@ fn level_build_applies_the_selected_preset() {
     let mut insane = build(GamePreset::of(GameMode::Insane));
     assert_eq!(devices(&mut insane), (0, 0));
     let power = *insane.resource::<FacilityPower>();
-    assert!(!power.on && !power.outage_pending && !power.repairable());
+    assert!(!power.is_on() && power.outage_in().is_none() && !power.repairable());
     assert_eq!(stamina(&mut insane), Stamina::spent());
 }
 
 #[test]
 fn flashbang_and_detector_pickups_are_controlled_separately() {
-    let normal = GamePreset::default();
-    let mut flashbang_only = build(GamePreset {
+    let normal = PresetRules::NORMAL;
+    let mut flashbang_only = build(GamePreset::Custom(PresetRules {
         detector: false,
         ..normal
-    });
+    }));
     assert_eq!(devices(&mut flashbang_only), (1, 0));
-    let mut detector_only = build(GamePreset {
+    let mut detector_only = build(GamePreset::Custom(PresetRules {
         flashbangs: false,
         ..normal
-    });
+    }));
     assert_eq!(devices(&mut detector_only), (0, 1));
 }

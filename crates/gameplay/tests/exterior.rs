@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use gameplay::levels::{build_first_floor, Prop, Room};
+use gameplay::facility::Module;
+use gameplay::facility::{build_first_floor, Prop, Room};
 
 mod common;
 
@@ -16,10 +17,10 @@ fn exterior_corridor_is_visual_only_and_attached_to_exit_room() {
         .find(|(_, name, _)| name.as_str() == "exit")
         .map(|(entity, _, room)| (entity, room.0))
         .expect("exit room");
-    let props: Vec<(String, Vec3, Entity)> = world
+    let props: Vec<(Module, Vec3, Entity)> = world
         .query::<(&Prop, &Transform, &ChildOf)>()
         .iter(world)
-        .map(|(prop, transform, parent)| (prop.0.clone(), transform.translation, parent.parent()))
+        .map(|(prop, transform, parent)| (prop.0, transform.translation, parent.parent()))
         .collect();
     let attachments: Vec<Entity> = world
         .query::<(Entity, &ChildOf)>()
@@ -47,8 +48,10 @@ fn exterior_corridor_is_visual_only_and_attached_to_exit_room() {
     assert_eq!(details.len(), 2);
     assert!(details
         .iter()
-        .any(|(module, _, _)| module == "wall_lamp_red"));
-    assert!(details.iter().any(|(module, _, _)| module == "exit_sign"));
+        .any(|(module, _, _)| *module == Module::WallLampRed));
+    assert!(details
+        .iter()
+        .any(|(module, _, _)| *module == Module::ExitSign));
     for (_, position, _) in details {
         assert!(
             position.z < bounds.min.y,

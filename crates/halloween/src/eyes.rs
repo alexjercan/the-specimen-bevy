@@ -4,7 +4,7 @@ use bevy::{
     prelude::*,
     world_serialization::WorldAssetRoot,
 };
-use gameplay::levels::MONSTER_HEAD_JOINT;
+use gameplay::monster::MONSTER_HEAD_JOINT;
 
 pub const MONSTER_EYES_MESH: &str = "Eyes_low_Deer_head1_0";
 pub const EYE_COLOR: Color = Color::srgb(1.0, 0.42, 0.04);

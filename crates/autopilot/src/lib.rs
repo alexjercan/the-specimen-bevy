@@ -229,7 +229,7 @@ fn start_step(world: &mut World, step: &Step) {
     clock.step_elapsed = 0.0;
     clock.step_frames = 0;
     clock.step_real = 0.0;
-    info!("autopilot: step `{}` begins", step.name);
+    debug!("autopilot: step `{}` begins", step.name);
     for action in &step.actions {
         action(world);
     }
@@ -262,7 +262,7 @@ fn step_outcome(world: &World, step: &Step) -> StepOutcome {
 }
 
 fn complete(world: &mut World) {
-    info!("autopilot: complete");
+    debug!("autopilot: complete");
     *world.resource_mut::<AutopilotStatus>() = AutopilotStatus::Success;
 }
 

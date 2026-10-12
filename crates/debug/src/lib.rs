@@ -1,4 +1,5 @@
 use bevy::camera::RenderTarget;
+use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::gizmos::{prelude::GizmoConfig, AppGizmoBuilder};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::pbr::wireframe::{WireframeConfig, WireframePlugin};
@@ -11,11 +12,12 @@ use bevy_inspector_egui::{bevy_inspector, DefaultInspectorConfigPlugin};
 mod monster_tracking;
 
 use gameplay::{
-    controller::{Flashlight, PlayerController, Stamina},
-    levels::{
-        Detector, Door, FacilityPower, Flashbangs, FuseInventory, FusePanel, Monster, PickupKind,
-        Prop, Room,
-    },
+    devices::{Detector, Flashbangs},
+    facility::{Door, FacilityPower, Prop, Room},
+    fuses::{FuseInventory, FusePanel},
+    interaction::PickupKind,
+    monster::Monster,
+    player::{Flashlight, PlayerController, Stamina, StaminaState},
 };
 
 pub const INSPECTOR_TOGGLE_KEY: KeyCode = KeyCode::F12;
@@ -36,6 +38,7 @@ impl Plugin for DebugPlugin {
             EguiPlugin::default(),
             DefaultInspectorConfigPlugin,
         ))
+        .add_systems(Update, log_frame_time)
         .insert_gizmo_config(
             monster_tracking::MonsterRouteGizmos,
             GizmoConfig {
@@ -156,7 +159,7 @@ fn inspector_ui(world: &mut World) {
 }
 
 fn facility_power_ui(world: &mut World, ui: &mut egui::Ui) {
-    let mut on = world.resource::<FacilityPower>().on;
+    let mut on = world.resource::<FacilityPower>().is_on();
     if ui.checkbox(&mut on, "Facility power").changed() {
         let mut power = world.resource_mut::<FacilityPower>();
         if on {
@@ -254,7 +257,13 @@ fn player_tools_ui(world: &mut World, player: Entity, ui: &mut egui::Ui) {
             let mut entity = world.entity_mut(player);
             let mut stamina = entity.get_mut::<Stamina>().unwrap();
             stamina.charge = charge;
-            stamina.exhausted = charge < gameplay::controller::SPRINT_RESTART_CHARGE;
+            let low = charge < gameplay::player::SPRINT_RESTART_CHARGE;
+            stamina.state = match stamina.state {
+                StaminaState::Locked => StaminaState::Locked,
+                _ if low => StaminaState::Exhausted,
+                StaminaState::Exhausted => StaminaState::Rested,
+                state => state,
+            };
         }
     }
 }
@@ -272,7 +281,11 @@ fn grouped_entities_ui(world: &mut World, ui: &mut egui::Ui) {
                 let name = world
                     .get::<Name>(entity)
                     .map(|name| name.as_str().to_owned())
-                    .or_else(|| world.get::<Prop>(entity).map(|prop| prop.0.clone()))
+                    .or_else(|| {
+                        world
+                            .get::<Prop>(entity)
+                            .map(|prop| format!("{:?}", prop.0))
+                    })
                     .unwrap_or_else(|| label.to_string());
                 egui::CollapsingHeader::new(format!("{name} ({entity})"))
                     .id_salt(("grouped_entity", entity))
@@ -281,5 +294,29 @@ fn grouped_entities_ui(world: &mut World, ui: &mut egui::Ui) {
                     });
             }
         });
+    }
+}
+
+// NOTE: debug level, so it shows only with RUST_LOG=debug; FrameTimeDiagnosticsPlugin comes from game_ui::FpsOverlayPlugin.
+fn log_frame_time(
+    time: Res<Time<Real>>,
+    diagnostics: Res<DiagnosticsStore>,
+    mut since: Local<f32>,
+) {
+    *since += time.delta_secs();
+    if *since < 1.0 {
+        return;
+    }
+    *since = 0.0;
+    let smoothed = |path| {
+        diagnostics
+            .get(path)
+            .and_then(|diagnostic| diagnostic.smoothed())
+    };
+    if let (Some(fps), Some(frame_time)) = (
+        smoothed(&FrameTimeDiagnosticsPlugin::FPS),
+        smoothed(&FrameTimeDiagnosticsPlugin::FRAME_TIME),
+    ) {
+        debug!("fps {fps:.0}, frame time {frame_time:.2} ms");
     }
 }

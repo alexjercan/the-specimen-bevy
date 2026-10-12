@@ -1,25 +1,50 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use gameplay::{
     achievements::{
-        Achievement, AchievementPlugin, AchievementProgress, AchievementSignal,
-        AchievementSignalKind, AchievementUnlocked, RunAchievements,
+        Achievement, AchievementPlugin, AchievementProgress, AchievementUnlocked, RunAchievements,
     },
-    controller::PlayerController,
-    levels::{Caught, Escaped, FacilityPower},
+    devices::{DevicePlugin, FlashbangHit},
+    facility::{DoorPlugin, Escaped, ExitOpened, FacilityPower, FacilityPowerPlugin, PowerCue},
+    interaction::{PickupCue, PickupPlugin},
+    monster::{Caught, MonsterCue, MonsterCueKind, MonsterPlugin},
+    player::PlayerController,
     presets::{GameMode, GamePreset},
 };
 
+mod common;
+
 fn app() -> (App, Entity) {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, AchievementPlugin))
-        .insert_resource(FacilityPower::default())
-        .insert_resource(GamePreset::default());
+    let mut app = common::player_app(Duration::from_millis(100));
+    app.add_plugins((
+        DoorPlugin,
+        FacilityPowerPlugin,
+        PickupPlugin,
+        DevicePlugin,
+        MonsterPlugin,
+        AchievementPlugin,
+    ));
+    app.finish();
+    app.cleanup();
+    app.update();
     let player = app.world_mut().spawn(PlayerController).id();
     (app, player)
 }
 
-fn signal(app: &mut App, player: Entity, kind: AchievementSignalKind) {
-    app.world_mut().trigger(AchievementSignal { player, kind });
+fn happened<M: Message>(app: &mut App, message: M) {
+    app.world_mut().write_message(message);
+    app.update();
+}
+
+fn restored_boiler(app: &mut App) {
+    let boiler = app.world_mut().spawn_empty().id();
+    happened(app, PowerCue::BoilerRestart { boiler });
+}
+
+fn flashbang_hit(app: &mut App) {
+    let monster = app.world_mut().spawn_empty().id();
+    happened(app, FlashbangHit { monster });
 }
 
 fn has(app: &App, achievement: Achievement) -> bool {
@@ -32,8 +57,15 @@ fn has(app: &App, achievement: Achievement) -> bool {
 #[test]
 fn escape_checks_pickup_history_detection_and_repair_not_current_inventory() {
     let (mut app, player) = app();
-    signal(&mut app, player, AchievementSignalKind::PickedFlashbang);
-    signal(&mut app, player, AchievementSignalKind::Detected);
+    let monster = app.world_mut().spawn_empty().id();
+    happened(&mut app, PickupCue::Flashbang);
+    happened(
+        &mut app,
+        MonsterCue {
+            monster,
+            kind: MonsterCueKind::Detected,
+        },
+    );
     app.world_mut().entity_mut(player).insert(Escaped);
     assert!(has(&app, Achievement::Escaped));
     assert!(!has(&app, Achievement::EscapeWithoutFlashbang));
@@ -45,14 +77,14 @@ fn escape_checks_pickup_history_detection_and_repair_not_current_inventory() {
 #[test]
 fn escaping_before_outage_or_after_repair_does_not_unlock_in_the_dark() {
     let (mut app, player) = app();
-    app.insert_resource(FacilityPower::new(42));
+    *app.world_mut().resource_mut::<FacilityPower>() = FacilityPower::new(42);
     app.world_mut().entity_mut(player).insert(Escaped);
     assert!(!has(&app, Achievement::EscapeWithoutBoiler));
 
     app.world_mut().despawn(player);
     let replay = app.world_mut().spawn(PlayerController).id();
     app.world_mut().resource_mut::<FacilityPower>().outage();
-    signal(&mut app, replay, AchievementSignalKind::RestoredBoiler);
+    restored_boiler(&mut app);
     app.world_mut().resource_mut::<FacilityPower>().restore();
     app.world_mut().resource_mut::<FacilityPower>().outage();
     app.world_mut().entity_mut(replay).insert(Escaped);
@@ -62,8 +94,8 @@ fn escaping_before_outage_or_after_repair_does_not_unlock_in_the_dark() {
 #[test]
 fn restored_boiler_and_confirmed_hit_unlock_once_across_replays() {
     let (mut app, player) = app();
-    signal(&mut app, player, AchievementSignalKind::RestoredBoiler);
-    signal(&mut app, player, AchievementSignalKind::FlashbangHitMonster);
+    restored_boiler(&mut app);
+    flashbang_hit(&mut app);
     assert!(has(&app, Achievement::RestoreBoiler));
     assert!(has(&app, Achievement::FlashbangHitMonster));
     app.world_mut().despawn(player);
@@ -74,9 +106,9 @@ fn restored_boiler_and_confirmed_hit_unlock_once_across_replays() {
             .unwrap()
             .restored_boiler
     );
-    let mut power = FacilityPower::new(42);
+    let mut power = app.world_mut().resource_mut::<FacilityPower>();
+    *power = FacilityPower::new(42);
     power.outage();
-    app.insert_resource(power);
     app.world_mut().entity_mut(replay).insert(Escaped);
     assert!(has(&app, Achievement::EscapeWithoutBoiler));
     assert_eq!(
@@ -93,8 +125,10 @@ fn caught_requires_player_opened_exit() {
         .entity_mut(player)
         .insert(Caught::new(monster));
     assert!(!has(&app, Achievement::CaughtAfterExitOpen));
+    app.world_mut().despawn(player);
     let replay = app.world_mut().spawn(PlayerController).id();
-    signal(&mut app, replay, AchievementSignalKind::ExitOpened);
+    let door = app.world_mut().spawn_empty().id();
+    happened(&mut app, ExitOpened { door });
     app.world_mut()
         .entity_mut(replay)
         .insert(Caught::new(monster));
@@ -116,11 +150,11 @@ fn unlock_event_fires_once_for_new_unlocks_only() {
         .resource_mut::<AchievementProgress>()
         .unlocked
         .insert(Achievement::EscapeUndetected);
-    signal(&mut app, player, AchievementSignalKind::FlashbangHitMonster);
-    signal(&mut app, player, AchievementSignalKind::FlashbangHitMonster);
-    let mut power = FacilityPower::new(42);
+    flashbang_hit(&mut app);
+    flashbang_hit(&mut app);
+    let mut power = app.world_mut().resource_mut::<FacilityPower>();
+    *power = FacilityPower::new(42);
     power.outage();
-    app.insert_resource(power);
     app.world_mut().entity_mut(player).insert(Escaped);
     let mut unlocks = app.world().resource::<Unlocks>().0.clone();
     unlocks.sort_by_key(|achievement| achievement.id());
@@ -190,15 +224,14 @@ fn insane_or_maximum_custom_escape_unlocks_the_hidden_achievement() {
     assert!(has(&app, Achievement::EscapeInsane));
 
     let (mut app, player) = self::app();
-    let mut custom = GamePreset::of(GameMode::Insane);
-    custom.mode = GameMode::Custom;
-    app.insert_resource(custom);
+    let mut custom = GamePreset::of(GameMode::Insane).rules();
+    app.insert_resource(GamePreset::Custom(custom));
     app.world_mut().entity_mut(player).insert(Escaped);
     assert!(has(&app, Achievement::EscapeInsane));
 
     let (mut app, player) = self::app();
     custom.flashbangs = true;
-    app.insert_resource(custom);
+    app.insert_resource(GamePreset::Custom(custom));
     app.world_mut().entity_mut(player).insert(Escaped);
     assert!(!has(&app, Achievement::EscapeInsane));
 }
