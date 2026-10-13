@@ -381,8 +381,17 @@ import json
 print(json.dumps({'version':1,'tick':0,'won':True}), flush=True)
 """)
             game.chmod(0o755)
+            agent = root / "pi"
+            agent.write_text("""#!/usr/bin/env python3
+import json, sys
+for line in sys.stdin:
+    request = json.loads(line)
+    if request['type'] == 'get_state':
+        print(json.dumps({'type':'response','id':request['id'],'success':True,'data':{}}), flush=True)
+""")
+            agent.chmod(0o755)
             options = playtest.parser().parse_args([
-                "--model", "gpt-6-luna", "--game", str(game),
+                "--model", "gpt-6-luna", "--game", str(game), "--pi", str(agent),
                 "--output", str(root / "output"), "--render", "--record", str(root / "missing.webm"),
             ])
             with self.assertRaisesRegex(RuntimeError, "without a video"):
