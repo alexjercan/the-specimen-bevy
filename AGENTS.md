@@ -3,6 +3,12 @@
 The Specimen is a horror game written in Rust using the Bevy game engine.
 This is a `nix` based project: run every command inside `nix develop`.
 
+The dev shell caps Cargo at two jobs and locks heavy builds across repos. Do not pass
+`-j`, override `CARGO_BUILD_JOBS`, or use `--target-dir` to bypass the cap. Run
+one foreground Cargo command at a time. Keep at most one live game under Xvfb,
+and stop it by its recorded PID. Never kill a tmux server or use broad process
+matching to stop helpers.
+
 ## Agent instructions
 
 - Use session todos for user requests. Use Tatr (`tasks/`) only for

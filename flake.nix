@@ -20,6 +20,76 @@
         let
           rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
+          # NOTE: share one build lock and one capped sccache server with other Bevy repos.
+          cargoWrapper = pkgs.writeShellScriptBin "cargo" ''
+            real=${rustToolchain}/bin/cargo
+            flock=${pkgs.util-linux}/bin/flock
+
+            # NOTE: nested cargo inherits this marker and must not wait on its parent.
+            if [ "''${NOVA_CARGO_LOCKED:-}" = 1 ]; then exec "$real" "$@"; fi
+
+            args=("$@")
+            i=0
+            sub=
+            while [ "$i" -lt "''${#args[@]}" ]; do
+              case ''${args[$i]} in
+                +*) ;;
+                -Z | --config | -C | --color | --explain) i=$((i + 1)) ;;
+                -*) ;;
+                *) sub=''${args[$i]}; break ;;
+              esac
+              i=$((i + 1))
+            done
+
+            case $sub in
+              build | b | check | c | test | t | bench | run | r | clippy | doc | d | rustc | install | fix) ;;
+              *) exec "$real" "$@" ;;
+            esac
+
+            scope=()
+            if command -v systemd-run >/dev/null && [ -S "''${XDG_RUNTIME_DIR:-}/bus" ]; then
+              scope=(systemd-run --user --scope --quiet --collect -p MemoryHigh=10G -p MemoryMax=12G --)
+            else
+              echo "cargo: no systemd user bus, running without the memory cap" >&2
+            fi
+
+            take_lock() {
+              exec 9>>"''${XDG_RUNTIME_DIR:-/tmp}/cargo-build.lock"
+              if ! "$flock" -n 9; then
+                echo "cargo: waiting for the build lock (another build is running)" >&2
+                "$flock" 9
+              fi
+              ensure_sccache
+            }
+
+            # NOTE: sccache starts rustc outside cargo's scope; cap its server too.
+            ensure_sccache() {
+              case ''${RUSTC_WRAPPER:-} in */sccache | sccache) ;; *) return ;; esac
+              [ "''${#scope[@]}" -gt 0 ] || return
+              [ "$(systemctl --user show nova-sccache.scope -p ActiveState --value 2>/dev/null)" = active ] && return
+              "$RUSTC_WRAPPER" --stop-server >/dev/null 2>&1
+              systemd-run --user --scope --unit=nova-sccache --quiet --collect \
+                -p MemoryHigh=10G -p MemoryMax=12G -- "$RUSTC_WRAPPER" --start-server >/dev/null 2>&1 9>&- ||
+                echo "cargo: could not start sccache in nova-sccache.scope, compiles run uncapped" >&2
+            }
+
+            if [ "$sub" = run ] || [ "$sub" = r ]; then
+              # NOTE: build while locked, then release the lock before the game runs.
+              build=("''${args[@]:0:i}" build)
+              for a in "''${args[@]:i+1}"; do
+                [ "$a" = -- ] && break
+                build+=("$a")
+              done
+              take_lock
+              NOVA_CARGO_LOCKED=1 "''${scope[@]}" "$real" "''${build[@]}" 9>&- || exit
+              exec 9>&-
+              exec "''${scope[@]}" "$real" "$@"
+            fi
+
+            take_lock
+            NOVA_CARGO_LOCKED=1 "''${scope[@]}" "$real" "$@" 9>&-
+          '';
+
           gameLibs = lib.optionals pkgs.stdenv.hostPlatform.isLinux (with pkgs; [
             udev
             alsa-lib-with-plugins
@@ -85,7 +155,9 @@
 
           devShells.default = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
+              cargoWrapper # NOTE: must precede the toolchain cargo on PATH
               rustToolchain rust-analyzer pkg-config python3 cargo-about ffmpeg xvfb-run trunk
+              sccache
               # NOTE: tracy 0.13.1 pairs with the tracy-client-sys pin in Cargo.toml.
               tracy cargo-flamegraph
             ] ++ lib.optional (lib.meta.availableOn pkgs.stdenv.hostPlatform pkgs.blender) pkgs.blender
@@ -93,6 +165,9 @@
             buildInputs = gameLibs;
             LD_LIBRARY_PATH = lib.makeLibraryPath gameLibs;
             RUST_BACKTRACE = "1";
+            RUSTC_WRAPPER = "sccache";
+            CARGO_INCREMENTAL = "0";
+            CARGO_BUILD_JOBS = "2";
             BEVY_SOFTWARE_VK_ICD =
               if pkgs.stdenv.hostPlatform.isLinux then
                 "${pkgs.mesa}/share/vulkan/icd.d/lvp_icd.${pkgs.stdenv.hostPlatform.parsed.cpu.name}.json"
