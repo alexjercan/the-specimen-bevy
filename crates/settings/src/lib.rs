@@ -16,7 +16,7 @@ pub const DEFAULT_SENSITIVITY: f32 = 0.0015;
 
 pub const MIN_FOV: f32 = 50.0;
 pub const MAX_FOV: f32 = 110.0;
-pub const DEFAULT_FOV: f32 = 55.0;
+pub const DEFAULT_FOV: f32 = 75.0;
 
 pub const MIN_UI_SCALE: f32 = 0.75;
 pub const MAX_UI_SCALE: f32 = 1.5;

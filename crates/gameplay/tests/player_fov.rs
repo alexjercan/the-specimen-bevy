@@ -36,7 +36,7 @@ fn external_fov_change_updates_live_player_camera() {
     let mut app = app();
     let player = app.world_mut().spawn(PlayerController).id();
     app.update();
-    assert!((fov(&app, player) - 55.0_f32.to_radians()).abs() < 0.0001);
+    assert!((fov(&app, player) - 75.0_f32.to_radians()).abs() < 0.0001);
     app.world_mut().resource_mut::<GameSettings>().fov = 96.0;
     app.update();
     assert!((fov(&app, player) - 96.0_f32.to_radians()).abs() < 0.0001);
