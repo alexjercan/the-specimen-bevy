@@ -6,16 +6,19 @@ use bevy::{
     },
     platform::collections::HashMap,
     prelude::*,
+    ui::UiScale,
     ui_widgets::{Scrollbar, ScrollbarThumb, SliderDragState, SliderValue, ValueChange},
-    window::{MonitorSelection, PrimaryWindow, WindowMode},
+    window::{MonitorSelection, PresentMode, PrimaryWindow, WindowMode},
 };
 use game_assets::key_glyph_stem;
 use game_audio::Volumes;
 use game_flow::{GameState, PauseState};
-use game_frontend::{CameraQualityPlugin, MenuAssets};
+use game_frontend::{
+    controller_settings, volumes as saved_volumes, CameraQualityPlugin, MenuAssets,
+};
 use game_settings::{
-    parse_key, DisplayMode, GameSettings, GameSettingsPlugin, GraphicsQuality, InputBinding,
-    MAX_SENSITIVITY,
+    parse_key, DisplayMode, FpsCap, GameSettings, GameSettingsPlugin, GraphicsQuality,
+    InputBinding, MsaaQuality, MAX_SENSITIVITY,
 };
 use game_ui::{FpsText, SliderFill};
 use gameplay::player::{ControllerSettings, Input};
@@ -195,7 +198,7 @@ fn settings_sliders_change_persist_and_sync_in_menu_and_pause() {
     app.world_mut().resource_mut::<GameSettings>().master = 0.0;
     open_settings(&mut app);
     assert_eq!(named_count(&mut app, "Settings overlay"), 1);
-    assert_eq!(count::<With<SliderValue>>(&mut app), 4);
+    assert_eq!(count::<With<SliderValue>>(&mut app), 6);
     assert_eq!(slider_value(&mut app, "Master"), 0.0);
     assert_eq!(readout(&mut app, "Master"), "0%");
 
@@ -213,11 +216,12 @@ fn settings_sliders_change_persist_and_sync_in_menu_and_pause() {
     assert_eq!(volumes(&app).world, 0.7);
     assert_eq!(volumes(&app).ui, 0.7);
     assert!(played_sounds(&mut app).contains(&menu_sounds().focus));
-    slide(&mut app, "Music (reserved)", 0.5);
+    slide(&mut app, "Music", 0.5);
     assert!(played_sounds(&mut app).contains(&menu_sounds().focus));
     assert_eq!(app.world().resource::<GameSettings>().music, 0.5);
     assert_eq!(volumes(&app).world, 0.7);
-    assert_eq!(readout(&mut app, "Music (reserved)"), "50%");
+    assert_eq!(volumes(&app).music, 0.5);
+    assert_eq!(readout(&mut app, "Music"), "50%");
     assert_eq!(readout(&mut app, "Mouse sensitivity"), "1.5");
     assert_eq!(controller(&app).mouse_sensitivity, 0.0015);
     slide(&mut app, "Mouse sensitivity", 0.0);
@@ -341,8 +345,10 @@ fn settings_tabs_switch_pages_and_hold_labeled_groups() {
     for (slider_name, group) in [
         ("Master", "VOLUME settings"),
         ("SFX", "VOLUME settings"),
-        ("Music (reserved)", "VOLUME settings"),
+        ("Music", "VOLUME settings"),
         ("Mouse sensitivity", "MOUSE settings"),
+        ("Field of view", "QUALITY settings"),
+        ("UI scale", "QUALITY settings"),
     ] {
         let entity = slider(&mut app, slider_name);
         assert_eq!(
@@ -355,7 +361,12 @@ fn settings_tabs_switch_pages_and_hold_labeled_groups() {
     assert_eq!(chip_text(&mut app, "Flashbang"), "RMB");
 
     for (row, group) in [
+        ("Invert Y", "MOUSE settings"),
         ("Quality preset", "QUALITY settings"),
+        ("MSAA", "QUALITY settings"),
+        ("Reduce flicker", "QUALITY settings"),
+        ("VSync", "QUALITY settings"),
+        ("FPS cap", "QUALITY settings"),
         ("Display mode", "QUALITY settings"),
         ("FPS overlay", "QUALITY settings"),
         ("Interact", "INTERACTION settings"),
@@ -697,6 +708,14 @@ fn quality_and_display_mode_changes_reach_the_cameras_and_window_at_once() {
     press_control(&mut app, "Quality preset");
     assert_eq!(
         app.world().resource::<GameSettings>().graphics,
+        GraphicsQuality::Custom
+    );
+    assert!(camera_msaa(&mut app)
+        .iter()
+        .all(|msaa| *msaa == Msaa::Sample4));
+    press_control(&mut app, "Quality preset");
+    assert_eq!(
+        app.world().resource::<GameSettings>().graphics,
         GraphicsQuality::Low
     );
     let cameras = camera_msaa(&mut app);
@@ -737,12 +756,104 @@ fn quality_and_display_mode_changes_reach_the_cameras_and_window_at_once() {
 #[test]
 fn new_cameras_start_with_the_saved_quality() {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, GameSettingsPlugin { persist: false }))
-        .add_plugins(CameraQualityPlugin);
-    app.world_mut().resource_mut::<GameSettings>().graphics = GraphicsQuality::Medium;
+    app.add_plugins((MinimalPlugins, GameSettingsPlugin { persist: false }));
+    let (controller, bus) = {
+        let settings = app.world().resource::<GameSettings>();
+        (controller_settings(settings), saved_volumes(settings))
+    };
+    app.insert_resource(controller).insert_resource(bus);
+    let existing = app.world_mut().spawn(Camera2d).id();
+    app.add_plugins(CameraQualityPlugin);
+    app.world_mut().resource_mut::<GameSettings>().msaa = MsaaQuality::Sample2;
     let camera_3d = app.world_mut().spawn(Camera3d::default()).id();
     let camera_2d = app.world_mut().spawn(Camera2d).id();
     app.update();
+    assert_eq!(app.world().get::<Msaa>(existing), Some(&Msaa::Sample2));
     assert_eq!(app.world().get::<Msaa>(camera_3d), Some(&Msaa::Sample2));
     assert_eq!(app.world().get::<Msaa>(camera_2d), Some(&Msaa::Sample2));
+}
+
+#[test]
+fn external_settings_changes_update_live_and_new_cameras() {
+    let mut app = ready_menu_app();
+    let three_d = app.world_mut().spawn(Camera3d::default()).id();
+    let two_d = app.world_mut().spawn(Camera2d).id();
+    app.update();
+    app.world_mut().resource_mut::<GameSettings>().msaa = MsaaQuality::Off;
+    app.update();
+    assert_eq!(app.world().get::<Msaa>(three_d), Some(&Msaa::Off));
+    assert_eq!(app.world().get::<Msaa>(two_d), Some(&Msaa::Off));
+    let new_three_d = app.world_mut().spawn(Camera3d::default()).id();
+    let new_two_d = app.world_mut().spawn(Camera2d).id();
+    app.update();
+    assert_eq!(app.world().get::<Msaa>(new_three_d), Some(&Msaa::Off));
+    assert_eq!(app.world().get::<Msaa>(new_two_d), Some(&Msaa::Off));
+}
+
+#[test]
+fn custom_msaa_and_accessibility_controls_persist_and_update() {
+    let mut app = ready_menu_app();
+    persist_settings(&mut app);
+    open_settings(&mut app);
+    tab(&mut app, "Controls");
+    press_control(&mut app, "Invert Y");
+    assert!(app.world().resource::<GameSettings>().invert_y);
+    assert!(controller(&app).invert_y);
+    assert_eq!(choice_label(&mut app, "Invert Y"), "On");
+
+    tab(&mut app, "Graphics");
+    press_control(&mut app, "MSAA");
+    assert_eq!(
+        app.world().resource::<GameSettings>().graphics,
+        GraphicsQuality::Custom
+    );
+    assert_eq!(
+        app.world().resource::<GameSettings>().msaa,
+        MsaaQuality::Sample8
+    );
+    assert!(camera_msaa(&mut app)
+        .iter()
+        .all(|msaa| *msaa == Msaa::Sample8));
+    assert_eq!(choice_label(&mut app, "MSAA"), "8x");
+    press_control(&mut app, "Quality preset");
+    assert_eq!(
+        app.world().resource::<GameSettings>().graphics,
+        GraphicsQuality::Low
+    );
+    assert_eq!(
+        app.world().resource::<GameSettings>().msaa,
+        MsaaQuality::Off
+    );
+    assert!(camera_msaa(&mut app).iter().all(|msaa| *msaa == Msaa::Off));
+    slide(&mut app, "Field of view", 85.0);
+    slide(&mut app, "UI scale", 1.25);
+    press_control(&mut app, "Reduce flicker");
+    press_control(&mut app, "VSync");
+    press_control(&mut app, "FPS cap");
+    app.update();
+    assert_eq!(app.world().resource::<UiScale>().0, 1.25);
+    let world = app.world_mut();
+    let mut window = world.query_filtered::<&Window, With<PrimaryWindow>>();
+    assert_eq!(
+        window.single(world).unwrap().present_mode,
+        PresentMode::AutoNoVsync
+    );
+    let settings = app.world().resource::<GameSettings>();
+    assert_eq!(settings.fov, 85.0);
+    assert_eq!(settings.ui_scale, 1.25);
+    assert!(settings.reduce_flicker);
+    assert!(!settings.vsync);
+    assert_eq!(settings.fps_cap, FpsCap::Fps30);
+    assert_saved(&app);
+    let saved = saved_settings(&app).unwrap();
+    assert_eq!(saved.fov, 85.0);
+    assert_eq!(saved.msaa, MsaaQuality::Off);
+    assert!(saved.invert_y && saved.reduce_flicker);
+    assert_eq!(choice_label(&mut app, "FPS cap"), "30");
+    press_control(&mut app, "FPS cap");
+    assert_eq!(choice_label(&mut app, "FPS cap"), "60");
+    press_control(&mut app, "FPS cap");
+    assert_eq!(choice_label(&mut app, "FPS cap"), "120");
+    press_control(&mut app, "FPS cap");
+    assert_eq!(choice_label(&mut app, "FPS cap"), "Off");
 }

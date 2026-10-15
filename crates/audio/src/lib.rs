@@ -14,6 +14,7 @@ use bevy::{
 pub enum Bus {
     World,
     Ui,
+    Music,
 }
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq)]
@@ -21,6 +22,7 @@ pub struct Volumes {
     pub master: f32,
     pub world: f32,
     pub ui: f32,
+    pub music: f32,
 }
 
 impl Default for Volumes {
@@ -29,6 +31,7 @@ impl Default for Volumes {
             master: 1.0,
             world: 1.0,
             ui: 1.0,
+            music: 1.0,
         }
     }
 }
@@ -39,6 +42,7 @@ impl Volumes {
             * match bus {
                 Bus::World => self.world,
                 Bus::Ui => self.ui,
+                Bus::Music => self.music,
             }
     }
 }
@@ -89,6 +93,9 @@ pub enum Placement {
     Global {
         gain: f32,
     },
+    Loop {
+        gain: f32,
+    },
     At {
         position: Vec3,
         falloff: Falloff,
@@ -113,6 +120,14 @@ impl PlaySound {
             handle,
             bus,
             placement: Placement::Global { gain },
+        }
+    }
+
+    pub fn loop_global(handle: Handle<AudioSource>, bus: Bus, gain: f32) -> Self {
+        Self {
+            handle,
+            bus,
+            placement: Placement::Loop { gain },
         }
     }
 
@@ -159,6 +174,9 @@ fn volume(volumes: &Volumes, bus: Bus, base: f32) -> Volume {
     Volume::Linear(base * volumes.gain(bus))
 }
 
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct PlaySoundsSet;
+
 pub struct GameAudioPlugin;
 
 impl Plugin for GameAudioPlugin {
@@ -173,7 +191,7 @@ impl Plugin for GameAudioPlugin {
                 (
                     update_pause,
                     update_volume,
-                    play_sounds,
+                    play_sounds.in_set(PlaySoundsSet),
                     ambience::update_ambience.in_set(AmbientUpdate),
                 )
                     .chain(),
@@ -244,6 +262,14 @@ fn play_sounds(
                     AudioGain(gain),
                     AudioPlayer::new(cue.handle.clone()),
                     PlaybackSettings::DESPAWN.with_volume(volume(&volumes, cue.bus, gain)),
+                ));
+            }
+            Placement::Loop { gain } => {
+                commands.spawn((
+                    cue.bus,
+                    AudioGain(gain),
+                    AudioPlayer::new(cue.handle.clone()),
+                    PlaybackSettings::LOOP.with_volume(volume(&volumes, cue.bus, gain)),
                 ));
             }
             Placement::At { position, falloff } => {

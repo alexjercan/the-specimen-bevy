@@ -115,7 +115,10 @@ gate_audio_manifest() {
 gate_frame_rate_owner() {
   local crates_with_60
   crates_with_60=$(grep -rlE --include='*.rs' '\b60(\.0)?\b' crates/*/src src | cut -d/ -f1-2 | sort -u || true)
-  [[ $(echo "$crates_with_60" | grep -c . ) -le 1 ]] || fail frame_rate_owner "one owner for the frame step"$'\n'"$crates_with_60"
+  [[ $(echo "$crates_with_60" | grep -c . ) -le 1 ]] || {
+    fail frame_rate_owner "one owner for the frame step"$'\n'"$crates_with_60"
+    return 1
+  }
   local steps
   steps=$(grep -rnE --include='*.rs' '1_000_000_000 */|16_66[67]|1\.0 / (30|60)(\.0)?\b' crates/*/src src tests examples \
     | grep -v '^crates/app/src/lib.rs:' || true)

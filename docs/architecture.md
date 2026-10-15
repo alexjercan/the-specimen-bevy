@@ -119,15 +119,23 @@ heard cues by name.
 ## Audio bus
 
 `game_audio` knows nothing about the game. `PlaySound { handle, bus,
-placement }` plays one cue on `Bus::World` or `Bus::Ui`. `Placement::Global
-{ gain }` is flat, `At { position, falloff }` and `From { source, offset,
-falloff }` are spatial, attached as a child of the source for `From`.
-`Falloff { range, scale, curve }` gives the per-cue gain by distance.
-`Volumes { master, world, ui }` scales each bus and `AudioPaused` pauses the
-world bus only. Ambience is data: `AmbientEmitters` lists `AmbientEmitter {
-source, handle, volume, spatial }` and the bus keeps one looping voice per
-source while `AmbienceActive` is true. Menus hold their cue handles in
-`MenuSounds`, filled by glue.
+placement }` plays one cue on `Bus::World`, `Bus::Ui` or `Bus::Music`.
+`Placement::Global { gain }` is a flat one-shot, `Placement::Loop { gain }`
+is a flat looping voice (used by the main menu's ambient track),
+`At { position, falloff }` and `From { source, offset, falloff }` are
+spatial, attached as a child of the source for `From`. `Falloff { range,
+scale, curve }` gives the per-cue gain by distance. `Volumes { master,
+world, ui, music }` scales each bus and `AudioPaused` pauses the world bus
+only. Ambience is data: `AmbientEmitters` lists `AmbientEmitter { source,
+handle, volume, spatial }` and the bus keeps one looping voice per source
+while `AmbienceActive` is true. Menus hold their cue handles in
+`MenuSounds`, filled by glue; `MenuSounds.ambient` is the main menu loop,
+started and stopped by `frontend::menu::music` only while
+`GameState::MainMenu` is active. That system orders itself before
+`game_audio::PlaySoundsSet` so a loop cue written on the same frame
+`MainMenu` is exited is already spawned, and so despawned, before the next
+frame's `OnExit` runs; otherwise the voice would leak past the state
+change.
 
 Gameplay public items never expose library types. Input bindings are a
 gameplay `enum Input { Key, Mouse }`; the player feature converts them into
@@ -159,14 +167,17 @@ does nothing else. Under `crates/app/src/glue`:
   no `Changed<T>`.
 
 What glue does: loader collection to feature assets fill (also
-`MenuAssets`), one-time settings copy, bus volume copy. Runtime settings
-changes are written by the frontend settings panel directly into the
-gameplay and audio resources, the primary `Window.mode` and the `Msaa` of
-every `Camera`. Stacked 3D and UI cameras must use the same MSAA to share
-Bevy's main render texture. At build, `app` sets the window mode from the
-saved settings (`game_frontend::window_mode`) and adds
-`game_frontend::CameraQualityPlugin`, whose observer gives each new
-`Camera` the saved quality (`game_frontend::msaa`).
+`MenuAssets`), one-time settings copy, bus volume copy. The frontend settings
+panel writes immediately to gameplay/audio resources and live cameras.
+`game_frontend::CameraQualityPlugin` also synchronizes changed `GameSettings`
+with controller bindings, bus volumes, the primary window's mode and VSync,
+UI scale, FPS overlay, and live camera MSAA. Its observer gives each newly
+spawned 2D or 3D camera the saved MSAA. Player view applies saved FOV to new
+and live player cameras; facility and device views apply reduce-flicker live.
+Stacked 3D and UI cameras must share MSAA to share Bevy's render texture.
+`app` adds the settings plugin only in windowed mode; headless has no render,
+audio, or frame-pacing systems. Native FPS pacing sleeps in `Last` and does
+not change `FrameStep` or capture's recording rate.
 
 Check: `gate glue_config_only`. `gate app_settings_sync` keeps
 `crates/app/src/lib.rs` free of `resource_changed::<GameSettings>`,

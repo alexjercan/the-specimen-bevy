@@ -14,6 +14,14 @@ pub const MIN_SENSITIVITY: f32 = 0.0;
 pub const MAX_SENSITIVITY: f32 = 0.004;
 pub const DEFAULT_SENSITIVITY: f32 = 0.0015;
 
+pub const MIN_FOV: f32 = 50.0;
+pub const MAX_FOV: f32 = 110.0;
+pub const DEFAULT_FOV: f32 = 55.0;
+
+pub const MIN_UI_SCALE: f32 = 0.75;
+pub const MAX_UI_SCALE: f32 = 1.5;
+pub const DEFAULT_UI_SCALE: f32 = 1.0;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GraphicsQuality {
@@ -21,6 +29,43 @@ pub enum GraphicsQuality {
     Medium,
     #[default]
     High,
+    Custom,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MsaaQuality {
+    Off,
+    Sample2,
+    #[default]
+    Sample4,
+    Sample8,
+}
+
+impl MsaaQuality {
+    pub const ALL: [Self; 4] = [Self::Off, Self::Sample2, Self::Sample4, Self::Sample8];
+
+    pub fn next(self) -> Self {
+        cycle(&Self::ALL, self, 1)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FpsCap {
+    #[default]
+    Uncapped,
+    Fps30,
+    Fps60,
+    Fps120,
+}
+
+impl FpsCap {
+    pub const ALL: [Self; 4] = [Self::Uncapped, Self::Fps30, Self::Fps60, Self::Fps120];
+
+    pub fn next(self) -> Self {
+        cycle(&Self::ALL, self, 1)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,10 +85,19 @@ impl DisplayMode {
 }
 
 impl GraphicsQuality {
-    pub const ALL: [Self; 3] = [Self::Low, Self::Medium, Self::High];
+    pub const ALL: [Self; 4] = [Self::Low, Self::Medium, Self::High, Self::Custom];
 
     pub fn next(self) -> Self {
         cycle(&Self::ALL, self, 1)
+    }
+
+    pub fn preset_msaa(self) -> Option<MsaaQuality> {
+        match self {
+            Self::Low => Some(MsaaQuality::Off),
+            Self::Medium => Some(MsaaQuality::Sample2),
+            Self::High => Some(MsaaQuality::Sample4),
+            Self::Custom => None,
+        }
     }
 }
 
@@ -315,10 +369,17 @@ pub struct GameSettings {
     pub mouse_sensitivity: f32,
     pub keys: MovementKeys,
     pub graphics: GraphicsQuality,
+    pub msaa: MsaaQuality,
     pub display_mode: DisplayMode,
     pub fps_overlay: bool,
     pub preferred_mode: PreferredMode,
     pub custom_difficulty: CustomDifficulty,
+    pub invert_y: bool,
+    pub reduce_flicker: bool,
+    pub fov: f32,
+    pub ui_scale: f32,
+    pub vsync: bool,
+    pub fps_cap: FpsCap,
 }
 
 impl Default for GameSettings {
@@ -330,10 +391,17 @@ impl Default for GameSettings {
             mouse_sensitivity: DEFAULT_SENSITIVITY,
             keys: MovementKeys::default(),
             graphics: GraphicsQuality::default(),
+            msaa: MsaaQuality::default(),
             display_mode: DisplayMode::default(),
             fps_overlay: false,
             preferred_mode: PreferredMode::default(),
             custom_difficulty: CustomDifficulty::default(),
+            invert_y: false,
+            reduce_flicker: false,
+            fov: DEFAULT_FOV,
+            ui_scale: DEFAULT_UI_SCALE,
+            vsync: true,
+            fps_cap: FpsCap::default(),
         }
     }
 }
@@ -353,16 +421,37 @@ impl GameSettings {
         } else {
             DEFAULT_SENSITIVITY
         };
+        self.fov = if self.fov.is_finite() {
+            self.fov.clamp(MIN_FOV, MAX_FOV)
+        } else {
+            DEFAULT_FOV
+        };
+        self.ui_scale = if self.ui_scale.is_finite() {
+            self.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE)
+        } else {
+            DEFAULT_UI_SCALE
+        };
         if !self.keys.unique() {
             self.keys = MovementKeys::default();
         }
     }
 
-    pub fn load(path: &Path) -> std::io::Result<Self> {
-        let data = fs::read(path)?;
-        let mut settings: Self = serde_json::from_slice(&data).map_err(std::io::Error::other)?;
+    fn from_saved_json(data: &[u8]) -> std::io::Result<Self> {
+        let value: serde_json::Value =
+            serde_json::from_slice(data).map_err(std::io::Error::other)?;
+        let missing_msaa = value.get("msaa").is_none();
+        let mut settings: Self = serde_json::from_value(value).map_err(std::io::Error::other)?;
+        if missing_msaa {
+            if let Some(msaa) = settings.graphics.preset_msaa() {
+                settings.msaa = msaa;
+            }
+        }
         settings.sanitize();
         Ok(settings)
+    }
+
+    pub fn load(path: &Path) -> std::io::Result<Self> {
+        Self::from_saved_json(&fs::read(path)?)
     }
 
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
@@ -515,12 +604,7 @@ mod browser {
             .get_item(SETTINGS_KEY)
             .map_err(|_| std::io::Error::other("local storage read failed"))?;
         value
-            .map(|value| {
-                let mut settings: GameSettings =
-                    serde_json::from_str(&value).map_err(std::io::Error::other)?;
-                settings.sanitize();
-                Ok(settings)
-            })
+            .map(|value| GameSettings::from_saved_json(value.as_bytes()))
             .transpose()
     }
 

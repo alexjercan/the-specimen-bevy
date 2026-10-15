@@ -5,6 +5,7 @@ use bevy::{
     prelude::*,
     world_serialization::{WorldAssetRoot, WorldInstanceReady},
 };
+use game_settings::GameSettings;
 
 use super::{
     animation::DoorSwing,
@@ -168,6 +169,7 @@ fn attach_prop_glow(
 fn animate_lights(
     time: Res<Time>,
     power: Res<FacilityPower>,
+    settings: Res<GameSettings>,
     mains: Query<(), With<MainsPowered>>,
     mut lights: Query<(
         Option<&LightEffect>,
@@ -179,7 +181,12 @@ fn animate_lights(
     for (effect, base, parent, mut light) in &mut lights {
         let powered = power.is_on() || !mains.contains(parent.parent());
         light.intensity = if powered {
-            base.0 * effect.map_or(1.0, |effect| effect.factor(time.elapsed_secs()))
+            base.0
+                * if settings.reduce_flicker {
+                    1.0
+                } else {
+                    effect.map_or(1.0, |effect| effect.factor(time.elapsed_secs()))
+                }
         } else {
             0.0
         };
@@ -189,6 +196,7 @@ fn animate_lights(
 fn animate_surfaces(
     time: Res<Time>,
     power: Res<FacilityPower>,
+    settings: Res<GameSettings>,
     surfaces: Query<(&GlowSurface, &MeshMaterial3d<StandardMaterial>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -197,6 +205,8 @@ fn animate_surfaces(
             material.emissive = surface.base
                 * if surface.needs_power && !power.is_on() {
                     0.0
+                } else if settings.reduce_flicker {
+                    1.0
                 } else {
                     surface
                         .effect

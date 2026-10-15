@@ -255,8 +255,13 @@ pub(crate) fn apply_input(
         }
         let (yaw, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
         let sensitivity = settings.mouse_sensitivity;
+        let vertical_sensitivity = if settings.invert_y {
+            -sensitivity
+        } else {
+            sensitivity
+        };
         let yaw = yaw - input.look.x * sensitivity;
-        let pitch = (pitch - input.look.y * sensitivity).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+        let pitch = (pitch - input.look.y * vertical_sensitivity).clamp(-PITCH_LIMIT, PITCH_LIMIT);
         transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
         input.look = Vec2::ZERO;
         if hidden.is_some() {

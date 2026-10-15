@@ -56,6 +56,7 @@ pub fn menu_sounds() -> MenuSounds {
         pause: audio_handle(5),
         press: audio_handle(6),
         resume: audio_handle(7),
+        ambient: audio_handle(8),
     }
 }
 
@@ -96,7 +97,8 @@ fn app_with(fps_overlay_plugin: bool) -> App {
             visible: fps_overlay,
         });
     }
-    app.add_plugins(MenuPlugin).insert_resource(menu_sounds());
+    app.add_plugins((game_frontend::CameraQualityPlugin, MenuPlugin))
+        .insert_resource(menu_sounds());
     #[cfg(feature = "debug")]
     app.init_resource::<debug::DebugSettings>();
     app.world_mut()
@@ -189,9 +191,12 @@ pub fn entities(app: &mut App) -> usize {
 // NOTE: one-shots end on their own, so only voices that keep playing count as leaks.
 pub fn voices(app: &mut App) -> usize {
     app.world_mut()
-        .query_filtered::<&PlaybackSettings, With<AudioPlayer>>()
+        .query_filtered::<(&PlaybackSettings, Option<&game_audio::Bus>), With<AudioPlayer>>()
         .iter(app.world())
-        .filter(|settings| !matches!(settings.mode, PlaybackMode::Despawn | PlaybackMode::Remove))
+        .filter(|(settings, bus)| {
+            !matches!(settings.mode, PlaybackMode::Despawn | PlaybackMode::Remove)
+                && !matches!(bus, Some(game_audio::Bus::Music))
+        })
         .count()
 }
 

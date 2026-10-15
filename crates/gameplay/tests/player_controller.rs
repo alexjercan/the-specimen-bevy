@@ -167,6 +167,26 @@ fn mouse_look_uses_controller_sensitivity() {
 }
 
 #[test]
+fn invert_y_reverses_pitch_without_changing_yaw() {
+    let (mut app, player) = app(false);
+    app.world_mut()
+        .resource_mut::<ControllerSettings>()
+        .invert_y = true;
+    app.world_mut().write_message(MouseMotion {
+        delta: Vec2::new(100.0, 50.0),
+    });
+    app.update();
+    let (yaw, pitch, _) = app
+        .world()
+        .get::<Transform>(player)
+        .unwrap()
+        .rotation
+        .to_euler(EulerRot::YXZ);
+    assert!(yaw < -0.1);
+    assert!(pitch > 0.05);
+}
+
+#[test]
 fn mouse_look_needs_no_button_and_does_not_change_height() {
     let (mut app, player) = app(false);
     app.world_mut().write_message(MouseMotion {

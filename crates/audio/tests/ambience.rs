@@ -157,6 +157,7 @@ fn ambient_voices_scale_with_world_volume() {
         master: 0.5,
         world: 0.4,
         ui: 0.1,
+        music: 0.1,
     });
     app.update();
     let playing = voices(&mut app);

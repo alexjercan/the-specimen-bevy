@@ -29,6 +29,7 @@ impl Plugin for PlayerViewPlugin {
             .add_systems(
                 Update,
                 (
+                    sync_player_fov,
                     update_cursor,
                     sync_beam,
                     sync_stamina_hud,
@@ -69,14 +70,35 @@ fn attach_audio(added: On<Add, PlayerController>, mut commands: Commands) {
         });
 }
 
-fn attach_camera(added: On<Add, PlayerController>, mut commands: Commands) {
+fn attach_camera(
+    added: On<Add, PlayerController>,
+    settings: Res<GameSettings>,
+    mut commands: Commands,
+) {
     commands.entity(added.entity).insert((
         Camera3d::default(),
         Projection::Perspective(PerspectiveProjection {
-            fov: 55.0_f32.to_radians(),
+            fov: settings.fov.to_radians(),
             ..default()
         }),
     ));
+}
+
+fn sync_player_fov(
+    settings: Res<GameSettings>,
+    mut synced: Local<bool>,
+    mut players: Query<&mut Projection, With<PlayerController>>,
+) {
+    if *synced && !settings.is_changed() {
+        return;
+    }
+    *synced = true;
+    let fov = settings.fov.to_radians();
+    for mut projection in &mut players {
+        if let Projection::Perspective(perspective) = &mut *projection {
+            perspective.fov = fov;
+        }
+    }
 }
 
 fn attach_beam(added: On<Add, PlayerController>, mut commands: Commands) {

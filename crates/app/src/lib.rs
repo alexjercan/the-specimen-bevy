@@ -230,8 +230,9 @@ impl AppBuilder {
             }
             #[cfg(feature = "debug")]
             app.add_plugins(debug::DebugPlugin);
+            app.add_plugins(game_frontend::CameraQualityPlugin);
             if facility_lighting {
-                app.add_plugins((FacilityLightingPlugin, game_frontend::CameraQualityPlugin));
+                app.add_plugins(FacilityLightingPlugin);
             }
         }
         match self.main_plugin {

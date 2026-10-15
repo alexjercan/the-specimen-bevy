@@ -39,7 +39,7 @@ profile sets fps, crf, output size, encode deadline and the staging
 directory. Audio comes from `audio.jsonl`, a frame-indexed event log written
 next to the staged frames by the capture crate, which watches every
 `AudioPlayer` spawn, despawn and retune. Each event carries the voice's
-`bus` (`world`, `ui` or `unrouted` for a player without a `Bus`). The
+`bus` (`world`, `ui`, `music`, or `unrouted` for a player without a `Bus`). The
 logged volume is already the effective volume, so the mixer does not scale
 by bus. The capture crate mixes the log
 offline at 48 kHz into `audio.f32le` (same ear model as rodio) and ffmpeg

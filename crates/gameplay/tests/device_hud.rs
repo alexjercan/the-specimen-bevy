@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use game_settings::{GameSettings, GameSettingsPlugin};
 use gameplay::devices::{
     detector_readout, flash_alpha, flash_overlay, flashbang_status, tracker_blip, tracker_edge,
     tracker_range_text, tracker_status_text, DetectorReadout, DetectorSignal, DeviceHudPlugin,
@@ -79,7 +80,11 @@ fn flash_alpha_decays_to_zero() {
 #[test]
 fn flashbang_panel_sits_above_flashlight_and_shows_item_count() {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, DeviceHudPlugin));
+    app.add_plugins((
+        MinimalPlugins,
+        GameSettingsPlugin { persist: false },
+        DeviceHudPlugin,
+    ));
     let hud = app.world_mut().spawn(flashbang_status()).id();
     app.update();
     let node = app.world().get::<Node>(hud).unwrap();
@@ -121,7 +126,11 @@ fn flashbang_panel_sits_above_flashlight_and_shows_item_count() {
 #[test]
 fn tracker_root_sits_at_bottom_center() {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, DeviceHudPlugin));
+    app.add_plugins((
+        MinimalPlugins,
+        GameSettingsPlugin { persist: false },
+        DeviceHudPlugin,
+    ));
     let hud = app.world_mut().spawn(detector_readout()).id();
     app.update();
     let node = app.world().get::<Node>(hud).unwrap();
@@ -135,7 +144,11 @@ fn tracker_root_sits_at_bottom_center() {
 #[test]
 fn tracker_blip_shows_and_tracks_position_while_in_fan() {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, DeviceHudPlugin));
+    app.add_plugins((
+        MinimalPlugins,
+        GameSettingsPlugin { persist: false },
+        DeviceHudPlugin,
+    ));
     let hud = app.world_mut().spawn(detector_readout()).id();
     app.update();
 
@@ -182,7 +195,11 @@ fn tracker_blip_shows_and_tracks_position_while_in_fan() {
 #[test]
 fn tracker_blip_hides_and_status_reads_no_sig_without_signal() {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, DeviceHudPlugin));
+    app.add_plugins((
+        MinimalPlugins,
+        GameSettingsPlugin { persist: false },
+        DeviceHudPlugin,
+    ));
     let hud = app.world_mut().spawn(detector_readout()).id();
     app.update();
     app.world_mut().entity_mut(hud).insert(DetectorReadout {
@@ -209,7 +226,11 @@ fn tracker_blip_hides_and_status_reads_no_sig_without_signal() {
 #[test]
 fn tracker_leds_light_on_the_side_outside_the_fan() {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, DeviceHudPlugin));
+    app.add_plugins((
+        MinimalPlugins,
+        GameSettingsPlugin { persist: false },
+        DeviceHudPlugin,
+    ));
     let hud = app.world_mut().spawn(detector_readout()).id();
     app.update();
     app.world_mut().entity_mut(hud).insert(DetectorReadout {
@@ -232,7 +253,11 @@ fn tracker_leds_light_on_the_side_outside_the_fan() {
 #[test]
 fn flash_overlay_fades_as_elapsed_grows() {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, DeviceHudPlugin));
+    app.add_plugins((
+        MinimalPlugins,
+        GameSettingsPlugin { persist: false },
+        DeviceHudPlugin,
+    ));
     let overlay = app.world_mut().spawn(flash_overlay()).id();
     app.update();
     app.world_mut()
@@ -241,4 +266,49 @@ fn flash_overlay_fades_as_elapsed_grows() {
     app.update();
     let background = app.world().get::<BackgroundColor>(overlay).unwrap();
     assert_eq!(background.0.alpha(), flash_alpha(0.45));
+}
+
+#[test]
+fn flash_overlay_stays_hidden_when_reduce_flicker_is_enabled() {
+    let mut app = App::new();
+    app.add_plugins((
+        MinimalPlugins,
+        GameSettingsPlugin { persist: false },
+        DeviceHudPlugin,
+    ));
+    app.world_mut()
+        .resource_mut::<GameSettings>()
+        .reduce_flicker = true;
+    let overlay = app.world_mut().spawn(flash_overlay()).id();
+    app.update();
+    app.world_mut()
+        .entity_mut(overlay)
+        .insert(FlashOverlay { elapsed: 0.0 });
+    app.update();
+    let background = app.world().get::<BackgroundColor>(overlay).unwrap();
+    assert_eq!(background.0.alpha(), 0.0);
+    app.world_mut()
+        .resource_mut::<GameSettings>()
+        .reduce_flicker = false;
+    app.update();
+    assert_eq!(
+        app.world()
+            .get::<BackgroundColor>(overlay)
+            .unwrap()
+            .0
+            .alpha(),
+        flash_alpha(0.0)
+    );
+    app.world_mut()
+        .resource_mut::<GameSettings>()
+        .reduce_flicker = true;
+    app.update();
+    assert_eq!(
+        app.world()
+            .get::<BackgroundColor>(overlay)
+            .unwrap()
+            .0
+            .alpha(),
+        0.0
+    );
 }

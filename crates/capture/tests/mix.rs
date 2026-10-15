@@ -209,6 +209,7 @@ fn the_bus_is_recorded_but_the_mix_uses_the_logged_volume() {
     };
     let world = on(LoggedBus::World);
     assert_eq!(world, on(LoggedBus::Ui));
+    assert_eq!(world, on(LoggedBus::Music));
     assert_eq!(world, on(LoggedBus::Unrouted));
     assert!((world[0] - 0.25).abs() < 1e-3);
     std::fs::remove_dir_all(assets).unwrap();

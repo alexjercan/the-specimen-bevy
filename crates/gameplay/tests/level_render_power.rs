@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
+use game_settings::{GameSettings, GameSettingsPlugin};
 use gameplay::facility::{
     build_main_menu_background, FacilityLight, FacilityPlugin, FacilityPower, FacilityViewPlugin,
     LightIntensity, Module, Prop,
@@ -10,7 +11,8 @@ mod common;
 
 fn render_app() -> App {
     let mut app = common::player_app(Duration::from_millis(100));
-    app.init_resource::<Assets<Mesh>>()
+    app.add_plugins(GameSettingsPlugin { persist: false })
+        .init_resource::<Assets<Mesh>>()
         .init_resource::<Assets<StandardMaterial>>()
         .add_plugins((FacilityPlugin, FacilityViewPlugin));
     app
@@ -62,6 +64,33 @@ fn outage_extinguishes_normal_lights_but_not_emergency_lights() {
     }
     let (intensity, base) = light_of(&mut app, normal[0]);
     assert_eq!(intensity, base);
+}
+
+#[test]
+fn reduce_flicker_keeps_menu_lights_steady_without_changing_power() {
+    let mut app = render_app();
+    app.add_systems(Startup, |mut commands: Commands| {
+        build_main_menu_background(&mut commands);
+    });
+    app.update();
+    app.update();
+    app.world_mut()
+        .resource_mut::<GameSettings>()
+        .reduce_flicker = true;
+    for _ in 0..20 {
+        app.update();
+        let world = app.world_mut();
+        let mut lights =
+            world.query_filtered::<(&PointLight, &LightIntensity), With<FacilityLight>>();
+        let lit: Vec<_> = lights.iter(world).collect();
+        assert_eq!(lit.len(), 3);
+        assert!(lit.iter().all(|(light, base)| light.intensity == base.0));
+    }
+    *app.world_mut().resource_mut::<FacilityPower>() = FacilityPower::blackout(3);
+    app.update();
+    let world = app.world_mut();
+    let mut lights = world.query_filtered::<(&PointLight, &LightIntensity), With<FacilityLight>>();
+    assert!(lights.iter(world).all(|(light, _)| light.intensity > 0.0));
 }
 
 #[test]

@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use game_settings::GameSettings;
 use game_ui::theme;
 
 use super::{screen_camera, TITLE};
@@ -49,9 +50,17 @@ fn spawn_loading_screen(mut commands: Commands) {
     ));
 }
 
-fn pulse_label(time: Res<Time<Real>>, mut labels: Query<&mut TextColor, With<LoadingLabel>>) {
-    let phase = time.elapsed_secs() / PULSE_SECS * std::f32::consts::TAU;
-    let alpha = 0.35 + 0.65 * (0.5 + 0.5 * phase.sin());
+fn pulse_label(
+    time: Res<Time<Real>>,
+    settings: Res<GameSettings>,
+    mut labels: Query<&mut TextColor, With<LoadingLabel>>,
+) {
+    let alpha = if settings.reduce_flicker {
+        1.0
+    } else {
+        let phase = time.elapsed_secs() / PULSE_SECS * std::f32::consts::TAU;
+        0.35 + 0.65 * (0.5 + 0.5 * phase.sin())
+    };
     for mut color in &mut labels {
         color.0 = theme::MUTED.with_alpha(alpha);
     }

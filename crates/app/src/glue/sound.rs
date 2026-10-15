@@ -21,5 +21,6 @@ fn fill_menu_sounds(assets: Res<SoundAssets>, mut sounds: ResMut<MenuSounds>) {
         pause: assets.ui_pause.clone(),
         press: assets.ui_press.clone(),
         resume: assets.ui_resume.clone(),
+        ambient: assets.menu_ambient.clone(),
     };
 }

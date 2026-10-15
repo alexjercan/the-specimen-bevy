@@ -107,6 +107,7 @@ fn volumes_scale_ui_and_world_cues_by_master_and_bus() {
         master: 0.5,
         world: 0.4,
         ui: 0.2,
+        music: 0.3,
     });
     let scaled = play(&mut scaled_app, &cues);
     assert_eq!(base.len(), 3);
@@ -125,6 +126,7 @@ fn volumes_scale_ui_and_world_cues_by_master_and_bus() {
         let factor = match base.1 {
             Bus::Ui => 0.1,
             Bus::World => 0.2,
+            Bus::Music => 0.15,
         };
         let base = base.2.volume.to_linear();
         let scaled = scaled.2.volume.to_linear();
@@ -147,11 +149,14 @@ fn volumes_gain_multiplies_master_with_the_bus() {
         master: 0.5,
         world: 0.4,
         ui: 0.2,
+        music: 0.6,
     };
     assert!((volumes.gain(Bus::World) - 0.2).abs() < 0.001);
     assert!((volumes.gain(Bus::Ui) - 0.1).abs() < 0.001);
+    assert!((volumes.gain(Bus::Music) - 0.3).abs() < 0.001);
     assert_eq!(Volumes::default().gain(Bus::World), 1.0);
     assert_eq!(Volumes::default().gain(Bus::Ui), 1.0);
+    assert_eq!(Volumes::default().gain(Bus::Music), 1.0);
 }
 
 #[test]
@@ -176,6 +181,47 @@ fn global_cues_are_non_spatial_despawn_voices_on_their_bus() {
     assert!(voices.iter().all(|(_, _, settings, position)| {
         !settings.spatial && position.is_none() && matches!(settings.mode, PlaybackMode::Despawn)
     }));
+}
+
+#[test]
+fn loop_cues_are_non_spatial_looping_voices_on_their_bus() {
+    let mut app = playback_app(None);
+    let voices = play(
+        &mut app,
+        &[PlaySound::loop_global(clip(1), Bus::Music, 0.8)],
+    );
+    assert_eq!(voices.len(), 1);
+    let (handle, bus, settings, position) = &voices[0];
+    assert_eq!(*handle, clip(1));
+    assert_eq!(*bus, Bus::Music);
+    assert!(!settings.spatial && position.is_none());
+    assert!(matches!(settings.mode, PlaybackMode::Loop));
+    assert_eq!(settings.volume.to_linear(), 0.8);
+}
+
+#[test]
+fn loop_cues_scale_with_the_music_bus_and_keep_playing_while_paused() {
+    let mut app = playback_app(None);
+    app.insert_resource(Volumes {
+        master: 0.5,
+        world: 1.0,
+        ui: 1.0,
+        music: 0.4,
+    });
+    let voices = play(
+        &mut app,
+        &[PlaySound::loop_global(clip(1), Bus::Music, 1.0)],
+    );
+    assert_eq!(voices.len(), 1);
+    assert!((voices[0].2.volume.to_linear() - 0.2).abs() < 0.001);
+
+    app.world_mut().resource_mut::<AudioPaused>().0 = true;
+    let voices = play(
+        &mut app,
+        &[PlaySound::loop_global(clip(2), Bus::Music, 1.0)],
+    );
+    assert_eq!(voices.len(), 1);
+    assert_eq!(voices[0].0, clip(2));
 }
 
 #[test]

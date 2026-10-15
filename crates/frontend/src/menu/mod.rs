@@ -6,6 +6,7 @@ mod credits;
 mod game_over;
 mod loading;
 mod main_menu;
+mod music;
 mod pause;
 mod settings;
 
@@ -47,6 +48,7 @@ pub struct MenuSounds {
     pub pause: Handle<AudioSource>,
     pub press: Handle<AudioSource>,
     pub resume: Handle<AudioSource>,
+    pub ambient: Handle<AudioSource>,
 }
 
 #[derive(Resource, Default, Clone, Debug)]
@@ -87,6 +89,7 @@ impl Plugin for MenuPlugin {
             game_over::plugin,
             settings::plugin,
             achievements::plugin,
+            music::plugin,
         ))
         .add_systems(Update, (activate_buttons, hover_buttons));
     }

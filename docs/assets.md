@@ -27,7 +27,7 @@ Licensed credits go in `credits/CREDITS.md`. License texts go in
 `credits/licenses/`. Third-party crate licenses come from
 `scripts/gen-licenses.sh`.
 
-Direction notes and candidate research stay in `art/*/README.md`.
+Direction notes and candidate research stay in `art/*/README.md`. The original menu music generation, OGG encoding, and promotion steps are in `art/audio/README.md`; its provenance is in `credits/ASSET-SOURCES.md`.
 
 ## Loading
 

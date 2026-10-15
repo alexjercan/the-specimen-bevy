@@ -11,7 +11,10 @@ use gameplay::player::ControllerSettings;
 
 use super::{ui_sound, MenuSounds};
 use crate::MenuAssets;
-use game_settings::{GameSettings, InputBinding, SettingsDirty, MAX_SENSITIVITY, MIN_SENSITIVITY};
+use game_settings::{
+    FpsCap, GameSettings, GraphicsQuality, InputBinding, MsaaQuality, SettingsDirty, MAX_FOV,
+    MAX_SENSITIVITY, MAX_UI_SCALE, MIN_FOV, MIN_SENSITIVITY, MIN_UI_SCALE,
+};
 use game_ui::{menu_button, text, theme, FpsText, MenuButton};
 
 use game_flow::{CoreState, GameState, PauseState};
@@ -74,8 +77,13 @@ pub(super) enum SettingsAction {
     Back,
     Tab(SettingsTab),
     Graphics,
+    Msaa,
     DisplayMode,
+    Vsync,
+    FpsCap,
     FpsOverlay,
+    InvertY,
+    ReduceFlicker,
     Forward,
     Left,
     Backward,
@@ -89,8 +97,13 @@ impl SettingsAction {
     fn name(self) -> &'static str {
         match self {
             Self::Graphics => "Quality preset",
+            Self::Msaa => "MSAA",
             Self::DisplayMode => "Display mode",
+            Self::Vsync => "VSync",
+            Self::FpsCap => "FPS cap",
             Self::FpsOverlay => "FPS overlay",
+            Self::InvertY => "Invert Y",
+            Self::ReduceFlicker => "Reduce flicker",
             Self::Forward => "Forward",
             Self::Left => "Left",
             Self::Backward => "Backward",
@@ -144,7 +157,10 @@ impl SettingsGroup {
                 Row::Slider(SettingSlider::Sfx),
                 Row::Slider(SettingSlider::Music),
             ],
-            Self::Mouse => &[Row::Slider(SettingSlider::Sensitivity)],
+            Self::Mouse => &[
+                Row::Slider(SettingSlider::Sensitivity),
+                Row::Choice(SettingsAction::InvertY),
+            ],
             Self::Movement => &[
                 Row::Key(SettingsAction::Forward),
                 Row::Key(SettingsAction::Left),
@@ -158,7 +174,13 @@ impl SettingsGroup {
             ],
             Self::Quality => &[
                 Row::Choice(SettingsAction::Graphics),
+                Row::Choice(SettingsAction::Msaa),
+                Row::Slider(SettingSlider::Fov),
+                Row::Slider(SettingSlider::UiScale),
+                Row::Choice(SettingsAction::ReduceFlicker),
                 Row::Choice(SettingsAction::DisplayMode),
+                Row::Choice(SettingsAction::Vsync),
+                Row::Choice(SettingsAction::FpsCap),
                 Row::Choice(SettingsAction::FpsOverlay),
             ],
         }
@@ -177,6 +199,8 @@ pub(super) enum SettingSlider {
     Sfx,
     Music,
     Sensitivity,
+    Fov,
+    UiScale,
 }
 
 impl SettingSlider {
@@ -184,14 +208,18 @@ impl SettingSlider {
         match self {
             Self::Master => "Master",
             Self::Sfx => "SFX",
-            Self::Music => "Music (reserved)",
+            Self::Music => "Music",
             Self::Sensitivity => "Mouse sensitivity",
+            Self::Fov => "Field of view",
+            Self::UiScale => "UI scale",
         }
     }
 
     fn range(self) -> (f32, f32) {
         match self {
             Self::Sensitivity => (MIN_SENSITIVITY, MAX_SENSITIVITY),
+            Self::Fov => (MIN_FOV, MAX_FOV),
+            Self::UiScale => (MIN_UI_SCALE, MAX_UI_SCALE),
             _ => (0.0, 1.0),
         }
     }
@@ -199,6 +227,7 @@ impl SettingSlider {
     fn step(self) -> f32 {
         match self {
             Self::Sensitivity => 0.0001,
+            Self::Fov => 1.0,
             _ => 0.05,
         }
     }
@@ -209,6 +238,8 @@ impl SettingSlider {
             Self::Sfx => settings.sfx,
             Self::Music => settings.music,
             Self::Sensitivity => settings.mouse_sensitivity,
+            Self::Fov => settings.fov,
+            Self::UiScale => settings.ui_scale,
         }
     }
 
@@ -218,12 +249,15 @@ impl SettingSlider {
             Self::Sfx => settings.sfx = value,
             Self::Music => settings.music = value,
             Self::Sensitivity => settings.mouse_sensitivity = value,
+            Self::Fov => settings.fov = value,
+            Self::UiScale => settings.ui_scale = value,
         }
     }
 
     pub(super) fn readout(self, value: f32) -> String {
         match self {
             Self::Sensitivity => format!("{:.1}", value * 1000.0),
+            Self::Fov => format!("{} deg", value.round()),
             _ => format!("{}%", (value * 100.0).round()),
         }
     }
@@ -389,7 +423,7 @@ fn slider_row(field: SettingSlider, settings: &GameSettings, font: Handle<Font>)
                 SliderReadout(field),
                 text(field.readout(value), 16.0, theme::TEXT, font),
                 Node {
-                    width: px(52),
+                    width: px(72),
                     ..default()
                 },
             ),
@@ -439,10 +473,29 @@ fn spawn_row(
 fn choice_value(action: SettingsAction, settings: &GameSettings) -> String {
     match action {
         SettingsAction::Graphics => format!("{:?}", settings.graphics),
+        SettingsAction::Msaa => match settings.msaa {
+            MsaaQuality::Off => "Off",
+            MsaaQuality::Sample2 => "2x",
+            MsaaQuality::Sample4 => "4x",
+            MsaaQuality::Sample8 => "8x",
+        }
+        .into(),
         SettingsAction::DisplayMode => format!("{:?}", settings.display_mode),
-        SettingsAction::FpsOverlay => if settings.fps_overlay { "On" } else { "Off" }.into(),
+        SettingsAction::Vsync => on_off(settings.vsync),
+        SettingsAction::FpsCap => match settings.fps_cap {
+            FpsCap::Uncapped => "Off".into(),
+            cap => format!("{cap:?}").trim_start_matches("Fps").to_owned(),
+        },
+        SettingsAction::FpsOverlay => on_off(settings.fps_overlay),
+        SettingsAction::InvertY => on_off(settings.invert_y),
+        SettingsAction::ReduceFlicker => on_off(settings.reduce_flicker),
         _ => unreachable!(),
     }
+}
+
+fn on_off(enabled: bool) -> String {
+    let value = if enabled { "On" } else { "Off" };
+    value.into()
 }
 
 fn group(kind: SettingsGroup, font: Handle<Font>) -> impl Bundle {
@@ -704,9 +757,11 @@ fn change_slider(
     }
     field.set(&mut settings, value);
     match field {
-        SettingSlider::Master | SettingSlider::Sfx => *bus = volumes(&settings),
+        SettingSlider::Master | SettingSlider::Sfx | SettingSlider::Music => {
+            *bus = volumes(&settings);
+        }
         SettingSlider::Sensitivity => controller.mouse_sensitivity = value,
-        SettingSlider::Music => {}
+        SettingSlider::Fov | SettingSlider::UiScale => {}
     }
     pending.0 = true;
     sounds.write(ui_sound(&menu_sounds.focus));
@@ -751,7 +806,7 @@ fn activate(
         Query<Entity, With<Camera>>,
     ),
     state: Res<State<GameState>>,
-    mut settings: ResMut<GameSettings>,
+    (mut settings, mut controller): (ResMut<GameSettings>, ResMut<ControllerSettings>),
     mut dirty: ResMut<SettingsDirty>,
     mut awaiting: ResMut<AwaitingKey>,
     mut active: ResMut<ActiveTab>,
@@ -800,8 +855,20 @@ fn activate(
             SettingsAction::Graphics => {
                 sounds.write(ui_sound(&menu_sounds.press));
                 settings.graphics = settings.graphics.next();
+                if let Some(quality) = settings.graphics.preset_msaa() {
+                    settings.msaa = quality;
+                }
                 for camera in &cameras {
-                    commands.entity(camera).insert(msaa(settings.graphics));
+                    commands.entity(camera).insert(msaa(settings.msaa));
+                }
+                dirty.0 = true;
+            }
+            SettingsAction::Msaa => {
+                sounds.write(ui_sound(&menu_sounds.press));
+                settings.msaa = settings.msaa.next();
+                settings.graphics = GraphicsQuality::Custom;
+                for camera in &cameras {
+                    commands.entity(camera).insert(msaa(settings.msaa));
                 }
                 dirty.0 = true;
             }
@@ -810,10 +877,29 @@ fn activate(
                 settings.display_mode = settings.display_mode.next();
                 let mode = window_mode(settings.display_mode);
                 for mut window in &mut windows {
-                    if window.mode != mode {
-                        window.mode = mode;
-                    }
+                    window.mode = mode;
                 }
+                dirty.0 = true;
+            }
+            SettingsAction::Vsync => {
+                sounds.write(ui_sound(&menu_sounds.press));
+                settings.vsync = !settings.vsync;
+                dirty.0 = true;
+            }
+            SettingsAction::FpsCap => {
+                sounds.write(ui_sound(&menu_sounds.press));
+                settings.fps_cap = settings.fps_cap.next();
+                dirty.0 = true;
+            }
+            SettingsAction::InvertY => {
+                sounds.write(ui_sound(&menu_sounds.press));
+                settings.invert_y = !settings.invert_y;
+                controller.invert_y = settings.invert_y;
+                dirty.0 = true;
+            }
+            SettingsAction::ReduceFlicker => {
+                sounds.write(ui_sound(&menu_sounds.press));
+                settings.reduce_flicker = !settings.reduce_flicker;
                 dirty.0 = true;
             }
             SettingsAction::FpsOverlay => {

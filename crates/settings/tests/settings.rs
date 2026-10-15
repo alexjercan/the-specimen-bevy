@@ -5,7 +5,8 @@ use std::{
 
 use bevy::prelude::{KeyCode, MouseButton};
 use game_settings::{
-    parse_key, CustomLevel, DisplayMode, GameSettings, GraphicsQuality, InputBinding, MovementKeys,
+    parse_key, CustomLevel, DisplayMode, FpsCap, GameSettings, GraphicsQuality, InputBinding,
+    MovementKeys, MsaaQuality,
 };
 
 #[test]
@@ -25,9 +26,16 @@ fn saves_and_loads_player_settings() {
         music: 0.2,
         mouse_sensitivity: 0.004,
         graphics: GraphicsQuality::Low,
+        msaa: MsaaQuality::Off,
         display_mode: DisplayMode::Windowed,
         fps_overlay: false,
         preferred_mode: game_settings::PreferredMode::Custom,
+        invert_y: true,
+        reduce_flicker: true,
+        fov: 90.0,
+        ui_scale: 1.25,
+        vsync: false,
+        fps_cap: FpsCap::Fps60,
         ..Default::default()
     };
     settings.custom_difficulty.walk_speed = CustomLevel::Medium;
@@ -67,6 +75,24 @@ fn old_settings_are_copied_only_when_new_settings_are_missing() {
     updated.save(&new_path).unwrap();
     assert_eq!(game_settings::load_or_migrate(&new_path).unwrap(), updated);
     fs::remove_dir_all(folder).unwrap();
+}
+
+#[test]
+fn old_presets_load_with_their_original_msaa() {
+    let path = std::env::temp_dir().join(format!(
+        "specimen-legacy-settings-{}-{:?}.json",
+        std::process::id(),
+        std::thread::current().id()
+    ));
+    for (preset, msaa) in [
+        ("low", MsaaQuality::Off),
+        ("medium", MsaaQuality::Sample2),
+        ("high", MsaaQuality::Sample4),
+    ] {
+        fs::write(&path, format!(r#"{{"graphics":"{preset}"}}"#)).unwrap();
+        assert_eq!(GameSettings::load(&path).unwrap().msaa, msaa);
+    }
+    fs::remove_file(path).unwrap();
 }
 
 #[test]
@@ -110,6 +136,44 @@ fn missing_fields_keep_defaults() {
         settings.custom_difficulty,
         game_settings::CustomDifficulty::default()
     );
+    assert!(!settings.invert_y);
+    assert!(!settings.reduce_flicker);
+    assert_eq!(settings.fov, game_settings::DEFAULT_FOV);
+    assert_eq!(settings.ui_scale, game_settings::DEFAULT_UI_SCALE);
+    assert!(settings.vsync);
+    assert_eq!(settings.fps_cap, FpsCap::Uncapped);
+    assert_eq!(settings.msaa, MsaaQuality::Sample4);
+}
+
+#[test]
+fn fov_and_ui_scale_are_clamped_to_safe_ranges() {
+    let mut settings: GameSettings = serde_json::from_str(r#"{"fov":1000,"ui_scale":-5}"#).unwrap();
+    settings.sanitize();
+    assert_eq!(settings.fov, game_settings::MAX_FOV);
+    assert_eq!(settings.ui_scale, game_settings::MIN_UI_SCALE);
+
+    let mut settings = GameSettings {
+        fov: f32::NAN,
+        ui_scale: f32::NAN,
+        ..Default::default()
+    };
+    settings.sanitize();
+    assert_eq!(settings.fov, game_settings::DEFAULT_FOV);
+    assert_eq!(settings.ui_scale, game_settings::DEFAULT_UI_SCALE);
+}
+
+#[test]
+fn graphics_quality_presets_drive_msaa_but_custom_is_independent() {
+    assert_eq!(GraphicsQuality::Low.preset_msaa(), Some(MsaaQuality::Off));
+    assert_eq!(
+        GraphicsQuality::Medium.preset_msaa(),
+        Some(MsaaQuality::Sample2)
+    );
+    assert_eq!(
+        GraphicsQuality::High.preset_msaa(),
+        Some(MsaaQuality::Sample4)
+    );
+    assert_eq!(GraphicsQuality::Custom.preset_msaa(), None);
 }
 
 #[test]
@@ -195,10 +259,19 @@ fn settings_saved_before_custom_levels_still_load_and_save_the_same_numbers() {
     assert!(!custom.sprint && custom.flashbangs && !custom.detector && custom.blackout);
     assert_eq!(settings.keys.interact, KeyCode::KeyE);
     assert_eq!(settings.graphics, GraphicsQuality::Medium);
+    assert_eq!(settings.msaa, MsaaQuality::Sample2);
 
     settings.save(&path).unwrap();
     let saved: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-    let old: serde_json::Value = serde_json::from_str(SAVED_BEFORE_CUSTOM_LEVELS).unwrap();
+    let mut old: serde_json::Value = serde_json::from_str(SAVED_BEFORE_CUSTOM_LEVELS).unwrap();
+    // NOTE: the old file predates these fields; a resave fills them in with current defaults.
+    old["invert_y"] = serde_json::json!(false);
+    old["reduce_flicker"] = serde_json::json!(false);
+    old["fov"] = serde_json::json!(game_settings::DEFAULT_FOV);
+    old["ui_scale"] = serde_json::json!(game_settings::DEFAULT_UI_SCALE);
+    old["vsync"] = serde_json::json!(true);
+    old["fps_cap"] = serde_json::json!("uncapped");
+    old["msaa"] = serde_json::json!("sample2");
     assert_eq!(saved, old);
     fs::remove_dir_all(folder).unwrap();
 }

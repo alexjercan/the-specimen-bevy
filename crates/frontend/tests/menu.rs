@@ -1,4 +1,10 @@
-use bevy::{ecs::resource::IsResource, prelude::*, window::CursorGrabMode};
+use bevy::{
+    audio::{PlaybackMode, PlaybackSettings},
+    ecs::resource::IsResource,
+    prelude::*,
+    window::CursorGrabMode,
+};
+use game_audio::Bus;
 use game_flow::{GameState, PauseState};
 use gameplay::{
     facility::{Door, DoorRef, LevelRoot, MainMenuAccentLight, Room},
@@ -72,6 +78,33 @@ fn main_menu_lists_play_settings_credits_achievements_then_quit() {
             "Quit button",
         ]
     );
+}
+
+fn music_voices(app: &mut App) -> Vec<PlaybackSettings> {
+    app.world_mut()
+        .query::<(&Bus, &PlaybackSettings, &AudioPlayer)>()
+        .iter(app.world())
+        .filter_map(|(bus, settings, _)| (*bus == Bus::Music).then_some(*settings))
+        .collect()
+}
+
+#[test]
+fn menu_music_loops_once_and_stops_during_a_run() {
+    let mut app = ready_menu_app();
+    app.update();
+    let music = music_voices(&mut app);
+    assert_eq!(music.len(), 1);
+    assert!(matches!(music[0].mode, PlaybackMode::Loop));
+    for _ in 0..3 {
+        app.update();
+        assert_eq!(music_voices(&mut app).len(), 1);
+    }
+    press(&mut app, "Play button");
+    assert!(music_voices(&mut app).is_empty());
+    escape(&mut app);
+    press(&mut app, "Main menu button");
+    app.update();
+    assert_eq!(music_voices(&mut app).len(), 1);
 }
 
 #[test]

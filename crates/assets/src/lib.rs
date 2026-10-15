@@ -426,6 +426,8 @@ pub struct SoundAssets {
     pub ui_press: Handle<AudioSource>,
     #[asset(path = "sounds/ui/resume.wav")]
     pub ui_resume: Handle<AudioSource>,
+    #[asset(path = "audio/menu/ambient-loop.ogg")]
+    pub menu_ambient: Handle<AudioSource>,
 }
 
 pub struct GameAssetsPlugin;

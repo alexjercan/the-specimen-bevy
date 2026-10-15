@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use game_settings::GameSettings;
 use game_ui::theme;
 
 use crate::fuses::{FUSE_EMPTY, FUSE_EMPTY_EDGE, FUSE_HAZARD, FUSE_METAL};
@@ -523,9 +524,18 @@ pub fn flash_overlay() -> impl Bundle {
 }
 
 fn paint_flash_overlay(
-    mut overlays: Query<(&FlashOverlay, &mut BackgroundColor), Changed<FlashOverlay>>,
+    settings: Res<GameSettings>,
+    mut overlays: Query<(Ref<FlashOverlay>, &mut BackgroundColor)>,
 ) {
     for (overlay, mut background) in &mut overlays {
-        background.0 = Color::WHITE.with_alpha(flash_alpha(overlay.elapsed));
+        if !settings.is_changed() && !overlay.is_changed() {
+            continue;
+        }
+        let alpha = if settings.reduce_flicker {
+            0.0
+        } else {
+            flash_alpha(overlay.elapsed)
+        };
+        background.0 = Color::WHITE.with_alpha(alpha);
     }
 }

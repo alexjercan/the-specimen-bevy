@@ -34,4 +34,5 @@ pub struct KeyBindings {
 pub struct ControllerSettings {
     pub keys: KeyBindings,
     pub mouse_sensitivity: f32,
+    pub invert_y: bool,
 }

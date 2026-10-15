@@ -25,6 +25,7 @@ pub fn controller_settings() -> ControllerSettings {
             flashbang: Input::Mouse(MouseButton::Right),
         },
         mouse_sensitivity: 0.0015,
+        invert_y: false,
     }
 }
 

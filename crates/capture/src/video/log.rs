@@ -28,6 +28,7 @@ const ASSET_DIR: &str = "assets";
 pub enum LoggedBus {
     World,
     Ui,
+    Music,
     Unrouted,
 }
 
@@ -36,6 +37,7 @@ impl From<Option<&Bus>> for LoggedBus {
         match bus {
             Some(Bus::World) => Self::World,
             Some(Bus::Ui) => Self::Ui,
+            Some(Bus::Music) => Self::Music,
             None => Self::Unrouted,
         }
     }
