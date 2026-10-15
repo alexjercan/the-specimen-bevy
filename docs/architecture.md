@@ -162,10 +162,11 @@ What glue does: loader collection to feature assets fill (also
 `MenuAssets`), one-time settings copy, bus volume copy. Runtime settings
 changes are written by the frontend settings panel directly into the
 gameplay and audio resources, the primary `Window.mode` and the `Msaa` of
-every `Camera3d`. At build, `app` sets the window mode from the saved
-settings (`game_frontend::window_mode`) and adds
+every `Camera`. Stacked 3D and UI cameras must use the same MSAA to share
+Bevy's main render texture. At build, `app` sets the window mode from the
+saved settings (`game_frontend::window_mode`) and adds
 `game_frontend::CameraQualityPlugin`, whose observer gives each new
-`Camera3d` the saved quality (`game_frontend::msaa`).
+`Camera` the saved quality (`game_frontend::msaa`).
 
 Check: `gate glue_config_only`. `gate app_settings_sync` keeps
 `crates/app/src/lib.rs` free of `resource_changed::<GameSettings>`,

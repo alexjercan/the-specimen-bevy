@@ -680,7 +680,7 @@ fn primary_window_mode(app: &mut App) -> WindowMode {
 
 fn camera_msaa(app: &mut App) -> Vec<Msaa> {
     app.world_mut()
-        .query_filtered::<&Msaa, With<Camera3d>>()
+        .query_filtered::<&Msaa, With<Camera>>()
         .iter(app.world())
         .copied()
         .collect()
@@ -701,7 +701,29 @@ fn quality_and_display_mode_changes_reach_the_cameras_and_window_at_once() {
     );
     let cameras = camera_msaa(&mut app);
     assert!(!cameras.is_empty());
+    assert!(
+        cameras.len() >= 3,
+        "expected both menu cameras and the extra camera"
+    );
     assert!(cameras.iter().all(|msaa| *msaa == Msaa::Off), "{cameras:?}");
+
+    back(&mut app);
+    assert!(named(&mut app, "Settings overlay").is_none());
+    assert_eq!(camera_msaa(&mut app), cameras);
+    open_settings(&mut app);
+    tab(&mut app, "Graphics");
+    press_control(&mut app, "Quality preset");
+    assert_eq!(
+        app.world().resource::<GameSettings>().graphics,
+        GraphicsQuality::Medium
+    );
+    assert!(camera_msaa(&mut app)
+        .iter()
+        .all(|msaa| *msaa == Msaa::Sample2));
+    back(&mut app);
+    assert!(named(&mut app, "Settings overlay").is_none());
+    open_settings(&mut app);
+    tab(&mut app, "Graphics");
 
     press_control(&mut app, "Display mode");
     assert_eq!(primary_window_mode(&mut app), WindowMode::Windowed);
@@ -718,7 +740,9 @@ fn new_cameras_start_with_the_saved_quality() {
     app.add_plugins((MinimalPlugins, GameSettingsPlugin { persist: false }))
         .add_plugins(CameraQualityPlugin);
     app.world_mut().resource_mut::<GameSettings>().graphics = GraphicsQuality::Medium;
-    let camera = app.world_mut().spawn(Camera3d::default()).id();
+    let camera_3d = app.world_mut().spawn(Camera3d::default()).id();
+    let camera_2d = app.world_mut().spawn(Camera2d).id();
     app.update();
-    assert_eq!(app.world().get::<Msaa>(camera), Some(&Msaa::Sample2));
+    assert_eq!(app.world().get::<Msaa>(camera_3d), Some(&Msaa::Sample2));
+    assert_eq!(app.world().get::<Msaa>(camera_2d), Some(&Msaa::Sample2));
 }

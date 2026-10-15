@@ -54,7 +54,7 @@ pub fn msaa(quality: GraphicsQuality) -> Msaa {
     }
 }
 
-// NOTE: new cameras take the saved quality; the settings panel rewrites live cameras when it changes.
+// NOTE: stacked cameras must share MSAA to share Bevy's render texture; new cameras take saved quality and the settings panel rewrites live cameras.
 pub struct CameraQualityPlugin;
 
 impl Plugin for CameraQualityPlugin {
@@ -64,7 +64,7 @@ impl Plugin for CameraQualityPlugin {
 }
 
 fn quality_for_new_cameras(
-    added: On<Add, Camera3d>,
+    added: On<Add, Camera>,
     settings: Res<GameSettings>,
     mut commands: Commands,
 ) {

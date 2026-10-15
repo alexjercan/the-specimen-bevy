@@ -748,7 +748,7 @@ fn activate(
     mut fps_texts: Query<&mut Visibility, With<FpsText>>,
     (mut windows, cameras): (
         Query<&mut Window, With<PrimaryWindow>>,
-        Query<Entity, With<Camera3d>>,
+        Query<Entity, With<Camera>>,
     ),
     state: Res<State<GameState>>,
     mut settings: ResMut<GameSettings>,
