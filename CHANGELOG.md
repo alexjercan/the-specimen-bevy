@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-15
+
+### Settings and presentation
+
+- Add adjustable field of view and UI scale, an invert-Y option, reduced flicker, and custom MSAA. Set the default field of view to 75 degrees.
+- Add menu ambience and improve the settings panel and menu camera behavior.
+
 ### Architecture
 
 - Split `crates/core` into `crates/app` (`AppBuilder`, `Frontend`, `FrameStep`, the stdio `Specimen` playable and asset-fill glue) and `crates/frontend` (menus, settings panel, cinematics, credits). Flow states live in `crates/flow` and facility lighting in `gameplay::facility`. Delete `crates/probe` and `crates/transport`.
@@ -95,7 +102,8 @@ First playable release of The Specimen.
 - Manual workflows deploy the browser game to GitHub Pages and reuse tagged release artifacts for the itch.io HTML5, Windows, and Linux channels.
 - Debug inspector shows grouped entities and lets testers edit the player's fuse inventory.
 
-[Unreleased]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.1.1...v0.2.0
