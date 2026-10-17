@@ -34,7 +34,7 @@ The presets live in `crates/gameplay/src/presets/` (`normal.rs`, `insane.rs`) as
 
 ## Local progress
 
-Native builds save to `$XDG_DATA_HOME/the-specimen-bevy/achievements.json`, or `~/.local/share/the-specimen-bevy/achievements.json` when `XDG_DATA_HOME` is unset. Browser builds use `localStorage` key `the-specimen-bevy.achievements` for the site's origin. Private browsing or blocked storage can prevent persistence. Progress uses versioned JSON with a list of unlocked API names; unknown names are retained for forwards compatibility. A corrupt native file is backed up as `.corrupt` (or a numbered variant) before a new one is written. No file is changed when the backup fails.
+Linux and other non-Windows native builds save to `$XDG_DATA_HOME/the-specimen-bevy/achievements.json`, or `~/.local/share/the-specimen-bevy/achievements.json` when `XDG_DATA_HOME` is unset. Windows native builds save to `%LOCALAPPDATA%\the-specimen-bevy\achievements.json`. Browser builds use `localStorage` key `the-specimen-bevy.achievements` for the site's origin. Private browsing or blocked storage can prevent persistence. Progress uses versioned JSON with a list of unlocked API names; unknown names are retained for forwards compatibility. A corrupt native file is backed up as `.corrupt` (or a numbered variant) before a new one is written. No file is changed when the backup fails.
 
 Progress is local to that computer or browser origin unless a Steam-enabled build successfully syncs it. A Steam download does not automatically import a separate itch browser's localStorage. Clearing browser storage or deleting the native file removes the local copy.
 

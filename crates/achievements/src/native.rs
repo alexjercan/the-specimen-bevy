@@ -28,6 +28,16 @@ impl Loaded {
     }
 }
 
+#[cfg(windows)]
+pub(crate) fn default_path() -> Option<PathBuf> {
+    let Some(root) = std::env::var_os("LOCALAPPDATA").filter(|value| !value.is_empty()) else {
+        warn!("LOCALAPPDATA unavailable; achievements will not persist");
+        return None;
+    };
+    Some(PathBuf::from(root).join("the-specimen-bevy/achievements.json"))
+}
+
+#[cfg(not(windows))]
 pub(crate) fn default_path() -> Option<PathBuf> {
     let root = std::env::var_os("XDG_DATA_HOME")
         .filter(|value| !value.is_empty())

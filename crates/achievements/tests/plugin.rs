@@ -74,6 +74,19 @@ fn persisted_store_merges_saves_and_reloads_across_a_simulated_restart() {
     fs::remove_dir_all(path.parent().unwrap()).unwrap();
 }
 
+#[cfg(windows)]
+#[test]
+fn persistent_store_uses_local_app_data_on_windows() {
+    let expected = env::var_os("LOCALAPPDATA")
+        .filter(|value| !value.is_empty())
+        .map(|root| std::path::PathBuf::from(root).join("the-specimen-bevy/achievements.json"));
+    match (AchievementStore::persistent(true), expected) {
+        (AchievementStore::File(path), Some(expected)) => assert_eq!(path, expected),
+        (AchievementStore::Disabled, None) => {}
+        _ => panic!("Windows achievement store must use LOCALAPPDATA"),
+    }
+}
+
 #[test]
 fn persist_false_adds_nothing_and_never_touches_the_default_path() {
     let dir = env::temp_dir().join(format!(

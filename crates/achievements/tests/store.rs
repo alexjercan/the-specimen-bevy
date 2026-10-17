@@ -66,6 +66,10 @@ fn missing_file_loads_empty_and_is_created_on_first_unlock() {
     app.update();
     assert_eq!(unlocked_ids(&path), ["RESTORE_BOILER"]);
 
+    unlock(&mut app, Achievement::EscapeUndetected);
+    app.update();
+    assert_eq!(unlocked_ids(&path), ["ESCAPE_UNDETECTED", "RESTORE_BOILER"]);
+
     fs::remove_dir_all(dir).unwrap();
 }
 
