@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-29
+
+### Compatibility and fixes
+
+- Update Bevy to 0.20.0 and migrate companion crates, input bindings, UI buttons, lifecycle observers, and debug tooling. Keep the existing gameplay behavior across native and browser builds.
+- Save achievements on Windows under `%LOCALAPPDATA%\the-specimen-bevy\achievements.json` instead of leaving persistence disabled when Unix home variables are absent.
+- Keep the victory title and menu centered vertically on the left of the credits screen. Add a rendered layout check to catch viewport overflow.
+
 ## [0.4.0] - 2026-10-15
 
 ### Settings and presentation
@@ -102,7 +110,8 @@ First playable release of The Specimen.
 - Manual workflows deploy the browser game to GitHub Pages and reuse tagged release artifacts for the itch.io HTML5, Windows, and Linux channels.
 - Debug inspector shows grouped entities and lets testers edit the player's fuse inventory.
 
-[Unreleased]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/alexjercan/the-specimen-bevy/compare/v0.2.0...v0.3.0

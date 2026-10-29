@@ -6120,8 +6120,8 @@ SOFTWARE.
 
 ## MIT License
 
-- stdio 0.4.0
-- game_ui 0.4.0
+- stdio 0.5.0
+- game_ui 0.5.0
 - accesskit 0.24.1
 - accesskit_consumer 0.38.0
 - accesskit_ios 0.1.2

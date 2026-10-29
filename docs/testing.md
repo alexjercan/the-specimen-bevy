@@ -2,7 +2,7 @@
 
 `./tests.sh --smoke` is the fast loop. `./tests.sh --full` is what CI runs.
 It adds clippy, a second clippy and test run with
-`--features debug,halloween`, and the rendered e2e under `xvfb-run`.
+`--features debug,halloween`, and the rendered e2e scenarios under `xvfb-run`.
 
 The rendered step sets `VK_ICD_FILENAMES` to `$BEVY_SOFTWARE_VK_ICD` when
 the caller did not set it. The dev shell (`flake.nix`) exports that path to
@@ -32,7 +32,8 @@ time. Run `cargo check --locked --features steam` by hand before a release.
   and one rendered scenario run in CI. The rendered one runs under
   `xvfb-run`. The switches pick the runs:
   `cargo test --test e2e` runs the headless ones, `-- --rendered` runs the
-  rendered escape run, and `-- --record` runs the record run only.
+  rendered escape run, `-- --credits` runs the rendered victory-credits layout
+  check, and `-- --record` runs the record run only.
 - Stdio sessions and the record run are local only. Neither `tests.sh` nor
   CI runs `--record`. Run it with:
   `BEVY_ASSET_ROOT=$PWD nix develop --command bash -c 'VK_ICD_FILENAMES="$BEVY_SOFTWARE_VK_ICD" xvfb-run -a cargo test --locked --test e2e -- --record'`.
