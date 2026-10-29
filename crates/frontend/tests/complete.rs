@@ -88,6 +88,16 @@ fn escaping_shows_the_completion_cinematic_then_credits_and_retry_starts_a_fresh
     settle(&mut app);
     assert_eq!(game_state(&app), GameState::Credits);
     assert_eq!(buttons(&mut app), 3);
+    let retry = app
+        .world_mut()
+        .query::<(Entity, &Name)>()
+        .iter(app.world())
+        .find_map(|(entity, name)| (name.as_str() == "Retry button").then_some(entity))
+        .expect("retry button on ending credits");
+    let controls = app.world().get::<ChildOf>(retry).unwrap().parent();
+    let layout = app.world().get::<Node>(controls).unwrap();
+    assert_eq!(layout.height, percent(100));
+    assert_eq!(layout.justify_content, JustifyContent::Center);
     press(&mut app, "Main menu button");
     assert_eq!(game_state(&app), GameState::MainMenu);
     assert_eq!(count::<With<Camera2d>>(&mut app), 1);

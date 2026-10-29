@@ -182,9 +182,11 @@ fn spawn_credits(mut commands: Commands, assets: Res<MenuAssets>, route: Res<Cre
     let controls = commands
         .spawn(Node {
             width: percent(30),
+            height: percent(100),
             max_width: px(300),
             min_width: px(160),
             flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
             row_gap: px(BUTTON_GAP),
             ..default()
         })
@@ -211,6 +213,7 @@ fn spawn_credits(mut commands: Commands, assets: Res<MenuAssets>, route: Res<Cre
             Node {
                 width: percent(100),
                 height: percent(100),
+                min_height: px(0),
                 align_items: AlignItems::Center,
                 padding: UiRect::axes(px(72), px(36)),
                 column_gap: px(32),

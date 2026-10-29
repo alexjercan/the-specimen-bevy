@@ -22,4 +22,5 @@ if [[ "$mode" == --full ]]; then
   cargo clippy --workspace --all-targets --locked --features debug,halloween -- -D warnings
   cargo test --workspace --locked --features debug,halloween
   VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-${BEVY_SOFTWARE_VK_ICD:-}}" xvfb-run -a cargo test --locked --test e2e -- --rendered
+  VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-${BEVY_SOFTWARE_VK_ICD:-}}" xvfb-run -a cargo test --locked --test e2e -- --credits
 fi

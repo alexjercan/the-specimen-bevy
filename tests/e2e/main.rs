@@ -9,8 +9,10 @@ use autopilot::AutopilotStatus;
 use bevy::{prelude::*, time::TimeUpdateStrategy};
 use game::prelude::{AppBuilder, FrameStep, Frontend, VideoProfile};
 
+mod credits;
 mod escape_run;
 
+use credits::rendered_credits_layout;
 use escape_run::escape_run;
 use gameplay::facility::Escaped;
 
@@ -204,6 +206,8 @@ fn main() -> ExitCode {
         &[("rendered_record_run", rendered_record_run)]
     } else if switch("--rendered") {
         &[("rendered_escape_run", rendered_escape_run)]
+    } else if switch("--credits") {
+        &[("rendered_credits_layout", rendered_credits_layout)]
     } else {
         &[
             ("headless_escape_run", headless_escape_run),
