@@ -663,7 +663,7 @@ fn decorate_preloaded_props(
 }
 
 fn decorate_prop(
-    added: On<Add, Prop>,
+    added: On<Add<Prop>>,
     props: Query<(&Prop, &Transform)>,
     assets: Res<HalloweenAssets>,
     mut commands: Commands,
@@ -710,7 +710,7 @@ fn spawn_prop_decor(
 }
 
 fn replace_plant_visual(
-    added: On<Add, WorldAssetRoot>,
+    added: On<Add<WorldAssetRoot>>,
     roots: Query<&ChildOf, With<WorldAssetRoot>>,
     props: Query<(&Prop, &Transform)>,
     assets: Res<HalloweenAssets>,

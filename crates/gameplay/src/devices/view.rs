@@ -55,7 +55,7 @@ impl Plugin for DeviceViewPlugin {
 }
 
 fn mark_device_for_render(
-    added: On<Add, PickupKind>,
+    added: On<Add<PickupKind>>,
     pickups: Query<&PickupKind>,
     mut commands: Commands,
 ) {
@@ -65,7 +65,7 @@ fn mark_device_for_render(
 }
 
 fn attach_throw_visual(
-    added: On<Add, ThrownFlashbang>,
+    added: On<Add<ThrownFlashbang>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut commands: Commands,

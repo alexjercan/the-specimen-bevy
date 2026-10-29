@@ -7,7 +7,7 @@ use bevy::{
     platform::collections::HashMap,
     prelude::*,
     ui::UiScale,
-    ui_widgets::{Scrollbar, ScrollbarThumb, SliderDragState, SliderValue, ValueChange},
+    ui_widgets::{Button, Scrollbar, ScrollbarThumb, SliderDragState, SliderValue, ValueChange},
     window::{MonitorSelection, PresentMode, PrimaryWindow, WindowMode},
 };
 use game_assets::key_glyph_stem;

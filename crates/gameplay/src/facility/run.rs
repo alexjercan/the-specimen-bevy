@@ -84,6 +84,6 @@ fn start_run(world: &mut World, mut cursor: Local<MessageCursor<StartRun>>) {
 }
 
 // NOTE: menus and cinematics light the facility after a run, so the end of a run restores mains.
-fn end_run(_: On<Remove, ActiveRun>, mut power: ResMut<FacilityPower>) {
+fn end_run(_: On<Remove<ActiveRun>>, mut power: ResMut<FacilityPower>) {
     *power = FacilityPower::default();
 }

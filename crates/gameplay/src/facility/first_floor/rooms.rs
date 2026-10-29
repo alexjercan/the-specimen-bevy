@@ -306,12 +306,15 @@ pub(super) fn spawn(commands: &mut Commands) {
         .with_related::<DoorOf>(DoorRef(maintenance_west))
         .with_related::<DoorOf>(DoorRef(maintenance_utility));
     let exit_room = commands
-        .spawn(room(
-            "exit",
-            Rect::new(-1.25, -31.25, 8.75, -21.25),
-            FLOOR_TILE,
-            WALL,
-            CEILING_TILE,
+        .spawn((
+            room(
+                "exit",
+                Rect::new(-1.25, -31.25, 8.75, -21.25),
+                FLOOR_TILE,
+                WALL,
+                CEILING_TILE,
+            ),
+            Transform::IDENTITY,
         ))
         .with_related::<DoorOf>(DoorRef(outside_exit))
         .with_related::<DoorOf>(DoorRef(exit_service))

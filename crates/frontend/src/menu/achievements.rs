@@ -1,4 +1,4 @@
-use bevy::{prelude::*, text::LineBreak};
+use bevy::{prelude::*, text::LineBreak, ui_widgets::Activate};
 use game_audio::PlaySound;
 
 use super::{ui_sound, MenuSounds};
@@ -24,6 +24,9 @@ pub(super) enum AchievementAction {
     Back,
 }
 
+#[derive(Message)]
+struct AchievementActivated(AchievementAction);
+
 #[derive(Component)]
 struct AchievementList;
 
@@ -36,7 +39,9 @@ struct Toast {
 }
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_observer(spawn_toast)
+    app.add_message::<AchievementActivated>()
+        .add_observer(spawn_toast)
+        .add_observer(queue_achievement_activation)
         .add_systems(
             OnEnter(GameState::Achievements),
             (spawn_achievements, release_cursor),
@@ -243,8 +248,18 @@ fn spawn_panel(
     });
 }
 
+fn queue_achievement_activation(
+    activated: On<Activate>,
+    actions: Query<&AchievementAction>,
+    mut events: MessageWriter<AchievementActivated>,
+) {
+    if let Ok(action) = actions.get(activated.entity) {
+        events.write(AchievementActivated(*action));
+    }
+}
+
 fn activate_pause_achievements(
-    buttons: Query<(&Interaction, &AchievementAction), Changed<Interaction>>,
+    mut buttons: MessageReader<AchievementActivated>,
     screens: Query<Entity, With<PauseAchievements>>,
     mut pause_menus: Query<&mut Node, With<PauseMenu>>,
     assets: Res<MenuAssets>,
@@ -253,10 +268,7 @@ fn activate_pause_achievements(
     mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
 ) {
-    for (interaction, action) in &buttons {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for AchievementActivated(action) in buttons.read() {
         match action {
             AchievementAction::Open if screens.is_empty() => {
                 spawn_panel(&mut commands, &assets, &progress, true);

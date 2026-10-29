@@ -149,7 +149,7 @@ impl Plugin for AchievementPlugin {
     }
 }
 
-fn attach_run(added: On<Add, PlayerController>, mut commands: Commands) {
+fn attach_run(added: On<Add<PlayerController>>, mut commands: Commands) {
     commands
         .entity(added.entity)
         .insert(RunAchievements::default());
@@ -196,7 +196,7 @@ fn record_run(
 }
 
 fn record_escape(
-    added: On<Add, Escaped>,
+    added: On<Add<Escaped>>,
     runs: Query<&RunAchievements, With<PlayerController>>,
     power: Res<FacilityPower>,
     preset: Res<GamePreset>,
@@ -224,7 +224,7 @@ fn record_escape(
 }
 
 fn record_caught(
-    added: On<Add, Caught>,
+    added: On<Add<Caught>>,
     runs: Query<&RunAchievements, With<PlayerController>>,
     mut progress: ResMut<AchievementProgress>,
     mut commands: Commands,

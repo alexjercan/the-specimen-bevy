@@ -87,7 +87,7 @@ impl Plugin for AmbiencePlugin {
     }
 }
 
-fn attach_prop_sounds(added: On<Add, Prop>, props: Query<&Prop>, mut commands: Commands) {
+fn attach_prop_sounds(added: On<Add<Prop>>, props: Query<&Prop>, mut commands: Commands) {
     let Ok(prop) = props.get(added.entity) else {
         return;
     };

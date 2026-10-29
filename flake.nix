@@ -158,7 +158,6 @@
               cargoWrapper # NOTE: must precede the toolchain cargo on PATH
               rustToolchain rust-analyzer pkg-config python3 cargo-about ffmpeg xvfb-run trunk
               sccache
-              # NOTE: tracy 0.13.1 pairs with the tracy-client-sys pin in Cargo.toml.
               tracy cargo-flamegraph
             ] ++ lib.optional (lib.meta.availableOn pkgs.stdenv.hostPlatform pkgs.blender) pkgs.blender
               ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.perf;

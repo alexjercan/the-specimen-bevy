@@ -123,15 +123,16 @@ fn binding(input: Input) -> Binding {
     }
 }
 
+#[allow(deprecated)]
 fn input_actions(keys: KeyBindings) -> impl Bundle {
     actions!(PlayerController[
         (
             Action::<Move>::new(),
             Bindings::spawn((Cardinal::new(
                 keys.forward,
-                keys.left,
-                keys.backward,
                 keys.right,
+                keys.backward,
+                keys.left,
             ),)),
         ),
         (Action::<Run>::new(), bindings![keys.sprint]),
@@ -150,7 +151,7 @@ fn input_actions(keys: KeyBindings) -> impl Bundle {
 }
 
 fn attach_input(
-    added: On<Add, PlayerController>,
+    added: On<Add<PlayerController>>,
     settings: Res<ControllerSettings>,
     mut commands: Commands,
 ) {

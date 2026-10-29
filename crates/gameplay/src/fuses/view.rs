@@ -51,7 +51,7 @@ impl Plugin for FuseViewPlugin {
 }
 
 fn mark_fuse_for_render(
-    added: On<Add, PickupKind>,
+    added: On<Add<PickupKind>>,
     pickups: Query<&PickupKind>,
     mut commands: Commands,
 ) {
@@ -78,7 +78,7 @@ fn panel_fuse_position(from: Vec3, slot: usize, elapsed: f32) -> Vec3 {
 }
 
 fn attach_panel_fuses(
-    added: On<Add, FuseInstallation>,
+    added: On<Add<FuseInstallation>>,
     panels: Query<(&FusePanel, &FuseInstallation, &Transform)>,
     players: Query<&Transform, With<PlayerController>>,
     assets: Res<FacilityAssets>,

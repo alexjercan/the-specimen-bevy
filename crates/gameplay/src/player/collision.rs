@@ -175,7 +175,7 @@ fn prop_footprint(module: Module) -> Option<PropCollider> {
 }
 
 pub(crate) fn attach_prop_collider(
-    added: On<Add, Prop>,
+    added: On<Add<Prop>>,
     props: Query<&Prop>,
     mut commands: Commands,
 ) {

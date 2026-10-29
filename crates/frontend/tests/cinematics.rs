@@ -1,4 +1,4 @@
-use bevy::{prelude::*, window::CursorGrabMode};
+use bevy::{prelude::*, ui_widgets::Button, window::CursorGrabMode};
 use game_flow::GameState;
 use gameplay::{
     facility::{Door, DoorState, Escaped, ExitDoor, LevelRoot, Room},
@@ -23,7 +23,7 @@ struct NonLevelRoot;
 
 fn tag_cinematic_rooms(app: &mut App) {
     app.add_observer(
-        |added: On<Add, Room>,
+        |added: On<Add<Room>>,
          parents: Query<&ChildOf>,
          roots: Query<&Name>,
          mut commands: Commands| {
@@ -137,7 +137,7 @@ fn assert_menu_credits(app: &mut App) {
 fn escape_transitions_to_completion_and_returns_to_menu() {
     let mut app = menu_app();
     tag_cinematic_rooms(&mut app);
-    app.add_observer(|_: On<Add, Room>, mut commands: Commands| {
+    app.add_observer(|_: On<Add<Room>>, mut commands: Commands| {
         commands.spawn(NonLevelRoot);
     });
     ready(&mut app);

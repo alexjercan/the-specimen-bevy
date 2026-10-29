@@ -278,7 +278,7 @@ impl Plugin for GamePlugin {
 }
 
 // NOTE: only the run anchor leaves with Playing, so the world stays for snapshots and the power resets.
-fn scope_run(added: On<Add, ActiveRun>, mut commands: Commands) {
+fn scope_run(added: On<Add<ActiveRun>>, mut commands: Commands) {
     commands
         .entity(added.entity)
         .insert(DespawnOnExit(GameState::Playing));

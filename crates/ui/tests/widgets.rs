@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{picking::hover::Hovered, prelude::*, ui_widgets::Button};
 use game_ui::{button, button_paint, label, menu_button, GameUiPlugin};
 
 #[test]
@@ -21,17 +21,15 @@ fn menu_buttons_repaint_on_interaction() {
         .spawn(menu_button("PLAY", Handle::default()))
         .id();
     app.update();
-    let (idle, _) = button_paint(Interaction::None);
+    let (idle, _) = button_paint(false, false);
     assert_eq!(
         app.world().get::<BackgroundColor>(action).unwrap().0,
         idle.0
     );
     assert_eq!(app.world().get::<Children>(action).unwrap().len(), 1);
-    app.world_mut()
-        .entity_mut(action)
-        .insert(Interaction::Hovered);
+    app.world_mut().entity_mut(action).insert(Hovered(true));
     app.update();
-    let (hovered, border) = button_paint(Interaction::Hovered);
+    let (hovered, border) = button_paint(true, false);
     assert_eq!(
         app.world().get::<BackgroundColor>(action).unwrap().0,
         hovered.0

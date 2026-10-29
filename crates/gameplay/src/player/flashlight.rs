@@ -49,7 +49,7 @@ impl Flashlight {
 #[action_output(bool)]
 pub(super) struct ToggleFlashlight;
 
-pub(super) fn attach(added: On<Add, PlayerController>, mut commands: Commands) {
+pub(super) fn attach(added: On<Add<PlayerController>>, mut commands: Commands) {
     commands.entity(added.entity).insert(Flashlight::default());
 }
 

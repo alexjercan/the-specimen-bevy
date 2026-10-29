@@ -4,10 +4,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+use bevy::window::MonitorSelection;
 use bevy::{
     prelude::*,
     ui::UiScale,
-    window::{MonitorSelection, PresentMode, PrimaryWindow, WindowMode},
+    window::{PresentMode, PrimaryWindow, WindowMode},
 };
 use game_audio::Volumes;
 #[cfg(not(target_arch = "wasm32"))]
@@ -86,7 +88,7 @@ impl Plugin for CameraQualityPlugin {
 }
 
 fn quality_for_new_cameras(
-    added: On<Add, Camera>,
+    added: On<Add<Camera>>,
     settings: Res<GameSettings>,
     mut commands: Commands,
 ) {

@@ -1,8 +1,10 @@
 use bevy::{
+    picking::hover::Hovered,
     prelude::*,
     ui::{FocusPolicy, UiSystems},
     ui_widgets::{
-        ControlOrientation, Scrollbar, ScrollbarThumb, SliderDragState, SliderValue, ValueChange,
+        Activate, Button, ControlOrientation, Scrollbar, ScrollbarThumb, SliderDragState,
+        SliderValue, ValueChange,
     },
     window::PrimaryWindow,
 };
@@ -92,6 +94,9 @@ pub(super) enum SettingsAction {
     Flashlight,
     Flashbang,
 }
+
+#[derive(Message)]
+struct SettingsActivated(SettingsAction);
 
 impl SettingsAction {
     fn name(self) -> &'static str {
@@ -291,7 +296,9 @@ pub(super) fn plugin(app: &mut App) {
     app.init_resource::<AwaitingKey>()
         .init_resource::<PendingSave>()
         .init_resource::<ActiveTab>()
+        .add_message::<SettingsActivated>()
         .add_observer(change_slider)
+        .add_observer(queue_settings_activation)
         .add_systems(
             Update,
             (
@@ -352,6 +359,7 @@ fn chip_content(chip: &mut ChildSpawnerCommands, shown: &str, assets: &MenuAsset
 fn control_button(action: SettingsAction) -> impl Bundle {
     (
         Button,
+        Hovered::default(),
         MenuButton,
         action,
         Node {
@@ -364,7 +372,7 @@ fn control_button(action: SettingsAction) -> impl Bundle {
             justify_content: JustifyContent::Center,
             ..default()
         },
-        game_ui::button_paint(Interaction::None),
+        game_ui::button_paint(false, false),
     )
 }
 
@@ -525,6 +533,7 @@ fn group(kind: SettingsGroup, font: Handle<Font>) -> impl Bundle {
 fn tab_button(tab: SettingsTab, selected: bool, font: Handle<Font>) -> impl Bundle {
     (
         Button,
+        Hovered::default(),
         MenuButton,
         SettingsAction::Tab(tab),
         Name::new(format!("{} tab", tab.title())),
@@ -537,7 +546,7 @@ fn tab_button(tab: SettingsTab, selected: bool, font: Handle<Font>) -> impl Bund
             justify_content: JustifyContent::Center,
             ..default()
         },
-        game_ui::button_paint(Interaction::None),
+        game_ui::button_paint(false, false),
         children![
             (
                 TabTitle(tab),
@@ -794,8 +803,18 @@ fn sync_sliders(
     }
 }
 
+fn queue_settings_activation(
+    activated: On<Activate>,
+    actions: Query<&SettingsAction>,
+    mut events: MessageWriter<SettingsActivated>,
+) {
+    if let Ok(action) = actions.get(activated.entity) {
+        events.write(SettingsActivated(*action));
+    }
+}
+
 fn activate(
-    buttons: Query<(&Interaction, &SettingsAction), Changed<Interaction>>,
+    mut buttons: MessageReader<SettingsActivated>,
     overlay: Query<Entity, With<SettingsOverlay>>,
     mut menu: Query<&mut Node, (With<MainMenu>, Without<super::pause::PauseMenu>)>,
     mut pause_menu: Query<&mut Node, (With<super::pause::PauseMenu>, Without<MainMenu>)>,
@@ -815,10 +834,7 @@ fn activate(
     mut sounds: MessageWriter<PlaySound>,
     mut commands: Commands,
 ) {
-    for (interaction, action) in &buttons {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for SettingsActivated(action) in buttons.read() {
         match action {
             SettingsAction::Open if overlay.is_empty() => {
                 spawn_overlay(&mut commands, &assets, &settings, *state.get(), active.0);

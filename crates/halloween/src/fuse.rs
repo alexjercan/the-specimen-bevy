@@ -41,7 +41,7 @@ fn prepare_candy_fuse(
 }
 
 fn wrap_fuse(
-    inserted: On<Insert, WorldAssetRoot>,
+    inserted: On<Insert<WorldAssetRoot>>,
     candy: Res<CandyFuse>,
     mut roots: Query<&mut WorldAssetRoot>,
 ) {

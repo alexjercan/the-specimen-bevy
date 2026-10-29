@@ -522,7 +522,7 @@ fn spawn_arrow(
         });
 }
 
-fn scope_run(added: On<Add, RunRoot>, mut commands: Commands) {
+fn scope_run(added: On<Add<RunRoot>>, mut commands: Commands) {
     commands
         .entity(added.entity)
         .insert(DespawnOnExit(GameState::Playing));

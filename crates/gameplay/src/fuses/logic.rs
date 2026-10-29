@@ -86,7 +86,7 @@ impl Plugin for FusePlugin {
     }
 }
 
-fn attach_inventory(added: On<Add, PlayerController>, mut commands: Commands) {
+fn attach_inventory(added: On<Add<PlayerController>>, mut commands: Commands) {
     commands
         .entity(added.entity)
         .insert_if_new(FuseInventory::default());

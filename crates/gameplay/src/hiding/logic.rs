@@ -103,7 +103,7 @@ impl Plugin for HidingPlugin {
     }
 }
 
-fn attach_prop_hiding(added: On<Add, Prop>, props: Query<&Prop>, mut commands: Commands) {
+fn attach_prop_hiding(added: On<Add<Prop>>, props: Query<&Prop>, mut commands: Commands) {
     let spot = match props.get(added.entity).map(|prop| prop.0) {
         Ok(Module::ConceptLocker) => HidingSpot::Locker,
         Ok(Module::ConceptTable) => HidingSpot::Table,

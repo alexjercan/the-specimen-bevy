@@ -187,7 +187,7 @@ pub(crate) fn box_hit(origin: Vec3, direction: Vec3, min: Vec3, max: Vec3) -> Op
     (exit > 0.0).then_some(entry)
 }
 
-fn attach_door_transform(added: On<Add, Door>, doors: Query<&Door>, mut commands: Commands) {
+fn attach_door_transform(added: On<Add<Door>>, doors: Query<&Door>, mut commands: Commands) {
     let Ok(door) = doors.get(added.entity) else {
         return;
     };

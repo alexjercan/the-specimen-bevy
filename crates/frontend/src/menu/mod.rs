@@ -12,8 +12,10 @@ mod settings;
 
 use bevy::{
     input::mouse::{MouseScrollUnit, MouseWheel},
+    picking::hover::Hovered,
     platform::collections::HashMap,
     prelude::*,
+    ui_widgets::Activate,
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
 use game_audio::{Bus, PlaySound};
@@ -35,6 +37,9 @@ enum MenuAction {
     #[cfg(not(target_arch = "wasm32"))]
     Quit,
 }
+
+#[derive(Message)]
+struct MenuActivated(MenuAction);
 
 const UI_GAIN: f32 = 0.6;
 
@@ -79,24 +84,36 @@ pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            loading::plugin,
-            main_menu::plugin,
-            pause::plugin,
-            cinematic::plugin,
-            complete::plugin,
-            credits::plugin,
-            game_over::plugin,
-            settings::plugin,
-            achievements::plugin,
-            music::plugin,
-        ))
-        .add_systems(Update, (activate_buttons, hover_buttons));
+        app.add_message::<MenuActivated>()
+            .add_observer(queue_menu_activation)
+            .add_plugins((
+                loading::plugin,
+                main_menu::plugin,
+                pause::plugin,
+                cinematic::plugin,
+                complete::plugin,
+                credits::plugin,
+                game_over::plugin,
+                settings::plugin,
+                achievements::plugin,
+                music::plugin,
+            ))
+            .add_systems(Update, (activate_buttons, hover_buttons));
+    }
+}
+
+fn queue_menu_activation(
+    activated: On<Activate>,
+    actions: Query<&MenuAction>,
+    mut events: MessageWriter<MenuActivated>,
+) {
+    if let Ok(action) = actions.get(activated.entity) {
+        events.write(MenuActivated(*action));
     }
 }
 
 fn activate_buttons(
-    buttons: Query<(&Interaction, &MenuAction), Changed<Interaction>>,
+    mut buttons: MessageReader<MenuActivated>,
     overlay: Query<(), With<settings::SettingsOverlay>>,
     achievements: Query<(), With<achievements::PauseAchievements>>,
     mut game: ResMut<NextState<GameState>>,
@@ -113,12 +130,10 @@ fn activate_buttons(
     mut sounds: MessageWriter<PlaySound>,
 ) {
     if !overlay.is_empty() || !achievements.is_empty() {
+        buttons.clear();
         return;
     }
-    for (interaction, action) in &buttons {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for MenuActivated(action) in buttons.read() {
         let sound = match action {
             MenuAction::Play => {
                 runs.write(gameplay::facility::StartRun {
@@ -180,12 +195,12 @@ fn activate_buttons(
 }
 
 fn hover_buttons(
-    buttons: Query<&Interaction, (With<game_ui::MenuButton>, Changed<Interaction>)>,
+    buttons: Query<&Hovered, (With<game_ui::MenuButton>, Changed<Hovered>)>,
     menu_sounds: Res<MenuSounds>,
     mut sounds: MessageWriter<PlaySound>,
 ) {
-    for interaction in &buttons {
-        if *interaction == Interaction::Hovered {
+    for hovered in &buttons {
+        if hovered.get() {
             sounds.write(ui_sound(&menu_sounds.hover));
         }
     }

@@ -64,16 +64,17 @@ crate has two cargo features that forward to Bevy: `tracy` enables
 
 ### Tracy
 
-Bevy 0.19 depends on `tracy-client` 0.18. The pinned nixpkgs ships Tracy
-0.13.1, and the Tracy protocol only works between a client and a profiler
-of the same version. `Cargo.toml` pins `tracy-client` to 0.18.4 and
-`tracy-client-sys` to 0.28.0, the release that bundles Tracy 0.13.1.
-`tracy-client` 0.18.5 moves to `tracy-client-sys` 0.29 (Tracy 0.14) and
-does not build against the 0.28 bindings. Bump the three together:
-`tracy-client-sys`, `tracy-client` and the `tracy` package in `flake.nix`.
+Bevy 0.20 enables `tracing-tracy` 0.12, which uses `tracy-client` 0.19 and
+bundles Tracy 0.14.1. The pinned nixpkgs still ships the Tracy 0.13.1
+profiler; its protocol does not match the game client. Use a Tracy 0.14.1
+profiler outside the dev shell until nixpkgs provides a matching version, or
+use `--features trace-chrome` to record spans without Tracy. Do not pin an
+older Tracy client alongside Bevy: that links two client versions and does
+not make Bevy's spans compatible with the old profiler.
 
-Run `tracy` in one shell and `cargo run --features tracy` in another. The
-profiler connects to the game on localhost and shows every system span live.
+Start a Tracy 0.14.1 profiler and run `cargo run --features tracy` in another
+shell. The profiler connects to the game on localhost and shows system spans
+live.
 
 ### Flamegraph
 

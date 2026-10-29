@@ -5,8 +5,8 @@ use bevy::input::common_conditions::input_just_pressed;
 use bevy::pbr::wireframe::{WireframeConfig, WireframePlugin};
 use bevy::prelude::*;
 use bevy_egui::{
-    egui, EguiContext, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin,
-    EguiPrimaryContextPass, PrimaryEguiContext,
+    egui, EguiContext, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass, EguiSchedule,
+    PrimaryEguiContext,
 };
 use bevy_inspector_egui::{bevy_inspector, DefaultInspectorConfigPlugin};
 mod monster_tracking;
@@ -94,7 +94,7 @@ fn keep_inspector_on_window_camera(
         if has_context && Some(entity) != primary {
             commands
                 .entity(entity)
-                .remove::<(PrimaryEguiContext, EguiContext, EguiMultipassSchedule)>();
+                .remove::<(PrimaryEguiContext, EguiContext, EguiSchedule)>();
         }
     }
     if let Some(primary) = primary {

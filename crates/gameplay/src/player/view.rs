@@ -41,7 +41,7 @@ impl Plugin for PlayerViewPlugin {
     }
 }
 
-fn attach_audio(added: On<Add, PlayerController>, mut commands: Commands) {
+fn attach_audio(added: On<Add<PlayerController>>, mut commands: Commands) {
     commands
         .entity(added.entity)
         .insert(game_audio::spatial_listener(0.18))
@@ -71,7 +71,7 @@ fn attach_audio(added: On<Add, PlayerController>, mut commands: Commands) {
 }
 
 fn attach_camera(
-    added: On<Add, PlayerController>,
+    added: On<Add<PlayerController>>,
     settings: Res<GameSettings>,
     mut commands: Commands,
 ) {
@@ -101,7 +101,7 @@ fn sync_player_fov(
     }
 }
 
-fn attach_beam(added: On<Add, PlayerController>, mut commands: Commands) {
+fn attach_beam(added: On<Add<PlayerController>>, mut commands: Commands) {
     commands.entity(added.entity).with_children(|children| {
         children.spawn((
             FlashlightBeam,

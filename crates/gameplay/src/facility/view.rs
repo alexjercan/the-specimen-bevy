@@ -94,15 +94,15 @@ impl Plugin for FacilityViewPlugin {
     }
 }
 
-fn mark_room_for_render(added: On<Add, Room>, mut commands: Commands) {
+fn mark_room_for_render(added: On<Add<Room>>, mut commands: Commands) {
     commands.entity(added.entity).insert(PendingRoomRender);
 }
 
-fn mark_door_for_render(added: On<Add, Door>, mut commands: Commands) {
+fn mark_door_for_render(added: On<Add<Door>>, mut commands: Commands) {
     commands.entity(added.entity).insert(PendingDoorRender);
 }
 
-fn mark_prop_for_render(added: On<Add, Prop>, mut commands: Commands) {
+fn mark_prop_for_render(added: On<Add<Prop>>, mut commands: Commands) {
     commands.entity(added.entity).insert(PendingPropRender);
 }
 

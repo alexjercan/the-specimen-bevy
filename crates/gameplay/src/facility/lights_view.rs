@@ -31,7 +31,7 @@ impl Plugin for PropLightsPlugin {
 }
 
 fn attach_prop_light(
-    added: On<Add, Prop>,
+    added: On<Add<Prop>>,
     props: Query<(&Prop, Option<&LightConfig>)>,
     mut commands: Commands,
 ) {

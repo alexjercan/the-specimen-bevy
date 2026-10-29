@@ -170,7 +170,7 @@ pub struct Boiler;
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MainsPowered;
 
-fn tag_boiler(added: On<Add, Prop>, props: Query<&Prop>, mut commands: Commands) {
+fn tag_boiler(added: On<Add<Prop>>, props: Query<&Prop>, mut commands: Commands) {
     if props
         .get(added.entity)
         .is_ok_and(|prop| prop.0 == Module::BoilerUnit)
@@ -180,7 +180,7 @@ fn tag_boiler(added: On<Add, Prop>, props: Query<&Prop>, mut commands: Commands)
 }
 
 fn tag_mains_powered(
-    added: On<Add, Prop>,
+    added: On<Add<Prop>>,
     props: Query<(&Prop, Option<&ChildOf>)>,
     menu_roots: Query<(), With<MenuBackground>>,
     mut commands: Commands,

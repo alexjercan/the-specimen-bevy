@@ -19,6 +19,7 @@ use bevy::{
     prelude::*,
     state::app::StatesPlugin,
     time::TimeUpdateStrategy,
+    ui_widgets::{Activate, Button},
     window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
 use bevy_enhanced_input::EnhancedInputPlugin;
@@ -253,9 +254,7 @@ pub fn button_names(app: &mut App) -> Vec<String> {
 }
 
 pub fn click(app: &mut App, entity: Entity) {
-    app.world_mut()
-        .entity_mut(entity)
-        .insert(Interaction::Pressed);
+    app.world_mut().trigger(Activate { entity });
     app.update();
     app.update();
 }

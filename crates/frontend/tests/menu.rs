@@ -1,7 +1,9 @@
 use bevy::{
     audio::{PlaybackMode, PlaybackSettings},
     ecs::resource::IsResource,
+    picking::hover::Hovered,
     prelude::*,
+    ui_widgets::Button,
     window::CursorGrabMode,
 };
 use game_audio::Bus;
@@ -245,9 +247,7 @@ fn all_main_menu_buttons_play_hover_once() {
         .collect();
     assert_eq!(buttons.len(), 5);
     for button in buttons {
-        app.world_mut()
-            .entity_mut(button)
-            .insert(Interaction::Hovered);
+        app.world_mut().entity_mut(button).insert(Hovered(true));
         app.update();
         assert_eq!(played_sounds(&mut app), vec![menu_sounds().hover]);
         app.update();
